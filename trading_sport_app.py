@@ -73,7 +73,7 @@ if estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Inversión Proyectada
     col_r1, col_r2, col_r3 = st.columns([1,1,1])
     col_r1.write("📉 **0%** (Librar Inversión)")
     col_r2.write("⚖️ **50%** (Utilidad Parcial)")
-    col_r3.write("📈 **100%** (Utilidad Total)", anchor="right")
+    col_r3.write("📈 **100%** (Utilidad Total)")
 
     # --- 3. INGENIERÍA INVERSA Y CÁLCULOS ---
     retorno_objetivo_1 = capital_total * (1 + (utilidad_esperada / 100.0))
