@@ -9,15 +9,16 @@ st.set_page_config(
 )
 
 # Estilo personalizado con CSS
+# CORRECCIÓN: El parámetro correcto es unsafe_allow_html=True
 st.markdown("""
     <style>
     .main-title { font-size: 2.5rem; color: #1E3A8A; font-weight: bold; margin-bottom: 0.5rem; }
     .subtitle { font-size: 1.1rem; color: #4B5563; margin-bottom: 2rem; }
     </style>
-""", unsafe_allowed_html=True)
+""", unsafe_allow_html=True)
 
-st.markdown('<div class="main-title">⚽ Asistente de Trading Deportivo</div>', unsafe_allowed_html=True)
-st.markdown('<div class="subtitle">Estrategia de Cobertura Asimétrica y Dutching para Minimizar Riesgos</div>', unsafe_allowed_html=True)
+st.markdown('<div class="main-title">⚽ Asistente de Trading Deportivo</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Estrategia de Cobertura Asimétrica y Dutching para Minimizar Riesgos</div>', unsafe_allow_html=True)
 
 # Barra lateral - Gestión de Banca
 st.sidebar.header("💰 Gestión de Banca")
