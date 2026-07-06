@@ -272,3 +272,101 @@ elif estrategia_activa == "1️⃣ Estrategia 1: A favor de la lógica (Back to 
 # =====================================================================
 elif estrategia_activa == "➕ Nuevos Módulos (Próximamente)":
     st.warning("Ecosistema modular listo. Aquí podemos desplegar las próximas integraciones matemáticas que diseñes para la plataforma.")
+
+# =====================================================================
+# MÓDULO 3: LIVE TRACKER CONECTADO A THE ODDS API
+# =====================================================================
+elif estrategia_activa == "📡 Módulo 3: Live Tracker (Cuotas Reales)":
+    st.markdown("### 📡 Rastreador de Cuotas (The Odds API)")
+    st.write("Conecta tu app a los mercados mundiales. Obtén una clave gratis en [the-odds-api.com](https://the-odds-api.com/) y pégala aquí.")
+    
+    # 1. Cajón para la contraseña de la API
+    api_key = st.text_input("🔑 Tu API Key:", type="password", help="Pega aquí tu clave de 32 caracteres.")
+    
+    # 2. Diccionario con las ligas soportadas
+    ligas_opciones = {
+        "Fútbol Colombiano (Primera A)": "soccer_colombia_primera_a",
+        "Próximos Partidos (General)": "upcoming",
+        "Champions League": "soccer_uefa_champs_league",
+        "Premier League": "soccer_epl",
+        "La Liga (España)": "soccer_spain_la_liga",
+        "Copa Libertadores": "soccer_conmebol_copa_libertadores"
+    }
+    
+    liga_seleccionada = st.selectbox("⚽ Selecciona la Liga a rastrear:", list(ligas_opciones.keys()))
+    
+    # 3. El botón que activa la descarga
+    if st.button("🔄 Actualizar Cuotas Ahora"):
+        if not api_key:
+            st.error("Por favor, ingresa tu API Key primero.")
+        else:
+            sport_key = ligas_opciones[liga_seleccionada]
+            
+            # La URL exacta que The Odds API necesita para devolvernos los datos en formato decimal
+            url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={api_key}&regions=eu,us&markets=h2h&oddsFormat=decimal"
+            
+            with st.spinner("Descargando datos del mercado..."):
+                try:
+                    respuesta = requests.get(url)
+                    
+                    if respuesta.status_code == 200:
+                        datos = respuesta.json()
+                        
+                        if len(datos) == 0:
+                            st.warning("No hay partidos disponibles para esta liga en este momento.")
+                        else:
+                            st.success(f"¡{len(datos)} partidos encontrados!")
+                            
+                            # 4. Procesar cada partido que nos envía la API
+                            for partido in datos:
+                                home = partido.get("home_team", "Local")
+                                away = partido.get("away_team", "Visitante")
+                                
+                                bookmakers = partido.get("bookmakers", [])
+                                if bookmakers:
+                                    mercados = bookmakers[0].get("markets", [])
+                                    cuotas_h2h = []
+                                    for mercado in mercados:
+                                        if mercado["key"] == "h2h":
+                                            cuotas_h2h = mercado["outcomes"]
+                                            break
+                                    
+                                    # 5. Imprimir las tarjetas de los partidos en pantalla
+                                    if cuotas_h2h:
+                                        st.markdown(f"""
+                                        <div style="background-color: #FFFFFF; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                                            <h3 style="margin:0; color:#1E3A8A;">⚽ {home} vs {away}</h3>
+                                            <p style="margin-top:0; color:#64748B;">Fuente: {bookmakers[0]['title']}</p>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                        
+                                        col_btn1, col_btn2, col_btn3 = st.columns(3)
+                                        for outcome in cuotas_h2h:
+                                            nombre_equipo = outcome['name']
+                                            precio = outcome['price']
+                                            
+                                            # 6. Guardar en memoria (session_state) si el usuario hace clic
+                                            if nombre_equipo == home:
+                                                with col_btn1:
+                                                    if st.button(f"🏠 Local ({precio})", key=f"{partido['id']}_home"):
+                                                        st.session_state.cuota_importada = float(precio)
+                                                        st.success(f"¡Cuota guardada! Ve a la Estrategia 2 para usarla.")
+                                            elif nombre_equipo == away:
+                                                with col_btn3:
+                                                    if st.button(f"✈️ Visitante ({precio})", key=f"{partido['id']}_away"):
+                                                        st.session_state.cuota_importada = float(precio)
+                                                        st.success(f"¡Cuota guardada! Ve a la Estrategia 2 para usarla.")
+                                            else:
+                                                with col_btn2:
+                                                    if st.button(f"🤝 Empate ({precio})", key=f"{partido['id']}_draw"):
+                                                        st.session_state.cuota_importada = float(precio)
+                                                        st.success(f"¡Cuota guardada! Ve a la Estrategia 2 para usarla.")
+                                else:
+                                    st.info(f"{home} vs {away} - Sin cuotas reportadas aún.")
+                                    
+                    elif respuesta.status_code == 401:
+                        st.error("❌ API Key inválida. Revisa que la hayas copiado bien (sin espacios al final).")
+                    else:
+                        st.error(f"Error en el servidor de The Odds API (Código {respuesta.status_code}).")
+                except Exception as e:
+                    st.error(f"Error de conexión a internet: {str(e)}")
