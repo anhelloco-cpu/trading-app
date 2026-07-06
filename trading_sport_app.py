@@ -1,100 +1,98 @@
 import streamlit as st
 
-# Configuración de la página
-st.set_page_config(page_title="Asistente de Trading Cuantitativo", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Calculadora Trading COP", page_icon="📈", layout="wide")
 
 st.markdown("""
     <style>
-    .main-title { font-size: 2.2rem; color: #0F172A; font-weight: bold; margin-bottom: 0.2rem; }
-    .subtitle { font-size: 1.1rem; color: #475569; margin-bottom: 2rem; }
-    .highlight { background-color: #E2E8F0; padding: 15px; border-radius: 8px; border-left: 5px solid #3B82F6; }
+    .instruccion-final { background-color: #D1FAE5; padding: 20px; border-radius: 10px; border-left: 8px solid #10B981; font-size: 1.2rem; }
+    .alerta-roja { background-color: #FEE2E2; padding: 20px; border-radius: 10px; border-left: 8px solid #EF4444; font-size: 1.2rem; }
+    .metric-caja { background-color: #F8FAFC; padding: 15px; border-radius: 8px; border: 1px solid #E2E8F0; }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="main-title">📈 Asistente de Trading Cuantitativo</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Cálculo de Cuota Objetivo, Análisis Estadístico y Valor Esperado (EV)</div>', unsafe_allow_html=True)
+st.title("📈 Calculadora de Cobertura a Favor (COP)")
+st.write("Estrategia: Entrar a favor de la probabilidad (Favorito) y cubrir utilidades tras el primer gol.")
 
-# Tabs para dividir la herramienta
-tab1, tab2 = st.tabs(["🎯 Cazador de Cuota Objetivo", "📊 Análisis Estadístico (EV)"])
+# --- SECCIÓN 1: EL INGRESO BASE ---
+st.subheader("1️⃣ Tu Apuesta Base (Pre-partido)")
+st.write("Apuesta a la **Victoria Simple del Favorito** antes de que inicie el partido.")
+col1, col2 = st.columns(2)
+with col1:
+    stake_1 = st.number_input("Capital Invertido (Mín. $5,000 COP) [S1]", min_value=5000, value=10000, step=1000)
+with col2:
+    cuota_1 = st.number_input("Cuota del Favorito [O1]", min_value=1.01, value=1.60, step=0.05)
 
-with tab1:
-    st.markdown("### 1. Planificación de la Cobertura Pre-Partido")
-    st.write("Ingresa los datos de tu apuesta inicial para conciliar los escenarios y determinar qué cuota necesitas cazar en vivo.")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        stake_1 = st.number_input("Monto Apuesta Inicial ($) [S1]", min_value=1.0, value=50.0, step=5.0)
-    with col2:
-        cuota_1 = st.number_input("Cuota Inicial (No Favorito) [O1]", min_value=1.01, value=1.90, step=0.05)
-    with col3:
-        # Qué porcentaje del beneficio potencial estás dispuesto a usar para cubrirte
-        riesgo_cobertura = st.slider("Sacrificio de Beneficio para Cobertura (%)", 50, 100, 100, 
-                                     help="100% significa que usarás toda tu ganancia potencial para cubrir el riesgo a cero.")
+# --- SECCIÓN 2: LA COBERTURA EN VIVO ---
+st.markdown("---")
+st.subheader("2️⃣ Ejecución de Cobertura (En Vivo tras el gol)")
+st.write("El favorito hizo gol. Ahora busca la opción **Doble Oportunidad (Empate o Visitante)** e ingresa su nueva cuota.")
 
-    # Matemáticas del Cazador de Cuotas
-    beneficio_bruto = stake_1 * cuota_1
-    ganancia_neta_potencial = beneficio_bruto - stake_1
-    
-    # Presupuesto máximo para la segunda apuesta (S2)
-    presupuesto_cobertura = ganancia_neta_potencial * (riesgo_cobertura / 100.0)
-    
-    # Cálculo de la cuota mínima necesaria para no tener pérdidas
-    if presupuesto_cobertura > 0:
-        cuota_objetivo = (stake_1 + presupuesto_cobertura) / presupuesto_cobertura
-    else:
-        cuota_objetivo = 0.0
+cuota_2 = st.number_input("Cuota Actual (Empate o Visitante) [O2]", min_value=1.01, value=3.50, step=0.10)
 
-    st.markdown("---")
-    st.markdown("### 2. Tu Plan de Ejecución en Vivo")
+estrategia = st.radio(
+    "Selecciona tu modelo de cuadre:",
+    [
+        "Ganancia Igualada: Misma utilidad neta sin importar el resultado.",
+        "Riesgo Cero (Free Bet): Recuperas la inversión si hay sorpresa, maximizas ganancia si gana el favorito."
+    ]
+)
+
+# --- MATEMÁTICA Y CONCILIACIÓN ---
+if "Ganancia Igualada" in estrategia:
+    stake_2 = (stake_1 * cuota_1) / cuota_2
+    inversion_total = stake_1 + stake_2
+    retorno_1 = stake_1 * cuota_1
+    retorno_2 = stake_2 * cuota_2
+else:
+    stake_2 = stake_1 / (cuota_2 - 1) if cuota_2 > 1.0 else 0
+    inversion_total = stake_1 + stake_2
+    retorno_1 = stake_1 * cuota_1
+    retorno_2 = stake_2 * cuota_2
+
+beneficio_1 = retorno_1 - inversion_total
+beneficio_2 = retorno_2 - inversion_total
+
+# --- DICTAMEN FINAL ---
+st.markdown("---")
+st.subheader("📋 DICTAMEN DE OPERACIÓN")
+
+# Validación de restricciones operativas
+if beneficio_1 < 0 and beneficio_2 <= 0:
+    st.markdown(f"""
+    <div class="alerta-roja">
+        <b>🚨 DÉFICIT MATEMÁTICO:</b> Las cuotas no dan margen. Si cubres ahora, la inversión total (${inversion_total:,.0f} COP) superará los retornos.
+    </div>
+    """, unsafe_allow_html=True)
+elif stake_2 > 0 and stake_2 < 5000:
+    st.markdown(f"""
+    <div class="alerta-roja">
+        <b>⚠️ ALERTA DE LÍMITE MÍNIMO:</b> El cálculo exige apostar ${stake_2:,.0f} COP, pero la casa exige $5,000 COP mínimo.<br>
+        <i>Solución: Necesitas aumentar tu apuesta base (S1) para que el porcentaje de cobertura supere los $5,000 COP.</i>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown(f"""
+    <div class="instruccion-final">
+        <b>👉 MONTO EXACTO A CUBRIR:</b> ${stake_2:,.0f} COP a la cuota de {cuota_2}.<br>
+        <b>💰 CAPITAL TOTAL COMPROMETIDO:</b> ${inversion_total:,.0f} COP.
+    </div>
+    """, unsafe_allow_html=True)
     
+    st.write("### Balance Final Proyectado")
     col_res1, col_res2 = st.columns(2)
     with col_res1:
         st.markdown(f"""
-        <div class="highlight">
-            <h4>💰 Presupuesto de Cobertura Exacto</h4>
-            <p>Si tu primera apuesta acierta, tu ganancia neta sería de <b>${ganancia_neta_potencial:.2f}</b>.</p>
-            <p>El monto máximo que puedes apostar al Favorito en vivo (S2) sin generar pérdidas globales es: <br>
-            <span style="font-size: 24px; font-weight: bold; color: #DC2626;">${presupuesto_cobertura:.2f}</span></p>
+        <div class="metric-caja">
+            <h4>Si el Favorito Gana</h4>
+            <p>Ingresos Brutos: ${retorno_1:,.0f} COP</p>
+            <p style="color: #059669; font-weight: bold; font-size: 1.1rem;">Utilidad Neta: ${beneficio_1:,.0f} COP</p>
         </div>
         """, unsafe_allow_html=True)
-        
     with col_res2:
         st.markdown(f"""
-        <div class="highlight">
-            <h4>🎯 Cuota Mínima a Cazar (Target Odds)</h4>
-            <p>Para recuperar toda tu inversión (${stake_1:.2f} + ${presupuesto_cobertura:.2f}), la cuota del Favorito en vivo DEBE subir hasta llegar como mínimo a:</p>
-            <span style="font-size: 32px; font-weight: bold; color: #059669;">{cuota_objetivo:.2f}</span>
-            <p><small><i>Si la cuota no llega a este valor, NO debes ejecutar la cobertura porque matemáticamente perderás dinero.</i></small></p>
+        <div class="metric-caja">
+            <h4>Si el Visitante Empata o Remonta</h4>
+            <p>Ingresos Brutos: ${retorno_2:,.0f} COP</p>
+            <p style="color: {'#059669' if beneficio_2 > 0 else '#475569'}; font-weight: bold; font-size: 1.1rem;">Utilidad Neta: ${beneficio_2:,.0f} COP</p>
         </div>
         """, unsafe_allow_html=True)
-
-
-with tab2:
-    st.markdown("### Análisis Probabilístico y Valor Esperado (EV)")
-    st.write("Audita las cuotas de la casa de apuestas frente a tu propia estimación estadística para saber si hay valor real en el mercado.")
-    
-    col_stat1, col_stat2 = st.columns(2)
-    
-    with col_stat1:
-        st.markdown("#### Datos de la Casa de Apuestas")
-        cuota_evaluar = st.number_input("Cuota a evaluar", min_value=1.01, value=2.00, step=0.05)
-        prob_implicita = (1 / cuota_evaluar) * 100
-        st.info(f"📊 **Probabilidad Implícita:** La casa de apuestas estima que este evento tiene un **{prob_implicita:.2f}%** de probabilidad de ocurrir.")
-        
-    with col_stat2:
-        st.markdown("#### Tu Análisis (Realidad)")
-        prob_real = st.number_input("Probabilidad Real Estimada (%)", min_value=1.0, max_value=99.9, value=55.0, step=1.0)
-        
-        # Fórmula de Valor Esperado (EV) = (Probabilidad de Ganar * Ganancia Neta) - (Probabilidad de Perder * Stake)
-        # Asumimos stake de 1 unidad para simplificar
-        prob_ganar_dec = prob_real / 100.0
-        prob_perder_dec = 1.0 - prob_ganar_dec
-        ganancia_neta_unidad = cuota_evaluar - 1.0
-        
-        ev = (prob_ganar_dec * ganancia_neta_unidad) - prob_perder_dec
-        ev_porcentaje = ev * 100
-        
-        if ev > 0:
-            st.success(f"📈 **Valor Esperado (EV+): {ev_porcentaje:.2f}%** \n\nA largo plazo, por cada $100 apostados ganarás ${ev_porcentaje:.2f}. Esta es una operación matemáticamente rentable.")
-        else:
-            st.error(f"📉 **Valor Esperado (EV-): {ev_porcentaje:.2f}%** \n\nA largo plazo, perderás dinero con esta operación. La cuota es demasiado baja para el riesgo.")
