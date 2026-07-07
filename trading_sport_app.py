@@ -73,6 +73,7 @@ estrategia_activa = st.sidebar.radio(
     "Navegación:",
     [
         "💰 Gestión de Capital (Caja)",
+        "🎯 Estrategia Libre (Apuesta Directa)",
         "2️⃣ Estrategia 2: Paz Mental (Crear Operación)", 
         "🔒 Seguimiento y Liquidación de Posiciones",
         "🔬 Auditoría Cuantitativa (Reporte)"
@@ -145,6 +146,69 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
                         supabase.table("movimientos_caja").insert({"tipo_banca": "SIMULACION", "tipo_movimiento": "RETIRO", "monto": monto}).execute()
                         st.success("Retiro simulado registrado.")
                         st.rerun()
+# =====================================================================
+# MÓDULO 1.5: ESTRATEGIA LIBRE (APUESTA DIRECTA SIN COBERTURA)
+# =====================================================================
+elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
+    st.info("**Lógica:** Registro de operaciones direccionales simples. El 100% del capital es el Stake inicial.")
+    
+    tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
+    banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
+    saldo_disponible = saldo_real if banca_activa == "REAL" else saldo_simulacion
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        capital_total = st.number_input("Inversión Total (Stake COP)", min_value=5000, value=min(20000, int(saldo_disponible)) if saldo_disponible > 5000 else 5000, step=5000)
+    with col2:
+        cuota_1 = st.number_input("Cuota Fijada", min_value=1.01, value=1.50, step=0.05)
+
+    if saldo_disponible > 0:
+        porcentaje_exposicion = (capital_total / saldo_disponible) * 100
+        if porcentaje_exposicion > max_riesgo_permitido:
+            st.warning(f"⚠️ Alerta de Exposición: Esta operación compromete el {porcentaje_exposicion:.1f}% de la banca disponible, superando el umbral establecido.")
+
+    st.markdown("### 💾 Detalles de la Posición")
+    with st.form("guardar_libre"):
+        c_eq1, c_eq2 = st.columns(2)
+        with c_eq1:
+            partido = st.text_input("Evento/Partido", placeholder="Ej: Millonarios vs Cali")
+        with c_eq2:
+            seleccion = st.text_input("🎯 Selección", placeholder="Ej: Más de 2.5 Goles")
+        
+        plataforma_ini = st.selectbox("Plataforma de Inversión:", todas_las_plataformas)
+        plataforma_otra = ""
+        if plataforma_ini == "Otra":
+            plataforma_otra = st.text_input("Especifica la plataforma:")
+
+        if st.form_submit_button("Generar Código e Iniciar"):
+            if not partido or not seleccion:
+                st.error("Debes ingresar el evento y tu selección.")
+            elif capital_total > saldo_disponible:
+                st.error("Saldo insuficiente en la caja seleccionada.")
+            else:
+                nuevo_codigo = generar_codigo()
+                plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
+                
+                # Para la apuesta libre, el stake_2 y la cuota objetivo van en 0
+                datos = {
+                    "codigo": nuevo_codigo,
+                    "partido": partido,
+                    "seleccion_inicial": seleccion,
+                    "seleccion_cobertura": "N/A (Apuesta Libre)",
+                    "plataforma_inicial": plataforma_final,
+                    "capital_total": capital_total,
+                    "cuota_inicial": cuota_1,
+                    "stake_1": capital_total,
+                    "reserva_stake_2": 0,
+                    "cuota_objetivo": 0,
+                    "estado": "EN VIVO",
+                    "tipo_banca": banca_activa
+                }
+                try:
+                    supabase.table("historial_trading").insert(datos).execute()
+                    st.markdown(f'<div class="caja-codigo"><h3>Código ({banca_activa}): {nuevo_codigo}</h3></div>', unsafe_allow_html=True)
+                except Exception as e:
+                    st.error(f"❌ Error de Supabase: {str(e)}")
 
 # =====================================================================
 # MÓDULO 1: PAZ MENTAL + GUARDADO
@@ -254,54 +318,31 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         else:
             for op in ops:
                 with st.expander(f"⚽ {op['partido']} | Ref: {op['codigo']} | Entorno: {op['tipo_banca']} | Estado: {op['estado']}"):
-                    st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
+                    es_apuesta_libre = op['reserva_stake_2'] == 0
                     
-                    st.info(f"""
-                    🎯 **Stake Inicial:** A favor de **{op.get('seleccion_inicial', 'N/A')}** en **{op.get('plataforma_inicial', 'N/A')}**
-                    🛡️ **Misión en Vivo:** Cazar **{op.get('seleccion_cobertura', 'N/A')}** a cuota mínima de **{op['cuota_objetivo']:.2f}**
-                    """)
+                    if es_apuesta_libre:
+                        st.write(f"**Capital Comprometido (Libre):** ${op['capital_total']:,.0f}")
+                        st.info(f"🎯 **Selección:** **{op.get('seleccion_inicial', 'N/A')}** a cuota **{op['cuota_inicial']:.2f}** en **{op.get('plataforma_inicial', 'N/A')}**")
+                    else:
+                        st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
+                        st.info(f"""
+                        🎯 **Stake Inicial:** A favor de **{op.get('seleccion_inicial', 'N/A')}** en **{op.get('plataforma_inicial', 'N/A')}**
+                        🛡️ **Misión en Vivo:** Cazar **{op.get('seleccion_cobertura', 'N/A')}** a cuota mínima de **{op['cuota_objetivo']:.2f}**
+                        """)
                     
                     if op['estado'] == "EN VIVO":
-                        st.write("Seleccione la gestión de riesgo a aplicar:")
-                        
-                        accion = st.radio(
-                            "Acción a ejecutar:", 
-                            ["Ejecutar Cobertura en Mercado (Hedge)", "Liquidar Posición Directa (Sin Cobertura)"],
-                            key=f"radio_accion_{op['codigo']}"
-                        )
-                        
-                        with st.form(f"gestion_{op['codigo']}"):
-                            cuota_ingresada = 0.0
-                            plataforma_cob = ""
-                            resultado_directo = ""
-                            
-                            if accion == "Ejecutar Cobertura en Mercado (Hedge)":
-                                cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
-                                plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas)
-                            else:
-                                resultado_directo = st.radio(
-                                    "¿Qué pasó con la Apuesta Inicial (ya que no hubo cobertura)?", 
-                                    [
-                                        "✅ Ganó la Apuesta Inicial (Cobro completo)", 
-                                        "❌ Perdió la Apuesta Inicial (Pérdida del Stake 1)"
-                                    ]
-                                )
-
-                            if st.form_submit_button("Registrar Movimiento"):
-                                if accion == "Ejecutar Cobertura en Mercado (Hedge)":
-                                    supabase.table("historial_trading").update({
-                                        "estado": "CUBIERTA", 
-                                        "cuota_cazada_real": cuota_ingresada,
-                                        "plataforma_cobertura": plataforma_cob
-                                    }).eq("codigo", op['codigo']).execute()
-                                    st.success("Cobertura registrada. Pendiente de liquidación.")
-                                else:
-                                    if "Ganó" in resultado_directo:
-                                        utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
-                                        texto_cierre = "Cierre Directo: Ganó Inicial"
+                        if es_apuesta_libre:
+                            # FORMULARIO SENCILLO PARA APUESTA LIBRE
+                            st.write("Resolución final de la operación:")
+                            with st.form(f"gestion_libre_{op['codigo']}"):
+                                resultado_libre = st.radio("Resultado:", ["✅ Ganada (Cobro Completo)", "❌ Perdida (Pérdida del Capital)"])
+                                if st.form_submit_button("Liquidar Apuesta Libre"):
+                                    if "Ganada" in resultado_libre:
+                                        utilidad = (op['capital_total'] * op['cuota_inicial']) - op['capital_total']
+                                        texto_cierre = "Libre: Ganada"
                                     else:
-                                        utilidad = -op['stake_1']
-                                        texto_cierre = "Cierre Directo: Perdió Inicial"
+                                        utilidad = -op['capital_total']
+                                        texto_cierre = "Libre: Perdida"
                                         
                                     supabase.table("historial_trading").update({
                                         "estado": "CERRADA",
@@ -310,10 +351,61 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         "roi_real": (utilidad / op['capital_total']) * 100
                                     }).eq("codigo", op['codigo']).execute()
                                     st.success(f"Posición liquidada. Utilidad neta: ${utilidad:,.0f} COP.")
-                                st.rerun()
+                                    st.rerun()
+                        else:
+                            # FORMULARIO COMPLEJO ORIGINAL PARA PAZ MENTAL
+                            st.write("Seleccione la gestión de riesgo a aplicar:")
+                            accion = st.radio(
+                                "Acción a ejecutar:", 
+                                ["Ejecutar Cobertura en Mercado (Hedge)", "Liquidar Posición Directa (Sin Cobertura)"],
+                                key=f"radio_accion_{op['codigo']}"
+                            )
+                            
+                            with st.form(f"gestion_{op['codigo']}"):
+                                cuota_ingresada = 0.0
+                                plataforma_cob = ""
+                                resultado_directo = ""
+                                
+                                if accion == "Ejecutar Cobertura en Mercado (Hedge)":
+                                    cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
+                                    plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas)
+                                else:
+                                    resultado_directo = st.radio(
+                                        "¿Qué pasó con la Apuesta Inicial (ya que no hubo cobertura)?", 
+                                        [
+                                            "✅ Ganó la Apuesta Inicial (Cobro completo)", 
+                                            "❌ Perdió la Apuesta Inicial (Pérdida del Stake 1)"
+                                        ]
+                                    )
+
+                                if st.form_submit_button("Registrar Movimiento"):
+                                    if accion == "Ejecutar Cobertura en Mercado (Hedge)":
+                                        supabase.table("historial_trading").update({
+                                            "estado": "CUBIERTA", 
+                                            "cuota_cazada_real": cuota_ingresada,
+                                            "plataforma_cobertura": plataforma_cob
+                                        }).eq("codigo", op['codigo']).execute()
+                                        st.success("Cobertura registrada. Pendiente de liquidación.")
+                                    else:
+                                        if "Ganó" in resultado_directo:
+                                            utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
+                                            texto_cierre = "Cierre Directo: Ganó Inicial"
+                                        else:
+                                            utilidad = -op['stake_1']
+                                            texto_cierre = "Cierre Directo: Perdió Inicial"
+                                            
+                                        supabase.table("historial_trading").update({
+                                            "estado": "CERRADA",
+                                            "resultado_final": texto_cierre,
+                                            "utilidad_neta_real": utilidad,
+                                            "roi_real": (utilidad / op['capital_total']) * 100
+                                        }).eq("codigo", op['codigo']).execute()
+                                        st.success(f"Posición liquidada. Utilidad neta: ${utilidad:,.0f} COP.")
+                                    st.rerun()
 
                     elif op['estado'] == "CUBIERTA":
-                        st.success(f"🛡️ Cobertura asegurada a tasa de {op['cuota_cazada_real']:.2f} en {op.get('plataforma_cobertura', 'N/A')}.")
+                        # (Mantienes tu código intacto para liquidar operaciones CUBIERTAS aquí)
+                        st.success(f"🛡️ Cobertura asegurada a tasa de {op.get('cuota_cazada_real', 0):.2f} en {op.get('plataforma_cobertura', 'N/A')}.")
                         with st.form(f"liq_{op['codigo']}"):
                             resultado_final = st.radio("Resolución del evento:", ["Efectividad de Apuesta Pre-Partido", "Efectividad de Cobertura Ejecutada", "Déficit Operativo General (Pérdida Total)"])
                             if st.form_submit_button("Liquidar Posición Cubierta"):
