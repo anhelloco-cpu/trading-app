@@ -194,30 +194,40 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
             st.markdown(f'<div class="caja-objetivo"><h4>Fase 2: En Vivo</h4><p>Caza esta cuota:</p><h1 style="color:#15803D; font-size:3rem; margin:0;">{cuota_a_cazar:.2f}</h1></div>', unsafe_allow_html=True)
 
         st.markdown("### 💾 Detalles y Registro de la Operación")
-        with st.form("guardar_operacion"):
-            c_eq1, c_eq2 = st.columns(2)
-            with c_eq1:
-                eq_local = st.text_input("Equipo Local")
-            with c_eq2:
-                eq_visitante = st.text_input("Equipo Visitante")
-            
-            # Dinámicamente preguntamos a qué le apostó
-            seleccion_ini = "No definido"
-            if eq_local or eq_visitante:
-                opciones_apuesta = []
-                if eq_local: opciones_apuesta.append(f"Local ({eq_local})")
-                opciones_apuesta.append("Empate")
-                if eq_visitante: opciones_apuesta.append(f"Visitante ({eq_visitante})")
-                seleccion_ini = st.radio("¿Sobre qué resultado tomaste la Cuota Inicial?", opciones_apuesta, horizontal=True)
+        
+        # 1. Pedimos los equipos por fuera del form para que la app reaccione en vivo
+        c_eq1, c_eq2 = st.columns(2)
+        with c_eq1:
+            eq_local = st.text_input("Equipo Local", placeholder="Ej: Nacional")
+        with c_eq2:
+            eq_visitante = st.text_input("Equipo Visitante", placeholder="Ej: Santa Fe")
 
+        with st.form("guardar_operacion"):
+            # 2. Tu lógica original mejorada para la Apuesta Inicial
+            st.markdown("**Configuración de Posiciones**")
+            
+            # Siempre mostramos las opciones, y si ya escribió los equipos, los añadimos al texto
+            texto_local = f"Local ({eq_local})" if eq_local else "Local"
+            texto_vis = f"Visitante ({eq_visitante})" if eq_visitante else "Visitante"
+            
+            seleccion_ini = st.radio(
+                "🎯 ¿Sobre qué resultado tomaste la Cuota Inicial (Stake 1)?", 
+                [texto_local, "Empate", texto_vis], 
+                horizontal=True
+            )
+            
+            # 3. El campo que faltaba para saber qué hacer en el Módulo 2
+            seleccion_cob = st.text_input("🛡️ ¿Qué resultado vas a cazar en vivo? (Stake 2):", placeholder="Ej: Empate o Visitante")
+
+            # 4. Plataformas
             plataforma_ini = st.selectbox("Plataforma donde realizaste esta apuesta:", todas_las_plataformas)
             plataforma_otra = ""
             if plataforma_ini == "Otra":
                 plataforma_otra = st.text_input("Especifica la otra plataforma:")
 
             if st.form_submit_button("Generar Código e Iniciar"):
-                if not eq_local or not eq_visitante:
-                    st.error("Debes ingresar el nombre de ambos equipos.")
+                if not eq_local or not eq_visitante or not seleccion_cob:
+                    st.error("Debes ingresar los equipos y el resultado que vas a cazar.")
                 else:
                     nuevo_codigo = generar_codigo()
                     plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
@@ -226,6 +236,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         "codigo": nuevo_codigo,
                         "partido": f"{eq_local} vs {eq_visitante}",
                         "seleccion_inicial": seleccion_ini,
+                        "seleccion_cobertura": seleccion_cob,
                         "plataforma_inicial": plataforma_final,
                         "capital_total": capital_total,
                         "cuota_inicial": cuota_1,
@@ -258,8 +269,13 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         else:
             for op in ops:
                 with st.expander(f"⚽ {op['partido']} | Ref: {op['codigo']} | Entorno: {op['tipo_banca']} | Estado: {op['estado']}"):
-                    st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f} | **Target:** {op['cuota_objetivo']:.2f}")
-                    st.info(f"📌 **Posición Original:** A favor de **{op.get('seleccion_inicial', 'N/A')}** en **{op.get('plataforma_inicial', 'N/A')}**")
+                    st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
+                    
+                    # Tarjeta de memoria visual para el auditor/trader
+                    st.info(f"""
+                    🎯 **Stake Inicial:** A favor de **{op.get('seleccion_inicial', 'N/A')}** en **{op.get('plataforma_inicial', 'N/A')}**
+                    🛡️ **Misión en Vivo:** Cazar **{op.get('seleccion_cobertura', 'N/A')}** a cuota mínima de **{op['cuota_objetivo']:.2f}**
+                    """)
                     
                     if op['estado'] == "EN VIVO":
                         st.write("Seleccione la gestión de riesgo a aplicar:")
