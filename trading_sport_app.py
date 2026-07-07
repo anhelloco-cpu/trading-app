@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import random
 import string
 from supabase import create_client, Client
@@ -24,7 +25,7 @@ def obtener_saldo_banca(tipo_banca: str) -> float:
     if supabase is None:
         return 0.0
     try:
-        # 1. Sumar movimientos de caja (Consignaciones - Retiros)
+        # 1. Sumar movimientos de caja
         res_movs = supabase.table("movimientos_caja").select("tipo_movimiento", "monto").eq("tipo_banca", tipo_banca).execute()
         total_caja = 0.0
         for mov in res_movs.data:
@@ -37,11 +38,10 @@ def obtener_saldo_banca(tipo_banca: str) -> float:
         res_ops_cerradas = supabase.table("historial_trading").select("utilidad_neta_real").eq("tipo_banca", tipo_banca).eq("estado", "CERRADA").execute()
         total_utilidad = sum(float(op['utilidad_neta_real']) for op in res_ops_cerradas.data) if res_ops_cerradas.data else 0.0
         
-        # 3. Restar el capital que está COMPROMETIDO en posiciones abiertas (EN VIVO o CUBIERTA)
+        # 3. Restar el capital que está COMPROMETIDO en posiciones abiertas
         res_ops_abiertas = supabase.table("historial_trading").select("capital_total").eq("tipo_banca", tipo_banca).in_("estado", ["EN VIVO", "CUBIERTA"]).execute()
         capital_retenido = sum(float(op['capital_total']) for op in res_ops_abiertas.data) if res_ops_abiertas.data else 0.0
         
-        # Saldo Disponible = Caja Neta + Ganancias/Pérdidas Históricas - Dinero actualmente en juego
         return total_caja + total_utilidad - capital_retenido
     except Exception as e:
         return 0.0
@@ -54,6 +54,7 @@ st.markdown("""
     .error-caja { background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 15px; border-radius: 5px; color: #991B1B;}
     .caja-codigo { background-color: #FFFBEB; border: 2px dashed #F59E0B; padding: 15px; border-radius: 8px; text-align: center;}
     .kpi-banca { background-color: #F1F5F9; padding: 15px; border-radius: 6px; border: 1px solid #CBD5E1; text-align: center;}
+    .metric-card { background-color: #ffffff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -73,7 +74,8 @@ estrategia_activa = st.sidebar.radio(
     [
         "💰 Gestión de Capital (Caja)",
         "2️⃣ Estrategia 2: Paz Mental (Crear Operación)", 
-        "🔒 Seguimiento y Liquidación de Posiciones"
+        "🔒 Seguimiento y Liquidación de Posiciones",
+        "🔬 Auditoría Cuantitativa (Reporte)"
     ]
 )
 
@@ -150,7 +152,6 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
 elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     st.info("**Lógica:** Configura tu inversión y registra la plataforma para correcta trazabilidad.")
     
-    # Selector de Entorno Operativo
     tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
     saldo_disponible = saldo_real if banca_activa == "REAL" else saldo_simulacion
@@ -165,13 +166,11 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
 
     riesgo = st.slider("Exigencia en Cobertura (0% = Librar, 100% = Ganancia Igualada):", min_value=0, max_value=100, value=50, step=10)
 
-    # Evaluación de impacto en la cuenta (Cálculo de Exposición)
     if saldo_disponible > 0:
         porcentaje_exposicion = (capital_total / saldo_disponible) * 100
         if porcentaje_exposicion > max_riesgo_permitido:
             st.warning(f"⚠️ Alerta de Exposición: Esta operación compromete el {porcentaje_exposicion:.1f}% de la banca disponible, superando el umbral establecido del {max_riesgo_permitido}%.")
 
-    # Cálculos
     retorno_objetivo_1 = capital_total * (1 + (utilidad_esperada / 100.0))
     utilidad_neta_plata = retorno_objetivo_1 - capital_total
     stake_1 = retorno_objetivo_1 / cuota_1
@@ -215,7 +214,6 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                     nuevo_codigo = generar_codigo()
                     plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
                     
-                    # El sistema define la selección automáticamente por la estrategia
                     seleccion_ini = f"Gana o Empata {eq_favorito}"
                     seleccion_cob = f"Gana {eq_rival}"
                     
@@ -258,7 +256,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                 with st.expander(f"⚽ {op['partido']} | Ref: {op['codigo']} | Entorno: {op['tipo_banca']} | Estado: {op['estado']}"):
                     st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
                     
-                    # Tarjeta de memoria visual para el auditor/trader
                     st.info(f"""
                     🎯 **Stake Inicial:** A favor de **{op.get('seleccion_inicial', 'N/A')}** en **{op.get('plataforma_inicial', 'N/A')}**
                     🛡️ **Misión en Vivo:** Cazar **{op.get('seleccion_cobertura', 'N/A')}** a cuota mínima de **{op['cuota_objetivo']:.2f}**
@@ -267,20 +264,17 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     if op['estado'] == "EN VIVO":
                         st.write("Seleccione la gestión de riesgo a aplicar:")
                         
-                        # 1. SACAMOS LA DECISIÓN FUERA DEL FORMULARIO PARA QUE LA PANTALLA REACCIONE
                         accion = st.radio(
                             "Acción a ejecutar:", 
                             ["Ejecutar Cobertura en Mercado (Hedge)", "Liquidar Posición Directa (Sin Cobertura)"],
                             key=f"radio_accion_{op['codigo']}"
                         )
                         
-                        # 2. EL FORMULARIO SOLO MUESTRA LOS DETALLES FINALES
                         with st.form(f"gestion_{op['codigo']}"):
                             cuota_ingresada = 0.0
                             plataforma_cob = ""
                             resultado_directo = ""
                             
-                            # La interfaz ahora sí cambiará en tiempo real
                             if accion == "Ejecutar Cobertura en Mercado (Hedge)":
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
                                 plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas)
@@ -302,7 +296,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     }).eq("codigo", op['codigo']).execute()
                                     st.success("Cobertura registrada. Pendiente de liquidación.")
                                 else:
-                                    # Lógica contable estricta para cierre sin cobertura
                                     if "Ganó" in resultado_directo:
                                         utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
                                         texto_cierre = "Cierre Directo: Ganó Inicial"
@@ -340,10 +333,97 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.success(f"Conciliación registrada: ${utilidad:,.0f} COP.")
                                 st.rerun()
 
-        # Resumen de Auditoría General
         st.markdown("---")
         st.subheader("📊 Libro Mayor Contable (Historial de Cierres)")
         res_cerradas = supabase.table("historial_trading").select("*").eq("estado", "CERRADA").order("fecha", desc=True).execute()
         df = pd.DataFrame(res_cerradas.data)
         if not df.empty:
             st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
+
+# =====================================================================
+# MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
+# =====================================================================
+elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
+    st.markdown("### 🔬 Laboratorio Cuantitativo de Estrategias")
+    st.write("Análisis estadístico basado exclusivamente en la data empírica recopilada durante el período de prueba (Banca Simulación).")
+    
+    if supabase is None:
+        st.error("Conecta Supabase para acceder al motor estadístico.")
+    else:
+        # Extraer registros cerrados solo de la simulación
+        res_sim = supabase.table("historial_trading").select("*").eq("tipo_banca", "SIMULACION").eq("estado", "CERRADA").execute()
+        df_sim = pd.DataFrame(res_sim.data)
+        
+        if df_sim.empty or len(df_sim) < 5:
+            st.warning("⏳ Muestra Insuficiente. Se requieren al menos 5 operaciones en simulación cerrada para emitir un dictamen estadístico confiable.")
+        else:
+            # 1. Cálculos de Eficiencia Operativa
+            total_ops = len(df_sim)
+            victorias_pre_partido = df_sim['resultado_final'].str.contains("Pre-Partido|Ganó Inicial", na=False).sum()
+            victorias_cobertura = df_sim['resultado_final'].str.contains("Cobertura", na=False).sum()
+            derrotas_totales = df_sim['resultado_final'].str.contains("Déficit|Perdió Inicial", na=False).sum()
+            
+            win_rate = (victorias_pre_partido / total_ops) * 100
+            frecuencia_rescate = (victorias_cobertura / total_ops) * 100
+            loss_rate = (derrotas_totales / total_ops) * 100
+            cuota_promedio = df_sim['cuota_inicial'].mean()
+            
+            # 2. Cálculos de Riesgo Institucional
+            roi_promedio = df_sim['roi_real'].mean()
+            volatilidad_roi = df_sim['roi_real'].std() if total_ops > 1 else 0
+            
+            # Esperanza Matemática (EV): Qué porcentaje del stake se espera ganar por operación
+            # EV = (Prob Ganar * Beneficio Promedio) - (Prob Perder * Pérdida Promedio)
+            ev = ((win_rate / 100) * (cuota_promedio - 1)) - (loss_rate / 100)
+            
+            # Ratio Sharpe Simulado
+            sharpe_ratio = (roi_promedio / volatilidad_roi) if volatilidad_roi > 0 else 0
+            
+            # Cálculo de Max Drawdown Real
+            df_sim = df_sim.sort_values(by='fecha')
+            df_sim['acumulado_utilidad'] = df_sim['utilidad_neta_real'].cumsum()
+            df_sim['pico_historico'] = df_sim['acumulado_utilidad'].cummax()
+            df_sim['drawdown'] = df_sim['pico_historico'] - df_sim['acumulado_utilidad']
+            max_drawdown_cop = df_sim['drawdown'].max()
+            
+            # 3. Motor de Decisión (Veredicto)
+            if ev <= 0:
+                veredicto = "🚨 ESTRATEGIA NO VIABLE (EV Negativo)"
+                color_v = "#EF4444"
+                desc_v = "La matemática demuestra que, a largo plazo, esta configuración quemará el capital."
+            elif sharpe_ratio < 0.8:
+                veredicto = "⚠️ ESTRATEGIA DE ALTO RIESGO"
+                color_v = "#F59E0B"
+                desc_v = "Rendimientos erráticos. La volatilidad no justifica el estrés operativo."
+            elif 0.8 <= sharpe_ratio <= 1.5:
+                veredicto = "✅ ESTRATEGIA MODERADA (Viable)"
+                color_v = "#10B981"
+                desc_v = "Configuración sólida. Se recomienda mantener una exposición máxima del 8% al 12% por operación."
+            else:
+                veredicto = "💎 ESTRATEGIA INSTITUCIONAL (Óptima)"
+                color_v = "#3B82F6"
+                desc_v = "Excelente gestión de riesgo y baja volatilidad. Lista para escalado de capital."
+
+            # --- RENDERIZADO DEL DASHBOARD ---
+            st.markdown(f"""
+                <div style="background-color: {color_v}; padding: 20px; border-radius: 8px; color: white; text-align: center; margin-bottom: 25px;">
+                    <h2 style="margin: 0; color: white;">{veredicto}</h2>
+                    <p style="margin: 5px 0 0 0;">{desc_v}</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+            with col_kpi1:
+                st.markdown(f'<div class="metric-card"><h4>Esperanza Matemática (EV)</h4><h2 style="color: {"#10B981" if ev > 0 else "#EF4444"}">{ev:,.3f}</h2><p>Rendimiento estadístico x unidad</p></div>', unsafe_allow_html=True)
+            with col_kpi2:
+                st.markdown(f'<div class="metric-card"><h4>Ratio Sharpe</h4><h2 style="color: {"#3B82F6" if sharpe_ratio >= 1.5 else "#F59E0B"}">{sharpe_ratio:,.2f}</h2><p>Retorno ajustado al riesgo</p></div>', unsafe_allow_html=True)
+            with col_kpi3:
+                st.markdown(f'<div class="metric-card"><h4>Max Drawdown</h4><h2 style="color: #EF4444">${max_drawdown_cop:,.0f}</h2><p>Mayor racha de pérdida soportada</p></div>', unsafe_allow_html=True)
+            
+            st.markdown("---")
+            st.subheader("📊 Eficiencia en la Cancha (Realidad Operativa)")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Volumen Analizado", f"{total_ops} Ops")
+            c2.metric("Win Rate Inicial", f"{win_rate:.1f}%")
+            c3.metric("Frecuencia de Rescate", f"{frecuencia_rescate:.1f}%")
+            c4.metric("Tasa de Fracaso", f"{loss_rate:.1f}%")
