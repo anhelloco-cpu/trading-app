@@ -34,7 +34,7 @@ st.markdown("""
 st.sidebar.title("⚙️ Módulos de Operación")
 estrategia_activa = st.sidebar.radio(
     "Navegación:",
-    ["2️⃣ Estrategia 2: Paz Mental (Crear Operación)", "🔒 Seguimiento y Cierre de Operaciones"]
+    ["2️⃣ Estrategia 2: Paz Mental (Crear Operación)", "🔒 Seguimiento y Liquidación de Posiciones"]
 )
 
 st.title("⚖️ Sistema de Trading Automático")
@@ -100,86 +100,110 @@ if estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         st.error(f"❌ Error de Supabase: {str(e)}")
 
 # =====================================================================
-# MÓDULO 2: SEGUIMIENTO Y CIERRE (FLUJO CORREGIDO Y COMPLETO)
+# MÓDULO 2: SEGUIMIENTO Y LIQUIDACIÓN DE POSICIONES
 # =====================================================================
-elif estrategia_activa == "🔒 Seguimiento y Cierre de Operaciones":
-    st.markdown("### 📝 Panel de Control de Operaciones")
+elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
+    st.markdown("### 📝 Panel de Control y Auditoría")
     
     if supabase is None:
         st.error("Conecta Supabase primero.")
     else:
-        # Traemos todo lo que NO esté CERRADO
+        # Extraer operaciones pendientes de liquidación
         res = supabase.table("historial_trading").select("*").in_("estado", ["EN VIVO", "CUBIERTA"]).execute()
         ops = res.data
         
         if not ops:
-            st.info("No tienes operaciones activas en este momento.")
+            st.info("Libro mayor al día. No hay posiciones abiertas en este momento.")
         else:
             for op in ops:
-                with st.expander(f"⚽ {op['partido']} | Código: {op['codigo']} | Estado: {op['estado']}"):
-                    st.write(f"**Capital:** ${op['capital_total']:,.0f} | **Reserva (Stake 2):** ${op['reserva_stake_2']:,.0f} | **Meta:** {op['cuota_objetivo']:.2f}")
+                with st.expander(f"⚽ {op['partido']} | Ref: {op['codigo']} | Estado: {op['estado']}"):
+                    st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f} | **Target:** {op['cuota_objetivo']:.2f}")
                     
-                    # --- ESTADO: EN VIVO (AQUÍ ES DONDE DECIDES QUÉ HACER) ---
+                    # ---------------------------------------------------------
+                    # ESTADO A: POSICIÓN ABIERTA (EN VIVO, SIN COBERTURA)
+                    # ---------------------------------------------------------
                     if op['estado'] == "EN VIVO":
-                        st.info("OPERACIÓN ACTIVA: ¿Vas a cazar la cobertura o decides liquidar ya?")
+                        st.info("POSICIÓN ABIERTA: Seleccione la gestión de riesgo a aplicar.")
                         
-                        with st.form(f"accion_{op['codigo']}"):
-                            accion = st.radio("Elige tu gestión:", ["Cazar Cobertura", "Liquidar sin Cobertura (Preventivo/Final)"])
+                        with st.form(f"gestion_{op['codigo']}"):
+                            accion = st.radio(
+                                "Acción a ejecutar:", 
+                                ["Ejecutar Cobertura en Mercado (Hedge)", "Liquidar Posición Directa (Sin Cobertura)"]
+                            )
                             
-                            # Si elige cazar, pide la cuota
-                            cuota_a_ingresar = 0.0
-                            if accion == "Cazar Cobertura":
-                                cuota_a_ingresar = st.number_input("¿A qué cuota cazaste?", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
+                            # Campos dinámicos según la acción
+                            cuota_ingresada = 0.0
+                            resultado_directo = ""
                             
-                            # Si elige liquidar, pide el resultado pre-partido
-                            resultado_prev = ""
-                            if accion == "Liquidar sin Cobertura (Preventivo/Final)":
-                                resultado_prev = st.radio("Resultado final de la apuesta inicial:", ["Ganó Apuesta Inicial", "Perdió Apuesta Inicial"])
+                            if accion == "Ejecutar Cobertura en Mercado (Hedge)":
+                                cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
+                            else:
+                                resultado_directo = st.radio(
+                                    "Confirmación de evento pre-partido:", 
+                                    ["Efectividad de Apuesta Pre-Partido", "Déficit Operativo (Pérdida de Inversión Inicial)"]
+                                )
 
-                            if st.form_submit_button("Ejecutar Acción"):
-                                if accion == "Cazar Cobertura":
-                                    # Pasa a estado CUBIERTA
+                            if st.form_submit_button("Registrar Movimiento"):
+                                if accion == "Ejecutar Cobertura en Mercado (Hedge)":
+                                    # Registro de la cobertura, la posición sigue abierta (CUBIERTA)
                                     supabase.table("historial_trading").update({
                                         "estado": "CUBIERTA",
-                                        "cuota_cazada_real": cuota_a_ingresar
+                                        "cuota_cazada_real": cuota_ingresada
                                     }).eq("codigo", op['codigo']).execute()
-                                    st.success("¡Cobertura cazada! Ahora espera el final para liquidar.")
+                                    st.success("Cobertura registrada en el libro. La posición permanece abierta a la espera de liquidación final.")
                                 else:
-                                    # Cierra la operación directamente (Liquidar sin cobertura)
-                                    utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total'] if "Ganó" in resultado_prev else -op['stake_1']
+                                    # Liquidación directa inmediata
+                                    if "Efectividad" in resultado_directo:
+                                        utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
+                                    else:
+                                        # Solo se pierde el stake_1 porque la reserva nunca entró al mercado
+                                        utilidad = -op['stake_1'] 
+                                        
                                     supabase.table("historial_trading").update({
                                         "estado": "CERRADA",
-                                        "resultado_final": f"Sin Cobertura: {resultado_prev}",
+                                        "resultado_final": f"Cierre Directo: {resultado_directo}",
                                         "utilidad_neta_real": utilidad,
                                         "roi_real": (utilidad / op['capital_total']) * 100
                                     }).eq("codigo", op['codigo']).execute()
-                                    st.success(f"Operación cerrada sin cobertura. Utilidad: ${utilidad:,.0f} COP.")
+                                    st.success(f"Posición liquidada. Utilidad neta registrada: ${utilidad:,.0f} COP.")
                                 st.rerun()
 
-                    # --- ESTADO: CUBIERTA (YA SE CAZÓ, ESPERANDO FINAL) ---
+                    # ---------------------------------------------------------
+                    # ESTADO B: POSICIÓN CUBIERTA (ESPERANDO LIQUIDACIÓN FINAL)
+                    # ---------------------------------------------------------
                     elif op['estado'] == "CUBIERTA":
-                        st.success(f"🛡️ Operación cubierta a cuota {op['cuota_cazada_real']:.2f}. Esperando finalización.")
-                        with st.form(f"liquidar_{op['codigo']}"):
-                            resultado = st.radio("Resultado final:", ["Ganó Apuesta Inicial", "Ganó Cobertura", "Pérdida Total"])
-                            if st.form_submit_button("Liquidar Operación"):
-                                if "Ganó Apuesta Inicial" in resultado:
+                        st.success(f"🛡️ Posición con cobertura asegurada a tasa de {op['cuota_cazada_real']:.2f}. Pendiente de liquidación.")
+                        
+                        with st.form(f"liq_{op['codigo']}"):
+                            resultado_final = st.radio(
+                                "Resolución del evento para conciliación:", 
+                                [
+                                    "Efectividad de Apuesta Pre-Partido", 
+                                    "Efectividad de Cobertura Ejecutada", 
+                                    "Déficit Operativo General (Pérdida Total)"
+                                ]
+                            )
+                            
+                            if st.form_submit_button("Liquidar Posición Cubierta"):
+                                if "Pre-Partido" in resultado_final:
                                     utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
-                                elif "Ganó Cobertura" in resultado:
+                                elif "Cobertura" in resultado_final:
                                     utilidad = (op['reserva_stake_2'] * op['cuota_cazada_real']) - op['capital_total']
                                 else:
                                     utilidad = -op['capital_total']
                                     
                                 supabase.table("historial_trading").update({
                                     "estado": "CERRADA",
-                                    "resultado_final": resultado,
+                                    "resultado_final": resultado_final,
                                     "utilidad_neta_real": utilidad,
                                     "roi_real": (utilidad / op['capital_total']) * 100
                                 }).eq("codigo", op['codigo']).execute()
+                                st.success(f"Conciliación exitosa. Utilidad neta registrada: ${utilidad:,.0f} COP.")
                                 st.rerun()
 
         # Resumen del Libro Mayor
         st.markdown("---")
-        st.subheader("📊 Historial de Auditoría")
+        st.subheader("📊 Libro Mayor Contable (Posiciones Liquidadas)")
         res_cerradas = supabase.table("historial_trading").select("*").eq("estado", "CERRADA").order("fecha", desc=True).execute()
         df = pd.DataFrame(res_cerradas.data)
         
