@@ -100,7 +100,7 @@ if estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         st.error(f"❌ Error de Supabase: {str(e)}")
 
 # =====================================================================
-# MÓDULO 2: SEGUIMIENTO Y CIERRE
+# MÓDULO 2: SEGUIMIENTO Y CIERRE (ACTUALIZADO CON GESTIÓN DE RIESGO)
 # =====================================================================
 elif estrategia_activa == "🔒 Seguimiento y Cierre de Operaciones":
     st.markdown("### 📝 Operaciones Activas")
@@ -112,43 +112,57 @@ elif estrategia_activa == "🔒 Seguimiento y Cierre de Operaciones":
         ops = res.data
         
         if not ops:
-            st.info("No tienes operaciones pendientes.")
+            st.info("No tienes operaciones pendientes de cierre.")
         else:
             for op in ops:
                 with st.expander(f"🟢 {op['partido']} | Código: {op['codigo']}"):
-                    st.write(f"**Capital:** ${op['capital_total']:,.0f} | **Reserva que debías cazar:** ${op['reserva_stake_2']:,.0f} a cuota **{op['cuota_objetivo']:.2f}**")
-                    
-                    accion = st.radio(f"Acción para {op['codigo']}:", ["Seguir / Operar en vivo", "Liquidar operación (Sin cobertura)"], key=f"rad_{op['codigo']}")
+                    st.write(f"**Capital Inicial:** ${op['capital_total']:,.0f} | **Reserva (Stake 2):** ${op['reserva_stake_2']:,.0f}")
+                    st.write(f"**Meta en vivo (Cuota Objetivo):** {op['cuota_objetivo']:.2f}")
                     
                     with st.form(f"cierre_{op['codigo']}"):
-                        if accion == "Seguir / Operar en vivo":
-                            resultado = st.radio("Resultado final:", ["Ganó Primera Apuesta (Favorito/Empate)", "Ganó Cobertura (Sorpresa)", "Pérdida Total"])
-                            cuota_real = st.number_input("Cuota real cazada en vivo:", min_value=1.01, step=0.01)
-                        else:
-                            resultado = st.radio("Resultado final:", ["Ganó Apuesta Pre-partido", "Perdió Apuesta Pre-partido"])
-                            cuota_real = 0 # No se usa
-
-                        if st.form_submit_button("Liquidar"):
-                            # Cálculos de cierre
-                            if accion == "Seguir / Operar en vivo":
-                                if "Ganó Primera Apuesta" in resultado:
-                                    utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
-                                elif "Ganó Cobertura" in resultado:
-                                    utilidad = (op['reserva_stake_2'] * cuota_real) - op['capital_total']
-                                else:
-                                    utilidad = -op['capital_total']
-                            else: # Liquidar directo
-                                if "Ganó Apuesta" in resultado:
-                                    utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
-                                else:
-                                    utilidad = -op['stake_1'] # Solo pierdes lo que invertiste en la pre-partido
+                        # Nueva lógica de selección de tipo de cierre
+                        tipo_cierre = st.radio(
+                            "¿Cómo terminó la operación?", 
+                            [
+                                "✅ Caza Exitosa (Cumplió objetivo)", 
+                                "⚠️ Salida Preventiva (Minimizar pérdida)", 
+                                "❌ Pérdida Total (No hubo salida posible)"
+                            ]
+                        )
+                        
+                        cuota_salida = 0.0
+                        if "Pérdida" not in tipo_cierre:
+                            cuota_salida = st.number_input("¿A qué cuota exacta cerraste?", min_value=1.01, step=0.01)
+                        
+                        if st.form_submit_button("Liquidar Operación"):
+                            # Lógica contable de cierre
+                            if "Caza Exitosa" in tipo_cierre:
+                                utilidad = (op['reserva_stake_2'] * cuota_salida) - op['capital_total']
+                                resultado_texto = "Caza Exitosa"
+                            elif "Salida Preventiva" in tipo_cierre:
+                                utilidad = (op['reserva_stake_2'] * cuota_salida) - op['capital_total']
+                                resultado_texto = "Salida Preventiva"
+                            else: # Pérdida Total
+                                utilidad = -op['capital_total']
+                                resultado_texto = "Pérdida Total"
                             
+                            # Actualizar Registro
                             supabase.table("historial_trading").update({
                                 "estado": "CERRADA",
-                                "resultado_final": resultado,
-                                "cuota_cazada_real": cuota_real,
+                                "resultado_final": resultado_texto,
+                                "cuota_cazada_real": cuota_salida,
                                 "utilidad_neta_real": utilidad,
                                 "roi_real": (utilidad / op['capital_total']) * 100
                             }).eq("codigo", op['codigo']).execute()
-                            st.success(f"Operación cerrada. Utilidad: ${utilidad:,.0f} COP.")
+                            
+                            st.success(f"Operación {op['codigo']} cerrada como: {resultado_texto}. Utilidad Real: ${utilidad:,.0f} COP.")
                             st.rerun()
+
+        # Resumen del Libro Mayor
+        st.markdown("---")
+        st.subheader("📊 Historial de Auditoría")
+        res_cerradas = supabase.table("historial_trading").select("*").eq("estado", "CERRADA").order("fecha", desc=True).execute()
+        df = pd.DataFrame(res_cerradas.data)
+        
+        if not df.empty:
+            st.dataframe(df[['fecha', 'codigo', 'partido', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
