@@ -61,6 +61,11 @@ st.markdown("""
 saldo_real = obtener_saldo_banca("REAL")
 saldo_simulacion = obtener_saldo_banca("SIMULACION")
 
+# --- LISTADO DE PLATAFORMAS (CASAS DE APUESTAS) ---
+plataformas_colombia = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia"]
+plataformas_internacionales = ["Bet365", "1xBet", "Betfair", "Pinnacle", "Stake"]
+todas_las_plataformas = plataformas_colombia + plataformas_internacionales + ["Otra"]
+
 # --- PANEL LATERAL ---
 st.sidebar.title("⚙️ Módulos de Operación")
 estrategia_activa = st.sidebar.radio(
@@ -143,7 +148,7 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
 # MÓDULO 1: PAZ MENTAL + GUARDADO
 # =====================================================================
 elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
-    st.info("**Lógica:** Configura tu inversión. Si los números cuadran, inicia la operación y obtén tu código.")
+    st.info("**Lógica:** Configura tu inversión y registra la plataforma para correcta trazabilidad.")
     
     # Selector de Entorno Operativo
     tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
@@ -154,7 +159,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     with col1:
         capital_total = st.number_input("Capital Total (COP)", min_value=10000, value=min(50000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
     with col2:
-        cuota_1 = st.number_input("Cuota Inicial (Favorito o Empate)", min_value=1.01, value=1.25, step=0.05)
+        cuota_1 = st.number_input("Cuota Inicial", min_value=1.01, value=1.25, step=0.05)
     with col3:
         utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=10.0, step=0.5)
 
@@ -177,7 +182,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     if stake_2 < 5000:
         st.markdown(f'<div class="error-caja"><b>🚨 RESTRICCIÓN:</b> Reserva menor a $5,000. Ajusta el capital o utilidad.</div>', unsafe_allow_html=True)
     elif capital_total > saldo_disponible:
-        st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera el saldo disponible en la caja del entorno seleccionado.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera el saldo disponible.</div>', unsafe_allow_html=True)
     else:
         retorno_exigido_cobertura = capital_total + (utilidad_neta_plata * (riesgo / 100.0))
         cuota_a_cazar = retorno_exigido_cobertura / stake_2
@@ -188,17 +193,40 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
         with col_plan2:
             st.markdown(f'<div class="caja-objetivo"><h4>Fase 2: En Vivo</h4><p>Caza esta cuota:</p><h1 style="color:#15803D; font-size:3rem; margin:0;">{cuota_a_cazar:.2f}</h1></div>', unsafe_allow_html=True)
 
-        st.markdown("### 💾 Iniciar Operación")
+        st.markdown("### 💾 Detalles y Registro de la Operación")
         with st.form("guardar_operacion"):
-            nombre_partido = st.text_input("Partido (Ej: Nacional vs Santa Fe)")
+            c_eq1, c_eq2 = st.columns(2)
+            with c_eq1:
+                eq_local = st.text_input("Equipo Local")
+            with c_eq2:
+                eq_visitante = st.text_input("Equipo Visitante")
+            
+            # Dinámicamente preguntamos a qué le apostó
+            seleccion_ini = "No definido"
+            if eq_local or eq_visitante:
+                opciones_apuesta = []
+                if eq_local: opciones_apuesta.append(f"Local ({eq_local})")
+                opciones_apuesta.append("Empate")
+                if eq_visitante: opciones_apuesta.append(f"Visitante ({eq_visitante})")
+                seleccion_ini = st.radio("¿Sobre qué resultado tomaste la Cuota Inicial?", opciones_apuesta, horizontal=True)
+
+            plataforma_ini = st.selectbox("Plataforma donde realizaste esta apuesta:", todas_las_plataformas)
+            plataforma_otra = ""
+            if plataforma_ini == "Otra":
+                plataforma_otra = st.text_input("Especifica la otra plataforma:")
+
             if st.form_submit_button("Generar Código e Iniciar"):
-                if not nombre_partido:
-                    st.error("Nombre del partido es obligatorio.")
+                if not eq_local or not eq_visitante:
+                    st.error("Debes ingresar el nombre de ambos equipos.")
                 else:
                     nuevo_codigo = generar_codigo()
+                    plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
+                    
                     datos = {
                         "codigo": nuevo_codigo,
-                        "partido": nombre_partido,
+                        "partido": f"{eq_local} vs {eq_visitante}",
+                        "seleccion_inicial": seleccion_ini,
+                        "plataforma_inicial": plataforma_final,
                         "capital_total": capital_total,
                         "cuota_inicial": cuota_1,
                         "stake_1": stake_1,
@@ -231,22 +259,30 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
             for op in ops:
                 with st.expander(f"⚽ {op['partido']} | Ref: {op['codigo']} | Entorno: {op['tipo_banca']} | Estado: {op['estado']}"):
                     st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f} | **Target:** {op['cuota_objetivo']:.2f}")
+                    st.info(f"📌 **Posición Original:** A favor de **{op.get('seleccion_inicial', 'N/A')}** en **{op.get('plataforma_inicial', 'N/A')}**")
                     
                     if op['estado'] == "EN VIVO":
-                        st.info("POSICIÓN ABIERTA: Seleccione la gestión de riesgo a aplicar.")
+                        st.write("Seleccione la gestión de riesgo a aplicar:")
                         with st.form(f"gestion_{op['codigo']}"):
                             accion = st.radio("Acción a ejecutar:", ["Ejecutar Cobertura en Mercado (Hedge)", "Liquidar Posición Directa (Sin Cobertura)"])
+                            
                             cuota_ingresada = 0.0
+                            plataforma_cob = ""
                             resultado_directo = ""
                             
                             if accion == "Ejecutar Cobertura en Mercado (Hedge)":
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
+                                plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas)
                             else:
                                 resultado_directo = st.radio("Confirmación de evento pre-partido:", ["Efectividad de Apuesta Pre-Partido", "Déficit Operativo (Pérdida de Inversión Inicial)"])
 
                             if st.form_submit_button("Registrar Movimiento"):
                                 if accion == "Ejecutar Cobertura en Mercado (Hedge)":
-                                    supabase.table("historial_trading").update({"estado": "CUBIERTA", "cuota_cazada_real": cuota_ingresada}).eq("codigo", op['codigo']).execute()
+                                    supabase.table("historial_trading").update({
+                                        "estado": "CUBIERTA", 
+                                        "cuota_cazada_real": cuota_ingresada,
+                                        "plataforma_cobertura": plataforma_cob
+                                    }).eq("codigo", op['codigo']).execute()
                                     st.success("Cobertura registrada. Pendiente de liquidación.")
                                 else:
                                     utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1'] if "Efectividad" in resultado_directo else -op['stake_1']
@@ -260,7 +296,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.rerun()
 
                     elif op['estado'] == "CUBIERTA":
-                        st.success(f"🛡️ Cobertura asegurada a tasa de {op['cuota_cazada_real']:.2f}.")
+                        st.success(f"🛡️ Cobertura asegurada a tasa de {op['cuota_cazada_real']:.2f} en {op.get('plataforma_cobertura', 'N/A')}.")
                         with st.form(f"liq_{op['codigo']}"):
                             resultado_final = st.radio("Resolución del evento:", ["Efectividad de Apuesta Pre-Partido", "Efectividad de Cobertura Ejecutada", "Déficit Operativo General (Pérdida Total)"])
                             if st.form_submit_button("Liquidar Posición Cubierta"):
@@ -286,4 +322,4 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         res_cerradas = supabase.table("historial_trading").select("*").eq("estado", "CERRADA").order("fecha", desc=True).execute()
         df = pd.DataFrame(res_cerradas.data)
         if not df.empty:
-            st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
+            st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
