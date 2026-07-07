@@ -194,47 +194,34 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
             st.markdown(f'<div class="caja-objetivo"><h4>Fase 2: En Vivo</h4><p>Caza esta cuota:</p><h1 style="color:#15803D; font-size:3rem; margin:0;">{cuota_a_cazar:.2f}</h1></div>', unsafe_allow_html=True)
 
         st.markdown("### 💾 Detalles y Registro de la Operación")
-        
-        # 1. Pedimos los equipos por fuera del form para que la app reaccione en vivo
-        c_eq1, c_eq2 = st.columns(2)
-        with c_eq1:
-            eq_local = st.text_input("Equipo Local", placeholder="Ej: Nacional")
-        with c_eq2:
-            eq_visitante = st.text_input("Equipo Visitante", placeholder="Ej: Santa Fe")
-
         with st.form("guardar_operacion"):
-            # 2. Tu lógica original mejorada para la Apuesta Inicial
-            st.markdown("**Configuración de Posiciones**")
+            st.info("💡 **Regla Activa:** El Stake 1 va al Gana/Empata del Favorito. La reserva caza al Rival.")
             
-            # Siempre mostramos las opciones, y si ya escribió los equipos, los añadimos al texto
-            texto_local = f"Local ({eq_local})" if eq_local else "Local"
-            texto_vis = f"Visitante ({eq_visitante})" if eq_visitante else "Visitante"
+            c_eq1, c_eq2 = st.columns(2)
+            with c_eq1:
+                eq_favorito = st.text_input("⭐ Equipo Favorito (Stake 1)")
+            with c_eq2:
+                eq_rival = st.text_input("⚠️ Equipo Rival (Cobertura)")
             
-            seleccion_ini = st.radio(
-                "🎯 ¿Sobre qué resultado tomaste la Cuota Inicial (Stake 1)?", 
-                [texto_local, "Empate", texto_vis], 
-                horizontal=True
-            )
-            
-            # 3. El campo que faltaba para saber qué hacer en el Módulo 2
-            seleccion_cob = st.text_input("🛡️ ¿Qué resultado vas a cazar en vivo? (Stake 2):", placeholder="Ej: Empate o Visitante")
-
-            # 4. Plataformas
-            plataforma_ini = st.selectbox("Plataforma donde realizaste esta apuesta:", todas_las_plataformas)
+            plataforma_ini = st.selectbox("Plataforma de la Apuesta Inicial:", todas_las_plataformas)
             plataforma_otra = ""
             if plataforma_ini == "Otra":
                 plataforma_otra = st.text_input("Especifica la otra plataforma:")
 
             if st.form_submit_button("Generar Código e Iniciar"):
-                if not eq_local or not eq_visitante or not seleccion_cob:
-                    st.error("Debes ingresar los equipos y el resultado que vas a cazar.")
+                if not eq_favorito or not eq_rival:
+                    st.error("Debes ingresar quién es el favorito y quién el rival.")
                 else:
                     nuevo_codigo = generar_codigo()
                     plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
                     
+                    # El sistema define la selección automáticamente por la estrategia
+                    seleccion_ini = f"Gana o Empata {eq_favorito}"
+                    seleccion_cob = f"Gana {eq_rival}"
+                    
                     datos = {
                         "codigo": nuevo_codigo,
-                        "partido": f"{eq_local} vs {eq_visitante}",
+                        "partido": f"{eq_favorito} vs {eq_rival}",
                         "seleccion_inicial": seleccion_ini,
                         "seleccion_cobertura": seleccion_cob,
                         "plataforma_inicial": plataforma_final,
