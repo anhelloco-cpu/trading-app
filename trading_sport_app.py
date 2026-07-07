@@ -277,7 +277,13 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
                                 plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas)
                             else:
-                                resultado_directo = st.radio("Confirmación de evento pre-partido:", ["Efectividad de Apuesta Pre-Partido", "Déficit Operativo (Pérdida de Inversión Inicial)"])
+                                resultado_directo = st.radio(
+                                    "¿Qué pasó con la Apuesta Inicial (ya que no hubo cobertura)?", 
+                                    [
+                                        "✅ Ganó la Apuesta Inicial (Cobro completo)", 
+                                        "❌ Perdió la Apuesta Inicial (Pérdida del Stake 1)"
+                                    ]
+                                )
 
                             if st.form_submit_button("Registrar Movimiento"):
                                 if accion == "Ejecutar Cobertura en Mercado (Hedge)":
@@ -288,10 +294,17 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     }).eq("codigo", op['codigo']).execute()
                                     st.success("Cobertura registrada. Pendiente de liquidación.")
                                 else:
-                                    utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1'] if "Efectividad" in resultado_directo else -op['stake_1']
+                                    # Lógica contable estricta para cierre sin cobertura
+                                    if "Ganó" in resultado_directo:
+                                        utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
+                                        texto_cierre = "Cierre Directo: Ganó Inicial"
+                                    else:
+                                        utilidad = -op['stake_1']
+                                        texto_cierre = "Cierre Directo: Perdió Inicial"
+                                        
                                     supabase.table("historial_trading").update({
                                         "estado": "CERRADA",
-                                        "resultado_final": f"Cierre Directo: {resultado_directo}",
+                                        "resultado_final": texto_cierre,
                                         "utilidad_neta_real": utilidad,
                                         "roi_real": (utilidad / op['capital_total']) * 100
                                     }).eq("codigo", op['codigo']).execute()
