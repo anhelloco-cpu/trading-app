@@ -34,11 +34,16 @@ def obtener_saldo_banca(tipo_banca: str) -> float:
                 total_caja -= float(mov['monto'])
         
         # 2. Consolidar utilidades/pérdidas de posiciones CERRADAS
-        res_ops = supabase.table("historial_trading").select("utilidad_neta_real").eq("tipo_banca", tipo_banca).eq("estado", "CERRADA").execute()
-        total_ops = sum(float(op['utilidad_neta_real']) for op in res_ops.data) if res_ops.data else 0.0
+        res_ops_cerradas = supabase.table("historial_trading").select("utilidad_neta_real").eq("tipo_banca", tipo_banca).eq("estado", "CERRADA").execute()
+        total_utilidad = sum(float(op['utilidad_neta_real']) for op in res_ops_cerradas.data) if res_ops_cerradas.data else 0.0
         
-        return total_caja + total_ops
-    except Exception:
+        # 3. Restar el capital que está COMPROMETIDO en posiciones abiertas (EN VIVO o CUBIERTA)
+        res_ops_abiertas = supabase.table("historial_trading").select("capital_total").eq("tipo_banca", tipo_banca).in_("estado", ["EN VIVO", "CUBIERTA"]).execute()
+        capital_retenido = sum(float(op['capital_total']) for op in res_ops_abiertas.data) if res_ops_abiertas.data else 0.0
+        
+        # Saldo Disponible = Caja Neta + Ganancias/Pérdidas Históricas - Dinero actualmente en juego
+        return total_caja + total_utilidad - capital_retenido
+    except Exception as e:
         return 0.0
 
 # --- ESTILOS CSS ---
