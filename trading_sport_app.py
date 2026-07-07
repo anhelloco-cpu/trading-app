@@ -64,7 +64,7 @@ if estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     st.markdown("---")
 
     if stake_2 < 5000:
-        st.markdown('<div class="error-caja"><b>🚨 RESTRICCIÓN:</b> Reserva menor a $5,000. Ajusta el capital.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="error-caja"><b>🚨 RESTRICCIÓN:</b> Reserva menor a $5,000. Ajusta el capital o utilidad.</div>', unsafe_allow_html=True)
     else:
         retorno_exigido_cobertura = capital_total + (utilidad_neta_plata * (riesgo / 100.0))
         cuota_a_cazar = retorno_exigido_cobertura / stake_2
@@ -81,8 +81,6 @@ if estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
             if st.form_submit_button("Generar Código e Iniciar"):
                 if not nombre_partido:
                     st.error("Nombre del partido es obligatorio.")
-                elif supabase is None:
-                    st.error("Error de conexión a Supabase.")
                 else:
                     nuevo_codigo = generar_codigo()
                     datos = {
@@ -118,22 +116,33 @@ elif estrategia_activa == "🔒 Seguimiento y Cierre de Operaciones":
         else:
             for op in ops:
                 with st.expander(f"🟢 {op['partido']} | Código: {op['codigo']}"):
+                    st.write(f"**Capital:** ${op['capital_total']:,.0f} | **Reserva que debías cazar:** ${op['reserva_stake_2']:,.0f} a cuota **{op['cuota_objetivo']:.2f}**")
+                    
+                    accion = st.radio(f"Acción para {op['codigo']}:", ["Seguir / Operar en vivo", "Liquidar operación (Sin cobertura)"], key=f"rad_{op['codigo']}")
+                    
                     with st.form(f"cierre_{op['codigo']}"):
-                        resultado = st.radio("Resultado final:", [
-                            "Ganó Primera Apuesta",
-                            "Ganó Cobertura",
-                            "Pérdida Total"
-                        ])
-                        cuota_real = st.number_input("Cuota real cazada en vivo:", min_value=1.01, step=0.01)
-                        
+                        if accion == "Seguir / Operar en vivo":
+                            resultado = st.radio("Resultado final:", ["Ganó Primera Apuesta (Favorito/Empate)", "Ganó Cobertura (Sorpresa)", "Pérdida Total"])
+                            cuota_real = st.number_input("Cuota real cazada en vivo:", min_value=1.01, step=0.01)
+                        else:
+                            resultado = st.radio("Resultado final:", ["Ganó Apuesta Pre-partido", "Perdió Apuesta Pre-partido"])
+                            cuota_real = 0 # No se usa
+
                         if st.form_submit_button("Liquidar"):
-                            if "Ganó Primera Apuesta" in resultado:
-                                utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
-                            elif "Ganó Cobertura" in resultado:
-                                utilidad = (op['reserva_stake_2'] * cuota_real) - op['capital_total']
-                            else:
-                                utilidad = -op['capital_total']
-                                
+                            # Cálculos de cierre
+                            if accion == "Seguir / Operar en vivo":
+                                if "Ganó Primera Apuesta" in resultado:
+                                    utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
+                                elif "Ganó Cobertura" in resultado:
+                                    utilidad = (op['reserva_stake_2'] * cuota_real) - op['capital_total']
+                                else:
+                                    utilidad = -op['capital_total']
+                            else: # Liquidar directo
+                                if "Ganó Apuesta" in resultado:
+                                    utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
+                                else:
+                                    utilidad = -op['stake_1'] # Solo pierdes lo que invertiste en la pre-partido
+                            
                             supabase.table("historial_trading").update({
                                 "estado": "CERRADA",
                                 "resultado_final": resultado,
@@ -141,5 +150,5 @@ elif estrategia_activa == "🔒 Seguimiento y Cierre de Operaciones":
                                 "utilidad_neta_real": utilidad,
                                 "roi_real": (utilidad / op['capital_total']) * 100
                             }).eq("codigo", op['codigo']).execute()
-                            st.success("Cerrado.")
+                            st.success(f"Operación cerrada. Utilidad: ${utilidad:,.0f} COP.")
                             st.rerun()
