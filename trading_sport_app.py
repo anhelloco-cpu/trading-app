@@ -266,13 +266,21 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     
                     if op['estado'] == "EN VIVO":
                         st.write("Seleccione la gestión de riesgo a aplicar:")
+                        
+                        # 1. SACAMOS LA DECISIÓN FUERA DEL FORMULARIO PARA QUE LA PANTALLA REACCIONE
+                        accion = st.radio(
+                            "Acción a ejecutar:", 
+                            ["Ejecutar Cobertura en Mercado (Hedge)", "Liquidar Posición Directa (Sin Cobertura)"],
+                            key=f"radio_accion_{op['codigo']}"
+                        )
+                        
+                        # 2. EL FORMULARIO SOLO MUESTRA LOS DETALLES FINALES
                         with st.form(f"gestion_{op['codigo']}"):
-                            accion = st.radio("Acción a ejecutar:", ["Ejecutar Cobertura en Mercado (Hedge)", "Liquidar Posición Directa (Sin Cobertura)"])
-                            
                             cuota_ingresada = 0.0
                             plataforma_cob = ""
                             resultado_directo = ""
                             
+                            # La interfaz ahora sí cambiará en tiempo real
                             if accion == "Ejecutar Cobertura en Mercado (Hedge)":
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
                                 plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas)
