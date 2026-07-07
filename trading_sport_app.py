@@ -100,7 +100,7 @@ if estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         st.error(f"❌ Error de Supabase: {str(e)}")
 
 # =====================================================================
-# MÓDULO 2: SEGUIMIENTO Y CIERRE (FLUJO DE TRES ESTADOS)
+# MÓDULO 2: SEGUIMIENTO Y CIERRE (FLUJO CORREGIDO Y COMPLETO)
 # =====================================================================
 elif estrategia_activa == "🔒 Seguimiento y Cierre de Operaciones":
     st.markdown("### 📝 Panel de Control de Operaciones")
@@ -108,7 +108,7 @@ elif estrategia_activa == "🔒 Seguimiento y Cierre de Operaciones":
     if supabase is None:
         st.error("Conecta Supabase primero.")
     else:
-        # Traemos todo lo que no esté CERRADO
+        # Traemos todo lo que NO esté CERRADO
         res = supabase.table("historial_trading").select("*").in_("estado", ["EN VIVO", "CUBIERTA"]).execute()
         ops = res.data
         
@@ -117,35 +117,51 @@ elif estrategia_activa == "🔒 Seguimiento y Cierre de Operaciones":
         else:
             for op in ops:
                 with st.expander(f"⚽ {op['partido']} | Código: {op['codigo']} | Estado: {op['estado']}"):
-                    st.write(f"**Capital Total:** ${op['capital_total']:,.0f} | **Reserva (Stake 2):** ${op['reserva_stake_2']:,.0f}")
+                    st.write(f"**Capital:** ${op['capital_total']:,.0f} | **Reserva (Stake 2):** ${op['reserva_stake_2']:,.0f} | **Meta:** {op['cuota_objetivo']:.2f}")
                     
-                    # --- ESTADO 1: PENDIENTE (AÚN NO SE HA CAZADO LA COBERTURA) ---
+                    # --- ESTADO: EN VIVO (AQUÍ ES DONDE DECIDES QUÉ HACER) ---
                     if op['estado'] == "EN VIVO":
-                        st.warning("⚠️ Operación sin cubrir. Esperando cuota objetivo.")
+                        st.info("OPERACIÓN ACTIVA: ¿Vas a cazar la cobertura o decides liquidar ya?")
                         
-                        with st.form(f"cazar_{op['codigo']}"):
-                            cuota_cazada = st.number_input("¿A qué cuota cazaste la cobertura?", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
-                            if st.form_submit_button("✅ Cazar Cobertura (Marcar como Cubierta)"):
-                                supabase.table("historial_trading").update({
-                                    "estado": "CUBIERTA",
-                                    "cuota_cazada_real": cuota_cazada
-                                }).eq("codigo", op['codigo']).execute()
-                                st.success("¡Operación marcada como cubierta! Ya puedes esperar al final del partido.")
-                                st.rerun()
-                                
-                    # --- ESTADO 2: CUBIERTA (YA SE CAZÓ, ESPERANDO FINAL) ---
-                    elif op['estado'] == "CUBIERTA":
-                        st.success(f"🛡️ Operación cubierta exitosamente a cuota {op['cuota_cazada_real']:.2f}")
-                        
-                        with st.form(f"liquidar_{op['codigo']}"):
-                            resultado = st.radio("¿Qué pasó al final?", [
-                                "Ganó Apuesta Inicial (Favorito)",
-                                "Ganó Cobertura",
-                                "Pérdida Total"
-                            ])
+                        with st.form(f"accion_{op['codigo']}"):
+                            accion = st.radio("Elige tu gestión:", ["Cazar Cobertura", "Liquidar sin Cobertura (Preventivo/Final)"])
                             
+                            # Si elige cazar, pide la cuota
+                            cuota_a_ingresar = 0.0
+                            if accion == "Cazar Cobertura":
+                                cuota_a_ingresar = st.number_input("¿A qué cuota cazaste?", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
+                            
+                            # Si elige liquidar, pide el resultado pre-partido
+                            resultado_prev = ""
+                            if accion == "Liquidar sin Cobertura (Preventivo/Final)":
+                                resultado_prev = st.radio("Resultado final de la apuesta inicial:", ["Ganó Apuesta Inicial", "Perdió Apuesta Inicial"])
+
+                            if st.form_submit_button("Ejecutar Acción"):
+                                if accion == "Cazar Cobertura":
+                                    # Pasa a estado CUBIERTA
+                                    supabase.table("historial_trading").update({
+                                        "estado": "CUBIERTA",
+                                        "cuota_cazada_real": cuota_a_ingresar
+                                    }).eq("codigo", op['codigo']).execute()
+                                    st.success("¡Cobertura cazada! Ahora espera el final para liquidar.")
+                                else:
+                                    # Cierra la operación directamente (Liquidar sin cobertura)
+                                    utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total'] if "Ganó" in resultado_prev else -op['stake_1']
+                                    supabase.table("historial_trading").update({
+                                        "estado": "CERRADA",
+                                        "resultado_final": f"Sin Cobertura: {resultado_prev}",
+                                        "utilidad_neta_real": utilidad,
+                                        "roi_real": (utilidad / op['capital_total']) * 100
+                                    }).eq("codigo", op['codigo']).execute()
+                                    st.success(f"Operación cerrada sin cobertura. Utilidad: ${utilidad:,.0f} COP.")
+                                st.rerun()
+
+                    # --- ESTADO: CUBIERTA (YA SE CAZÓ, ESPERANDO FINAL) ---
+                    elif op['estado'] == "CUBIERTA":
+                        st.success(f"🛡️ Operación cubierta a cuota {op['cuota_cazada_real']:.2f}. Esperando finalización.")
+                        with st.form(f"liquidar_{op['codigo']}"):
+                            resultado = st.radio("Resultado final:", ["Ganó Apuesta Inicial", "Ganó Cobertura", "Pérdida Total"])
                             if st.form_submit_button("Liquidar Operación"):
-                                # Cálculo contable
                                 if "Ganó Apuesta Inicial" in resultado:
                                     utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
                                 elif "Ganó Cobertura" in resultado:
@@ -159,7 +175,6 @@ elif estrategia_activa == "🔒 Seguimiento y Cierre de Operaciones":
                                     "utilidad_neta_real": utilidad,
                                     "roi_real": (utilidad / op['capital_total']) * 100
                                 }).eq("codigo", op['codigo']).execute()
-                                st.success(f"Operación finalizada. Utilidad: ${utilidad:,.0f} COP.")
                                 st.rerun()
 
         # Resumen del Libro Mayor
