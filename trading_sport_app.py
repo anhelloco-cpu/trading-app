@@ -152,9 +152,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     }).eq("codigo", op['codigo']).execute()
                                     st.success("Cobertura registrada en el libro. La posición permanece abierta a la espera de liquidación final.")
                                 else:
-                                    # Liquidación directa inmediata
+                                    # Liquidación directa inmediata (SIN COBERTURA)
                                     if "Efectividad" in resultado_directo:
-                                        utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
+                                        # ¡AQUÍ ESTÁ LA CORRECCIÓN!
+                                        # Ganaste y NUNCA gastaste la reserva. 
+                                        # Utilidad = (Retorno de la casa) - (Lo que realmente apostaste, Stake 1)
+                                        utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
                                     else:
                                         # Solo se pierde el stake_1 porque la reserva nunca entró al mercado
                                         utilidad = -op['stake_1'] 
