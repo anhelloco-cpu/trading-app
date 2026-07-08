@@ -330,11 +330,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
     st.markdown("### 📝 Panel de Control y Auditoría")
     
     import datetime
+    import pandas as pd
     
     if supabase is None:
         st.error("Conecta Supabase primero.")
     else:
-        # --- CORRECCIÓN DE ORDEN: Se agrega .order() para organizar por hora de inicio ---
+        # --- CORRECCIÓN DE ORDEN: Organizar por hora de inicio ---
         res = supabase.table("historial_trading").select("*").in_("estado", ["EN VIVO", "CUBIERTA"]).order("hora_inicio_partido", desc=False).execute()
         ops = res.data
         
@@ -405,38 +406,39 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.success(f"Posición liquidada. Utilidad neta: ${utilidad:,.0f} COP.")
                                     st.rerun()
                         else:
-                            st.write("### 🛡️ Gestión de Riesgo y Viabilidad en Tiempo Real")
+                            st.write("### 🛡️ Gestión de Riesgo Dinámico en Vivo")
                             accion = st.radio(
-                                "Acción a ejecutar:", 
-                                ["Ejecutar Cobertura en Mercado (Hedge)", "Liquidar Posición Directa (Sin Cobertura)"],
+                                "Acción Operativa:", 
+                                ["Evaluar Asedio y Cobertura (IRD)", "Liquidar Posición Directa (Sin Cobertura)"],
                                 key=f"radio_accion_{op['codigo']}"
                             )
                             
-                            if accion == "Ejecutar Cobertura en Mercado (Hedge)":
+                            if accion == "Evaluar Asedio y Cobertura (IRD)":
                                 
-                                # --- FORMULARIO MANUAL ESTRUCTURADO ---
-                                st.markdown("#### ⏱️ Auditoría Táctica del Partido")
+                                # --- 1. INGRESO MANUAL DEL TOTAL ACUMULADO ---
+                                st.markdown("#### ⏱️ Auditoría Táctica (Ingresar Totales Actuales)")
                                 
-                                minuto_sugerido = 0
-                                hora_ini_str = op.get("hora_inicio_partido", "")
-                                if hora_ini_str:
-                                    try:
-                                        ahora = datetime.datetime.now()
-                                        hora_inicio = datetime.datetime.strptime(hora_ini_str, "%H:%M").replace(year=ahora.year, month=ahora.month, day=ahora.day)
-                                        if ahora < hora_inicio: hora_inicio -= datetime.timedelta(days=1)
-                                        diff_m = int((ahora - hora_inicio).total_seconds() / 60)
-                                        # Ajuste de sugerencia automático optimizado para un máximo de 90+ adición
-                                        minuto_sugerido = diff_m if diff_m <= 45 else (45 if diff_m < 60 else diff_m - 15)
-                                        minuto_sugerido = max(0, min(95, minuto_sugerido))
-                                    except Exception: pass
+                                minuto_sugerido = st.session_state[f"prev_min_{op['codigo']}"]
+                                if minuto_sugerido == 0:
+                                    hora_ini_str = op.get("hora_inicio_partido", "")
+                                    if hora_ini_str:
+                                        try:
+                                            ahora = datetime.datetime.now()
+                                            hora_inicio = datetime.datetime.strptime(hora_ini_str, "%H:%M").replace(year=ahora.year, month=ahora.month, day=ahora.day)
+                                            if ahora < hora_inicio: hora_inicio -= datetime.timedelta(days=1)
+                                            diff_m = int((ahora - hora_inicio).total_seconds() / 60)
+                                            minuto_sugerido = diff_m if diff_m <= 45 else (45 if diff_m < 60 else diff_m - 15)
+                                        except Exception: pass
 
-                                # CORRECCIÓN: El límite superior ahora es 95 para contemplar tiempo de adición estándar
-                                minuto_actual = st.number_input("⏱️ Minuto del Partido:", min_value=0, max_value=110, value=int(minuto_sugerido), step=1, key=f"min_{op['codigo']}")
+                                # Candado de seguridad para el sugerido
+                                minuto_sugerido = max(0, min(95, int(minuto_sugerido)))
+
+                                minuto_actual = st.number_input("⏱️ Minuto del Partido:", min_value=0, max_value=110, value=minuto_sugerido, step=1, key=f"min_{op['codigo']}")
                                 st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
                                 
                                 col_t1, col_t2 = st.columns(2)
                                 
-                                # Columna 1: Equipo del Stake 1
+                                # Columna 1: Equipo del Stake 1 (El que estamos defendiendo)
                                 with col_t1:
                                     st.markdown(f"<div style='background-color:#F0FDF4; padding:5px; border-radius:5px; text-align:center;'><b style='color:#166534;'>🟢 TU EQUIPO<br>{sel_ini}</b></div>", unsafe_allow_html=True)
                                     goles_ini = st.number_input("⚽ Goles", min_value=0, value=st.session_state[f"prev_g_ini_{op['codigo']}"], key=f"g_ini_{op['codigo']}")
@@ -464,7 +466,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 prev_min = st.session_state[f"prev_min_{op['codigo']}"]
                                 delta_min = max(1, minuto_actual - prev_min)
                                 
-                                # Normalización a bloques de 10 minutos
                                 factor_norm = delta_min / 10.0
                                 factor_norm = max(0.3, factor_norm)
                                 
@@ -486,7 +487,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 if roj_ini > 0: m_rojas = 1.5
                                 if roj_cob > 0: m_rojas = 0.5
                                 
-                                # CORRECCIÓN: Factor Temporal reajustado para el límite real de 90 minutos
                                 if minuto_actual <= 60: f_t = 0.8
                                 elif minuto_actual <= 75: f_t = 1.0
                                 else: f_t = 1.0 + (((minuto_actual - 75) ** 2) * 0.0035)
@@ -514,8 +514,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.progress(int(ird) / 100)
                                 st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
                                 
-                                # CORRECCIÓN: Candado de auditoría para el guardado de la foto a un máximo de 95
-                                if st.button("📸 Guardar Foto y Cerrar Ventana (Auditoría completada)", use_container_width=True):
+                                # CORRECCIÓN DEL IDENTIFICADOR DUPLICADO (KEY)
+                                if st.button("📸 Guardar Foto y Cerrar Ventana (Auditoría completada)", key=f"btn_foto_{op['codigo']}", use_container_width=True):
                                     st.session_state[f"prev_min_{op['codigo']}"] = max(0, min(95, int(minuto_actual)))
                                     st.session_state[f"prev_g_ini_{op['codigo']}"] = goles_ini
                                     st.session_state[f"prev_g_cob_{op['codigo']}"] = goles_cob
@@ -618,7 +618,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
                                                 <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ MANTENER POSICIÓN CON CAUTELA</h5>
                                                 <p style="margin: 0; font-size: 0.95rem;">
-                                                    La cuota es subóptma pero el Índice de Riesgo es manejable ({riesgo_gol_rival:.1f}%). No se justifica sobrepagar el seguro.
+                                                    La cuota es subóptma pero el Índice de Riesgo es manejable ({ird:.1f}%). No se justifica sobrepagar el seguro.
                                                 </p>
                                             </div>
                                             """, unsafe_allow_html=True)
