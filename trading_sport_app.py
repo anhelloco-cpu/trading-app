@@ -417,17 +417,15 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 # --- EMISIÓN AUTOMÁTICA DEL DICTAMEN DE RIESGO ---
                                 if cuota_ingresada < op['cuota_objetivo']:
-                                    if util_cobertura_con_cob < util_perdida_sin_cob:
-                                        evaluacion_critica = f"Ejecutar el seguro a esta cuota destruye más patrimonio que asumir el quiebre del pre-partido. Perderías ${abs(util_cobertura_con_cob):,.0f} COP frente a los ${abs(util_perdida_sin_cob):,.0f} COP de la inversión inicial."
-                                    else:
-                                        evaluacion_critica = "Aunque minimiza la pérdida máxima, la cuota está por debajo del umbral matemático óptimo determinado en la planeación."
-                                        
                                     st.markdown(f"""
                                     <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
-                                        <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: COBERTURA DE ALTO RIESGO (NO SUGERIDA)</h5>
+                                        <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: COBERTURA DEFICIENTE (CUOTA BAJA)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            La tasa en vivo actual ({cuota_ingresada:.2f}) es inferior a tu objetivo contable de {op['cuota_objetivo']:.2f}. {evaluacion_critica}<br>
-                                            <b>Sugerencia:</b> Se recomienda evaluar cambiar la opción a <i>'Liquidar Posición Directa'</i> para resguardar intacto el dinero de la reserva (${op['reserva_stake_2']:,.0f} COP).
+                                            La tasa en vivo ({cuota_ingresada:.2f}) está por debajo de tu objetivo ({op['cuota_objetivo']:.2f}). 
+                                            <br><br>
+                                            <b>Análisis Contable:</b> Es cierto que ejecutar esta cobertura mitiga parcialmente la pérdida si falla el pre-partido (recuperas algo). Sin embargo, al inyectar la reserva completa (${op['reserva_stake_2']:,.0f}) a una cuota tan pobre, <b>arruinas el margen de ganancia si tu apuesta inicial resulta ganadora</b>.
+                                            <br><br>
+                                            <b>Decisión Estratégica:</b> ¿Vale la pena sacrificar la utilidad de un posible acierto inicial solo por recuperar una fracción de la pérdida? Si consideras que el partido está totalmente perdido, cubre. Si crees que el pre-partido aún tiene oportunidad, no tires la reserva y haz Cierre Directo.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
@@ -517,7 +515,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         df = pd.DataFrame(res_cerradas.data)
         if not df.empty:
             st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
-                        
+
 # =====================================================================
 # MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
 # =====================================================================
