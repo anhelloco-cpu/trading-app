@@ -210,7 +210,6 @@ elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
                     st.markdown(f'<div class="caja-codigo"><h3>Código ({banca_activa}): {nuevo_codigo}</h3></div>', unsafe_allow_html=True)
                 except Exception as e:
                     st.error(f"❌ Error de Supabase: {str(e)}")
-
 # =====================================================================
 # MÓDULO 1: PAZ MENTAL + GUARDADO
 # =====================================================================
@@ -221,18 +220,18 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
     saldo_disponible = saldo_real if banca_activa == "REAL" else saldo_simulacion
     
-    # --- NUEVO: SELECTOR DE ENFOQUE (CLÁSICO VS INVERSO) ---
+    # --- SELECTOR DE ENFOQUE (CLÁSICO VS INVERSO) ---
     st.markdown("---")
     enfoque_operativo = st.radio(
         "🎯 Enfoque de Mercado (Determina el libro de auditoría):",
-        ["🔵 Clásico (Pre-partido a Favorito/Empate)", "🔴 Inverso (Pre-partido a Sorpresa/Rival)"],
+        ["🔵 Clásico (Pre-partido a Favorito/Empate)", "🔴 Inverso (Pre-partido a Sorpresa/Empate)"],
         horizontal=True
     )
     
     # Variables dinámicas para base de datos e interfaz
     nombre_estrategia_bd = "Estrategia 2: Paz Mental Clásica" if "Clásico" in enfoque_operativo else "Estrategia 2: Paz Mental Inversa"
-    label_cuota = "Cuota Inicial (Favorito o Empate)" if "Clásico" in enfoque_operativo else "Cuota Inicial (Sorpresa / Rival)"
-    val_cuota_def = 1.25 if "Clásico" in enfoque_operativo else 3.50
+    label_cuota = "Cuota Inicial (Gana/Empata Favorito)" if "Clásico" in enfoque_operativo else "Cuota Inicial (Gana/Empata Rival)"
+    val_cuota_def = 1.25 if "Clásico" in enfoque_operativo else 1.80 # Ajusté el valor por defecto a algo más realista para el Gana/Empata del no favorito
     st.markdown("---")
     
     col1, col2, col3 = st.columns(3)
@@ -274,15 +273,15 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
         st.markdown("### 💾 Detalles y Registro de la Operación")
         with st.form("guardar_operacion"):
             
-            # Textos dinámicos en el formulario según el enfoque
+            # Textos dinámicos en el formulario según el enfoque CORREGIDOS
             if "Clásico" in enfoque_operativo:
-                st.info("💡 **Regla Activa Clásica:** El Stake 1 va al Gana/Empata del Favorito. La reserva caza al Rival.")
-                label_eq_fav = "⭐ Equipo Favorito (Stake 1)"
-                label_eq_riv = "⚠️ Equipo Rival (Cobertura)"
+                st.info("💡 **Regla Activa Clásica:** El Stake 1 va al Gana/Empata del Favorito. La reserva caza el Gana del Rival.")
+                label_eq_fav = "⭐ Equipo Favorito (Stake 1: Gana/Empata)"
+                label_eq_riv = "⚠️ Equipo Rival (Cobertura: Solo Gana)"
             else:
-                st.info("💡 **Regla Activa Inversa:** El Stake 1 va a la Sorpresa. La reserva caza al Favorito/Empate.")
-                label_eq_fav = "⭐ Equipo Favorito (Cobertura)"
-                label_eq_riv = "⚠️ Equipo Rival / Sorpresa (Stake 1)"
+                st.info("💡 **Regla Activa Inversa:** El Stake 1 va al Gana/Empata del Rival. La reserva caza el Gana del Favorito.")
+                label_eq_fav = "⭐ Equipo Favorito (Cobertura: Solo Gana)"
+                label_eq_riv = "⚠️ Equipo Rival (Stake 1: Gana/Empata)"
             
             c_eq1, c_eq2 = st.columns(2)
             with c_eq1:
@@ -302,18 +301,18 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                     nuevo_codigo = generar_codigo()
                     plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
                     
-                    # Inversión de selecciones para la base de datos
+                    # Lógica de guardado de los mercados CORREGIDA
                     if "Clásico" in enfoque_operativo:
                         seleccion_ini = f"Gana o Empata {eq_favorito}"
                         seleccion_cob = f"Gana {eq_rival}"
                     else:
-                        seleccion_ini = f"Gana {eq_rival}"
-                        seleccion_cob = f"Gana o Empata {eq_favorito}"
+                        seleccion_ini = f"Gana o Empata {eq_rival}"
+                        seleccion_cob = f"Gana {eq_favorito}"
                     
                     datos = {
                         "codigo": nuevo_codigo,
                         "partido": f"{eq_favorito} vs {eq_rival}",
-                        "estrategia": nombre_estrategia_bd,  # <--- GUARDADO DE LA ETIQUETA HÍBRIDA
+                        "estrategia": nombre_estrategia_bd,
                         "seleccion_inicial": seleccion_ini,
                         "seleccion_cobertura": seleccion_cob,
                         "plataforma_inicial": plataforma_final,
