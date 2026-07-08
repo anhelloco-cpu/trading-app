@@ -403,10 +403,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             
                             if accion == "Ejecutar Cobertura en Mercado (Hedge)":
                                 
-                                # --- FORMULARIO MANUAL ESTRUCTURADO ---
-                                st.markdown("#### ⏱️ Auditoría Táctica del Partido (Ingreso Manual)")
+                                # --- FORMULARIO MANUAL ESTRUCTURADO (INGRESO DE DATOS) ---
+                                st.markdown("#### ⏱️ Auditoría Táctica del Partido")
                                 
-                                # Fallback por hora de inicio para sugerir el minuto
                                 minuto_sugerido = 0
                                 hora_ini_str = op.get("hora_inicio_partido", "")
                                 if hora_ini_str:
@@ -425,22 +424,68 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 col_t1, col_t2 = st.columns(2)
                                 
-                                # Columna 1: Equipo del Stake 1 (El que estás defendiendo)
+                                # Columna 1: Equipo del Stake 1
                                 with col_t1:
                                     st.markdown(f"<div style='background-color:#F0FDF4; padding:10px; border-radius:5px; text-align:center;'><b style='color:#166534;'>🟢 TU EQUIPO (Stake 1)<br>{sel_ini}</b></div>", unsafe_allow_html=True)
-                                    goles_ini = st.number_input(f"⚽ Goles de {sel_ini}:", min_value=0, step=1, key=f"g_ini_{op['codigo']}")
-                                    ataque_ini = st.number_input(f"🏃 Ataques totales:", min_value=0, step=1, key=f"atk_ini_{op['codigo']}")
+                                    goles_ini = st.number_input(f"⚽ Goles:", min_value=0, step=1, key=f"g_ini_{op['codigo']}")
                                     ataq_pel_ini = st.number_input(f"🔥 Ataques Peligrosos:", min_value=0, step=1, key=f"atkp_ini_{op['codigo']}")
-                                    pos_ini = st.number_input(f"% Posesión del Balón:", min_value=0, max_value=100, value=50, step=1, key=f"pos_ini_{op['codigo']}")
+                                    tiros_ini = st.number_input(f"🎯 Tiros a Puerta:", min_value=0, step=1, key=f"tir_ini_{op['codigo']}")
+                                    pos_ini = st.number_input(f"% Posesión:", min_value=0, max_value=100, value=50, step=1, key=f"pos_ini_{op['codigo']}")
                                 
-                                # Columna 2: Equipo Rival (El que amenaza tu apuesta)
+                                # Columna 2: Equipo Rival
                                 with col_t2:
                                     st.markdown(f"<div style='background-color:#FEF2F2; padding:10px; border-radius:5px; text-align:center;'><b style='color:#991B1B;'>🔴 RIVAL (Amenaza)<br>{sel_cob}</b></div>", unsafe_allow_html=True)
-                                    goles_cob = st.number_input(f"⚽ Goles de {sel_cob}:", min_value=0, step=1, key=f"g_cob_{op['codigo']}")
-                                    ataque_cob = st.number_input(f"🏃 Ataques totales:", min_value=0, step=1, key=f"atk_cob_{op['codigo']}")
+                                    goles_cob = st.number_input(f"⚽ Goles:", min_value=0, step=1, key=f"g_cob_{op['codigo']}")
                                     ataq_pel_cob = st.number_input(f"🔥 Ataques Peligrosos:", min_value=0, step=1, key=f"atkp_cob_{op['codigo']}")
-                                    pos_cob = st.number_input(f"% Posesión del Balón:", min_value=0, max_value=100, value=50, step=1, key=f"pos_cob_{op['codigo']}")
+                                    tiros_cob = st.number_input(f"🎯 Tiros a Puerta:", min_value=0, step=1, key=f"tir_cob_{op['codigo']}")
+                                    pos_cob = st.number_input(f"% Posesión:", min_value=0, max_value=100, value=50, step=1, key=f"pos_cob_{op['codigo']}")
 
+                                st.markdown("---")
+                                
+                                # =====================================================================
+                                # 🧠 MOTOR PREDICTIVO: ÍNDICE DE RIESGO DE GOL (IRD)
+                                # =====================================================================
+                                
+                                # 1. Cálculo de Deltas (Presión Neta del Rival sobre nuestro equipo)
+                                diff_tiros = tiros_cob - tiros_ini
+                                diff_ataques = ataq_pel_cob - ataq_pel_ini
+                                diff_pos = pos_cob - pos_ini
+                                
+                                # 2. Ponderación Estructural (Pesos del algoritmo)
+                                peso_tiros = diff_tiros * 4.0      # Impacto masivo por tiro real
+                                peso_ataques = diff_ataques * 0.4  # Impacto por desgaste y volumen
+                                peso_pos = (diff_pos * 0.15) if diff_pos > 0 else 0 # Impacto menor por dominio de balón
+                                
+                                presion_bruta = max(0, peso_tiros + peso_ataques + peso_pos)
+                                
+                                # 3. Factor Theta (Multiplicador Temporal Exponencial)
+                                if minuto_actual <= 45:
+                                    factor_reloj = 0.8
+                                elif 45 < minuto_actual <= 75:
+                                    factor_reloj = 1.0 + ((minuto_actual - 45) * 0.015)
+                                else:
+                                    # El riesgo estalla en los últimos 15 minutos
+                                    factor_reloj = 1.45 + (((minuto_actual - 75) ** 2) * 0.008)
+                                
+                                # 4. Cálculo de Riesgo Final (Limitado de 0 a 100)
+                                riesgo_gol_rival = min(100.0, presion_bruta * factor_reloj)
+                                
+                                # --- RENDERIZADO DEL TERMÓMETRO VISUAL ---
+                                st.markdown("#### 🌡️ Termómetro Predictivo (Riesgo de Gol en Contra)")
+                                
+                                if riesgo_gol_rival < 40:
+                                    color_riesgo = "green"
+                                    estado_riesgo = "BAJO - El partido está controlado. Presión nula o ineficaz."
+                                elif riesgo_gol_rival < 70:
+                                    color_riesgo = "orange"
+                                    estado_riesgo = "MODERADO - Tendencia de asedio. El rival está ganando terreno."
+                                else:
+                                    color_riesgo = "red"
+                                    estado_riesgo = "CRÍTICO - ¡Riesgo de gol inminente o tiempo agónico!"
+                                    
+                                st.progress(int(riesgo_gol_rival) / 100)
+                                st.markdown(f"<p style='text-align: center; color: {color_riesgo}; font-weight: bold;'>Índice IRD: {riesgo_gol_rival:.1f}% | {estado_riesgo}</p>", unsafe_allow_html=True)
+                                
                                 st.markdown("---")
                                 
                                 # --- DATOS FINANCIEROS Y MATRIZ ---
@@ -453,7 +498,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 util_inicial_sin_cob = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
                                 util_perdida_sin_cob = -op['stake_1']
                                 
-                                st.markdown("#### 🔍 Matriz Comparativa de Escenarios")
+                                st.markdown("#### 🔍 Matriz de Decisión Financiera")
                                 col_sc1, col_sc2 = st.columns(2)
                                 with col_sc1:
                                     st.markdown(f"""
@@ -476,38 +521,15 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
                                 mejora_escenario_negativo = util_cobertura_con_cob - util_perdida_sin_cob
                                 
-                                # =====================================================================
-                                # 📊 MOTOR CUANTITATIVO: ÍNDICE DE PRESIÓN V2 (ATAQUES Y POSESIÓN)
-                                # =====================================================================
-                                
-                                # Calculamos la brecha de volumen ofensivo que sufre nuestro equipo
-                                diff_ataques_peligrosos = ataq_pel_cob - ataq_pel_ini
-                                diff_posesion = pos_cob - pos_ini
-                                
-                                # Si el rival tiene más de 15 ataques peligrosos extra y nos domina la posesión, estamos bajo fuego
-                                asedio_critico = (diff_ataques_peligrosos > 15) and (pos_cob > 55)
-                                asedio_moderado = (diff_ataques_peligrosos > 5)
-                                
-                                if minuto_actual <= 45:
-                                    factor_reloj = 1.0
-                                elif 45 < minuto_actual <= 75:
-                                    factor_reloj = 1.5
-                                else:
-                                    factor_reloj = 1.5 + ((minuto_actual - 75) / 5) ** 2
-
-                                # Regla estructural de tu estrategia: El empate juega a nuestro favor
                                 va_empatado = (goles_ini == goles_cob)
                                 
-                                # --- EMISIÓN DE DICTÁMENES FINANCIEROS BASADOS EN EL ÍNDICE ---
-                                if va_empatado:
-                                    st.info(f"💡 **ESTADO PRINCIPAL PROTEGIDO (MARCADOR: {goles_ini}-{goles_cob})**: El partido marcha empatado. Tu inversión del Stake 1 ({sel_ini}) cubre el **Empate**. El reloj juega enteramente a tu favor y no hay emergencia de cobertura inmediata.")
-
+                                # --- EMISIÓN DE DICTÁMENES COMBINADOS (MATEMÁTICA + FINANZAS) ---
                                 if util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
                                     st.markdown(f"""
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
                                         <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: ARBITRAJE PERFECTO (RIESGO CERO)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            Independientemente de la presión en cancha, esta cuota asegura un saldo en verde total. <b>Cierre de libro recomendado: asegura utilidades.</b>
+                                            El algoritmo detecta que esta cuota asegura un saldo en verde en ambos escenarios. <b>Ejecución prioritaria sugerida para cerrar el libro.</b>
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
@@ -516,55 +538,57 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
                                         <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: EQUILIBRIO OPERATIVO ALCANZADO</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            La cuota en vivo ({cuota_ingresada:.2f}) cumple el objetivo de planificación matemática. Entrada validada.
+                                            La cuota en vivo cumple el objetivo matemático original. Operación de cobertura 100% validada.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 elif mejora_escenario_negativo > costo_seguro:
+                                    # Análisis profundo si la cuota es regular
                                     if va_empatado:
-                                        st.markdown(f"""
-                                        <div style="background-color: #F8FAFC; border-left: 6px solid #94A3B8; padding: 15px; margin-top: 15px; border-radius: 4px; color: #334155;">
-                                            <h5 style="margin: 0 0 5px 0; color: #334155;">💡 DICTAMEN: PAZ MENTAL OPTEABLE</h5>
-                                            <p style="margin: 0; font-size: 0.95rem;">
-                                                Al ir empatados, tu Stake 1 ya va ganando. Si ejecutas la cobertura es estrictamente por tranquilidad ante la presión del rival (Posesión {pos_cob}% y {ataq_pel_cob} Ataques Peligrosos), pero la matemática sugiere tener paciencia para cazar una mejor cuota.
-                                            </p>
-                                        </div>
-                                        """, unsafe_allow_html=True)
-                                    elif asedio_critico or (minuto_actual >= 75 and factor_reloj > 2.0):
-                                        st.markdown(f"""
-                                        <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
-                                            <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: EMERGENCIA TÁCTICA - FORZAR COBERTURA</h5>
-                                            <p style="margin: 0; font-size: 0.95rem;">
-                                                La cuota es baja, pero <b>la auditoría táctica exige mitigación de pérdidas.</b>
-                                                <br><br>
-                                                <b>Métricas Críticas:</b> El rival ({sel_cob}) ejerce un asedio crítico ({ataq_pel_cob} atq. peligrosos). El riesgo de quiebre es inminente. Sacrificar utilidades para rescatar ${mejora_escenario_negativo:,.0f} COP de tu inversión es la decisión financiera correcta.
-                                            </p>
-                                        </div>
-                                        """, unsafe_allow_html=True)
-                                    elif asedio_moderado:
-                                        st.markdown(f"""
-                                        <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
-                                            <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: MITIGACIÓN DE RIESGO VIABLE</h5>
-                                            <p style="margin: 0; font-size: 0.95rem;">
-                                                El rival empieza a inclinar la balanza. Pagas un costo de ${costo_seguro:,.0f} COP de tu rentabilidad potencial para frenar una sangría mayor de ${mejora_escenario_negativo:,.0f} COP. Es un movimiento de escudo válido.
-                                            </p>
-                                        </div>
-                                        """, unsafe_allow_html=True)
+                                        if riesgo_gol_rival > 70:
+                                            st.markdown(f"""
+                                            <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
+                                                <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: SALVATAJE DEL EMPATE (RIESGO EXTREMO)</h5>
+                                                <p style="margin: 0; font-size: 0.95rem;">
+                                                    El partido va empatado y tu Stake 1 está ganando, PERO el modelo predictivo arroja un <b>{riesgo_gol_rival:.1f}% de probabilidad de quiebre</b>. La cuota no es perfecta, pero el desplome del mercado es inminente. <b>Fuerza el seguro ahora mismo para proteger el patrimonio.</b>
+                                                </p>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                        else:
+                                            st.markdown(f"""
+                                            <div style="background-color: #F8FAFC; border-left: 6px solid #94A3B8; padding: 15px; margin-top: 15px; border-radius: 4px; color: #334155;">
+                                                <h5 style="margin: 0 0 5px 0; color: #334155;">💡 DICTAMEN: EMPATE PROTEGIDO (PACIENCIA)</h5>
+                                                <p style="margin: 0; font-size: 0.95rem;">
+                                                    El marcador te favorece (Empate) y el Índice de Riesgo está controlado ({riesgo_gol_rival:.1f}%). La matemática te aconseja <b>no destruir margen todavía</b>. Espera que el reloj corra a tu favor para forzar a la casa de apuestas a darte una mejor cuota.
+                                                </p>
+                                            </div>
+                                            """, unsafe_allow_html=True)
                                     else:
-                                        st.markdown(f"""
-                                        <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
-                                            <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: RIESGO BAJO (MANTENER POSICIÓN)</h5>
-                                            <p style="margin: 0; font-size: 0.95rem;">
-                                                Tu equipo ({sel_ini}) tiene el partido controlado en métricas. No hay asedio significativo del rival. Te sugerimos no ejecutar esta cobertura a este precio y esperar una mejora en la cuota.
-                                            </p>
-                                        </div>
-                                        """, unsafe_allow_html=True)
+                                        # Si vamos perdiendo/ganando distinto al empate
+                                        if riesgo_gol_rival > 60:
+                                            st.markdown(f"""
+                                            <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
+                                                <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: MITIGACIÓN TÁCTICA URGENTE</h5>
+                                                <p style="margin: 0; font-size: 0.95rem;">
+                                                    La presión del rival es asfixiante (Riesgo: {riesgo_gol_rival:.1f}%). Sacrificar utilidades para rescatar ${mejora_escenario_negativo:,.0f} COP de tu inversión inicial es la maniobra contable correcta antes de que encajen un gol.
+                                                </p>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                        else:
+                                            st.markdown(f"""
+                                            <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
+                                                <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: MANTENER POSICIÓN CON CAUTELA</h5>
+                                                <p style="margin: 0; font-size: 0.95rem;">
+                                                    La cuota es subóptima y el Índice de Riesgo es manejable ({riesgo_gol_rival:.1f}%). No existe una emergencia real en la cancha que justifique sobrepagar este seguro. <b>Sugerencia: Esperar mejor precio.</b>
+                                                </p>
+                                            </div>
+                                            """, unsafe_allow_html=True)
                                 elif mejora_escenario_negativo > 0:
                                     st.markdown(f"""
                                     <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
-                                        <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: SEGURO COSTOSO (DESTRUCCIÓN DE VALOR)</h5>
+                                        <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: SEGURO INEFICIENTE</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            Estás pagando ${costo_seguro:,.0f} COP de tu beneficio para proteger una porción ínfima (${mejora_escenario_negativo:,.0f} COP) del capital. Es preferible soportar el Stake 1 a ciegas que comprar un seguro tan ineficiente.
+                                            Pagas ${costo_seguro:,.0f} COP para rescatar apenas ${mejora_escenario_negativo:,.0f} COP. A menos que el termómetro esté en rojo crítico, este movimiento destruye capital. Mejor soportar la posición abierta.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
@@ -573,7 +597,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
                                         <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: COBERTURA DESTRUCTIVA</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            Ejecutar el hedge a este precio empeoraría matemáticamente la posición. Liquida de forma directa y protege la reserva.
+                                            Matemáticamente inviable. Liquidar de forma directa al terminar el partido y proteger la reserva de capital.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
