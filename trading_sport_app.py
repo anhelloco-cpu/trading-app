@@ -419,26 +419,64 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     </div>
                                     """, unsafe_allow_html=True)
                                 
-                                # --- EMISIÓN AUTOMÁTICA DEL DICTAMEN DE RIESGO ---
-                                if cuota_ingresada < op['cuota_objetivo']:
+                                # --- EMISIÓN AUTOMÁTICA DEL DICTAMEN DE RIESGO (LÓGICA AVANZADA) ---
+                                
+                                # 1. Escenario Ideal: Arbitraje Positivo (Utilidad garantizada en ambos lados)
+                                if util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
                                     st.markdown(f"""
-                                    <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
-                                        <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: COBERTURA DEFICIENTE (CUOTA BAJA)</h5>
+                                    <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
+                                        <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: ARBITRAJE PERFECTO (RIESGO CERO)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            La tasa en vivo ({cuota_ingresada:.2f}) está por debajo de tu objetivo ({op['cuota_objetivo']:.2f}). 
-                                            <br><br>
-                                            <b>Análisis Contable:</b> Es cierto que ejecutar esta cobertura mitiga parcialmente la pérdida si falla el pre-partido (recuperas algo). Sin embargo, al inyectar la reserva completa (${op['reserva_stake_2']:,.0f}) a una cuota tan pobre, <b>arruinas el margen de ganancia si tu apuesta inicial resulta ganadora</b>.
-                                            <br><br>
-                                            <b>Decisión Estratégica:</b> ¿Vale la pena sacrificar la utilidad de un posible acierto inicial solo por recuperar una fracción de la pérdida? Si consideras que el partido está totalmente perdido, cubre. Si crees que el pre-partido aún tiene oportunidad, no tires la reserva y haz Cierre Directo.
+                                            Independientemente de tu objetivo original, esta cobertura te garantiza salir en verde (o a ras) pase lo que pase en el partido. <b>Es una decisión financiera óptima para asegurar la utilidad sin estrés.</b>
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
-                                else:
+                                    
+                                # 2. Cumple perfectamente con la meta matemática planeada
+                                elif cuota_ingresada >= op['cuota_objetivo']:
                                     st.markdown(f"""
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
                                         <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: EQUILIBRIO OPERATIVO VIABLE</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            La cuota cubre eficientemente las expectativas de rentabilidad y resguarda el balance esperado.
+                                            La cuota actual cubre al 100% las exigencias matemáticas de la estrategia original.
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                # 3. No cumple la meta ideal, pero salva el patrimonio (Tu ejemplo)
+                                elif util_cobertura_con_cob > util_perdida_sin_cob:
+                                    costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
+                                    ahorro_perdida = abs(util_perdida_sin_cob) - abs(util_cobertura_con_cob)
+                                    
+                                    # Valida si el ahorro es mayor al costo del seguro
+                                    if ahorro_perdida >= costo_seguro:
+                                        st.markdown(f"""
+                                        <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
+                                            <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: REDUCCIÓN DE RIESGO INTELIGENTE (DEFENSA)</h5>
+                                            <p style="margin: 0; font-size: 0.95rem;">
+                                                La cuota de {cuota_ingresada:.2f} está por debajo del objetivo, pero <b>la matemática valida tu movimiento defensivo.</b>
+                                                <br><br>
+                                                <b>Análisis Costo-Beneficio:</b> Sacrificas ${costo_seguro:,.0f} COP de tu utilidad potencial para salvar ${ahorro_perdida:,.0f} COP del capital. El impacto del golpe se reduce drásticamente.
+                                            </p>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                    else:
+                                        st.markdown(f"""
+                                        <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
+                                            <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: COBERTURA MEDIOCRE (ALTO COSTO)</h5>
+                                            <p style="margin: 0; font-size: 0.95rem;">
+                                                <b>Análisis Desfavorable:</b> Estás pagando ${costo_seguro:,.0f} de tu ganancia para salvar apenas ${ahorro_perdida:,.0f} de la pérdida. El costo de este seguro es desproporcionado a la protección que ofrece.
+                                            </p>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                
+                                # 4. Cobertura inútil o destructiva
+                                else:
+                                    st.markdown(f"""
+                                    <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
+                                        <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: COBERTURA DESTRUCTIVA (ABANDONAR)</h5>
+                                        <p style="margin: 0; font-size: 0.95rem;">
+                                            Ejecutar el seguro a esta cuota destruye tu patrimonio. Perderías ${abs(util_cobertura_con_cob):,.0f} COP cubriendo, un escenario peor o igual a los ${abs(util_perdida_sin_cob):,.0f} COP de dejar correr la operación sin hacer nada.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
