@@ -546,41 +546,51 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
         if df_sim.empty:
             st.info("Aún no hay operaciones de simulación finalizadas para auditar.")
         else:
-            # 1. Filtro por Estrategia (Asumiendo que guardaste la columna 'estrategia')
+            # 1. Filtro por Estrategia
             if 'estrategia' not in df_sim.columns:
-                df_sim['estrategia'] = "Estrategia 2: Paz Mental" # Fallback por si la columna es nueva
+                df_sim['estrategia'] = "Estrategia 2: Paz Mental Clásica"
                 
             estrategias_disponibles = df_sim['estrategia'].dropna().unique().tolist()
             estrategia_seleccionada = st.selectbox("📌 Selecciona la estrategia a auditar:", estrategias_disponibles)
             
-            # Filtramos el dataframe
             df_est = df_sim[df_sim['estrategia'] == estrategia_seleccionada].copy()
             total_ops = len(df_est)
             
-            if total_ops < 5:
-                st.warning(f"⏳ Muestra Insuficiente. Tienes {total_ops} operaciones. Se requieren al menos 5 para evitar errores de varianza matemática.")
+            if total_ops == 0:
+                st.info(f"No hay registros cerrados para la estrategia: {estrategia_seleccionada}")
             else:
-                # 2. El botón de generación de informe con el contador
                 if st.button(f"📈 Generar Dictamen Cuantitativo ({total_ops} Simulaciones)"):
                     
                     st.markdown("---")
                     
-                    # 3. Advertencia Profesional de Auditoría
-                    if total_ops < 100:
+                    # 3. SELLO DE AUDITORÍA DINÁMICO
+                    if total_ops < 5:
                         st.markdown(f"""
-                        <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-                            <h4 style="color: #B45309; margin-top: 0;">⚠️ AVISO DE AUDITORÍA: MUESTRA EN DESARROLLO</h4>
-                            <p style="color: #92400E; margin-bottom: 0;">
-                                Este dictamen preliminar cuenta con <b>{total_ops} operaciones</b>. El estándar exige un mínimo de <b>100 eventos</b> para mitigar la desviación estándar y considerar los datos estadísticamente viables. Las siguientes métricas son orientativas.
+                        <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; border-radius: 5px; margin-bottom: 20px; color: #991B1B;">
+                            <h4 style="margin-top: 0; color: #991B1B;">🚨 DICTAMEN: MUESTRA CRÍTICA (ESTRATEGIA NO PROBADA)</h4>
+                            <p style="margin-bottom: 0; font-size: 0.95rem;">
+                                Este informe cuenta con una muestra de solo <b>{total_ops} operaciones</b>. Financieramente, este volumen es insignificante. 
+                                Los indicadores expuestos abajo están distorsionados por la varianza de corto plazo (suerte). 
+                                <b>El modelo matemático carece de sustento probabilístico hasta acumular un volumen mayor.</b>
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    elif total_ops < 100:
+                        st.markdown(f"""
+                        <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 5px; margin-bottom: 20px; color: #92400E;">
+                            <h4 style="margin-top: 0; color: #B45309;">⚠️ DICTAMEN PRELIMINAR: MUESTRA EN DESARROLLO (NO PROBADA AÚN)</h4>
+                            <p style="margin-bottom: 0; font-size: 0.95rem;">
+                                Este dictamen preliminar cuenta con <b>{total_ops} operaciones</b>. Aunque el motor matemático ya proyecta tendencias operativas, 
+                                el estándar exige un mínimo de <b>100 eventos continuos</b> para mitigar por completo el factor azar y dar por 'probada' o certificada la viabilidad de la estrategia. Los datos actuales son estrictamente orientativos para control de gestión parcial.
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
                     else:
-                        st.success("✅ VALIDACIÓN INSTITUCIONAL: La muestra estadística supera las 100 operaciones. El margen de error se considera aceptable para la toma de decisiones.")
+                        st.success(f"✅ CERTIFICACIÓN OFICIAL: ESTRATEGIA ESTADÍSTICAMENTE PROBADA. El volumen de {total_ops} operaciones mitiga la desviación estándar. Las métricas describen la ventaja matemática real del modelo.")
 
-                    # 4. Cálculos de Eficiencia Operativa (Tu motor matemático)
-                    victorias_pre_partido = df_est['resultado_final'].str.contains("Pre-Partido", case=False, na=False).sum()
-                    victorias_cobertura = df_est['resultado_final'].str.contains("Cobertura Ejecutada", case=False, na=False).sum()
+                    # 4. Cálculos de Eficiencia Operativa
+                    victorias_pre_partido = df_est['resultado_final'].str.contains("Pre-Partido|Ganó Inicial", case=False, na=False).sum()
+                    victorias_cobertura = df_est['resultado_final'].str.contains("Cobertura", case=False, na=False).sum()
                     derrotas_totales = df_est['resultado_final'].str.contains("Déficit|Perdid", case=False, na=False).sum()
                     
                     win_rate = (victorias_pre_partido / total_ops) * 100
@@ -588,6 +598,26 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     loss_rate = (derrotas_totales / total_ops) * 100
                     cuota_promedio = df_est['cuota_inicial'].mean()
                     
+                    # --- NUEVO: CÁLCULO DE TIEMPO PROMEDIO DE COBERTURA (TIME-TO-HEDGE) ---
+                    tiempo_promedio_cob = 0
+                    if 'hora_inicio_partido' in df_est.columns and 'hora_cobertura' in df_est.columns:
+                        df_tiempos = df_est.dropna(subset=['hora_inicio_partido', 'hora_cobertura']).copy()
+                        if not df_tiempos.empty:
+                            try:
+                                # Convertimos las cadenas "HH:MM" a objetos de tiempo de Pandas para restarlos
+                                t_inicio = pd.to_datetime(df_tiempos['hora_inicio_partido'], format='%H:%M')
+                                t_cob = pd.to_datetime(df_tiempos['hora_cobertura'], format='%H:%M')
+                                
+                                # Calculamos la diferencia en minutos
+                                diff_minutos = (t_cob - t_inicio).dt.total_seconds() / 60.0
+                                
+                                # Ajuste por si el partido empezó antes de medianoche y se cubrió después
+                                diff_minutos = diff_minutos.apply(lambda x: x + 1440 if x < 0 else x)
+                                
+                                tiempo_promedio_cob = diff_minutos.mean()
+                            except Exception:
+                                tiempo_promedio_cob = 0
+
                     # 5. Cálculos de Riesgo Institucional
                     roi_promedio = df_est['roi_real'].mean()
                     volatilidad_roi = df_est['roi_real'].std() if total_ops > 1 else 0
@@ -595,12 +625,11 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     ev = ((win_rate / 100) * (cuota_promedio - 1)) - (loss_rate / 100)
                     sharpe_ratio = (roi_promedio / volatilidad_roi) if volatilidad_roi > 0 else 0
                     
-                    # Cálculo de Max Drawdown Real
                     df_est = df_est.sort_values(by='fecha')
                     df_est['acumulado_utilidad'] = df_est['utilidad_neta_real'].cumsum()
                     df_est['pico_historico'] = df_est['acumulado_utilidad'].cummax()
                     df_est['drawdown'] = df_est['pico_historico'] - df_est['acumulado_utilidad']
-                    max_drawdown_cop = df_est['drawdown'].max()
+                    max_drawdown_cop = df_est['drawdown'].max() if not df_est['drawdown'].empty else 0
                     
                     # 6. Motor de Decisión (Veredicto)
                     if ev <= 0:
@@ -647,8 +676,14 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     
                     st.markdown("---")
                     st.subheader("📊 Eficiencia en la Cancha (Realidad Operativa)")
-                    c1, c2, c3, c4 = st.columns(4)
+                    
+                    # Añadimos una columna más al renderizado inferior para mostrar el tiempo
+                    c1, c2, c3, c4, c5 = st.columns(5)
                     c1.metric("Volumen Analizado", f"{total_ops} Ops")
                     c2.metric("Efectividad Inicial", f"{win_rate:.1f}%")
-                    c3.metric("Frecuencia de Rescate", f"{frecuencia_rescate:.1f}%")
-                    c4.metric("Tasa de Fracaso", f"{loss_rate:.1f}%")
+                    c3.metric("Frecuencia Rescate", f"{frecuencia_rescate:.1f}%")
+                    c4.metric("Tasa Fracaso", f"{loss_rate:.1f}%")
+                    
+                    # Formateo visual del tiempo: Si no hay coberturas mostrar "N/A"
+                    texto_tiempo = f"{tiempo_promedio_cob:.0f} min" if tiempo_promedio_cob > 0 else "N/A"
+                    c5.metric("Tiempo Promedio a Cobertura", texto_tiempo)
