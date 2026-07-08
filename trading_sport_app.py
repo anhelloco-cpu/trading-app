@@ -375,41 +375,94 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.success(f"Posición liquidada. Utilidad neta: ${utilidad:,.0f} COP.")
                                     st.rerun()
                         else:
-                            # FORMULARIO COMPLEJO ORIGINAL PARA PAZ MENTAL
-                            st.write("Seleccione la gestión de riesgo a aplicar:")
+                            # ENTORNO DE EVALUACIÓN EXPERTA PARA PAZ MENTAL
+                            st.write("### 🛡️ Gestión de Riesgo y Viabilidad en Tiempo Real")
                             accion = st.radio(
                                 "Acción a ejecutar:", 
                                 ["Ejecutar Cobertura en Mercado (Hedge)", "Liquidar Posición Directa (Sin Cobertura)"],
                                 key=f"radio_accion_{op['codigo']}"
                             )
                             
-                            with st.form(f"gestion_{op['codigo']}"):
-                                cuota_ingresada = 0.0
-                                plataforma_cob = ""
-                                resultado_directo = ""
+                            # FLUJO 1: EJECUTAR COBERTURA (REACTIVO - FUERA DE FORMULARIO)
+                            if accion == "Ejecutar Cobertura en Mercado (Hedge)":
+                                cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
+                                plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
                                 
-                                if accion == "Ejecutar Cobertura en Mercado (Hedge)":
-                                    cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
-                                    plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas)
+                                # --- PROYECCIONES DE AUDITORÍA FINANCIERA ---
+                                util_inicial_con_cob = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
+                                util_cobertura_con_cob = (op['reserva_stake_2'] * cuota_ingresada) - op['capital_total']
+                                
+                                util_inicial_sin_cob = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
+                                util_perdida_sin_cob = -op['stake_1']
+                                
+                                st.markdown("#### 🔍 Matriz Comparativa de Escenarios")
+                                col_sc1, col_sc2 = st.columns(2)
+                                with col_sc1:
+                                    st.markdown(f"""
+                                    <div style="background-color: #F8FAFC; padding: 15px; border-radius: 6px; border: 1px solid #CBD5E1;">
+                                        <b style="color: #1E293B;">OPCIÓN A: Ejecutar Cobertura a Cuota {cuota_ingresada:.2f}</b><br>
+                                        • Si se consolida el Inicial: <b>${util_inicial_con_cob:,.0f} COP</b><br>
+                                        • Si se consolida la Cobertura: <span style="color:{'#10B981' if util_cobertura_con_cob >= 0 else '#EF4444'}; font-weight:bold;">${util_cobertura_con_cob:,.0f} COP</span>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                with col_sc2:
+                                    st.markdown(f"""
+                                    <div style="background-color: #FFFBEB; padding: 15px; border-radius: 6px; border: 1px solid #FDE68A;">
+                                        <b style="color: #78350F;">OPCIÓN B: Abandono de Cobertura (Dejar Correr)</b><br>
+                                        • Si se consolida el Inicial: <b>${util_inicial_sin_cob:,.0f} COP</b> (Reserva a salvo)<br>
+                                        • Si se consolida la Pérdida: <span style="color:#EF4444; font-weight:bold;">-${op['stake_1']:,.0f} COP</span> (Soportas solo el Stake 1)
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # --- EMISIÓN AUTOMÁTICA DEL DICTAMEN DE RIESGO ---
+                                if cuota_ingresada < op['cuota_objetivo']:
+                                    if util_cobertura_con_cob < util_perdida_sin_cob:
+                                        evaluacion_critica = f"Ejecutar el seguro a esta cuota destruye más patrimonio que asumir el quiebre del pre-partido. Perderías ${abs(util_cobertura_con_cob):,.0f} COP frente a los ${abs(util_perdida_sin_cob):,.0f} COP de la inversión inicial."
+                                    else:
+                                        evaluacion_critica = "Aunque minimiza la pérdida máxima, la cuota está por debajo del umbral matemático óptimo determinado en la planeación."
+                                        
+                                    st.markdown(f"""
+                                    <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
+                                        <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: COBERTURA DE ALTO RIESGO (NO SUGERIDA)</h5>
+                                        <p style="margin: 0; font-size: 0.95rem;">
+                                            La tasa en vivo actual ({cuota_ingresada:.2f}) es inferior a tu objetivo contable de {op['cuota_objetivo']:.2f}. {evaluacion_critica}<br>
+                                            <b>Sugerencia:</b> Se recomienda evaluar cambiar la opción a <i>'Liquidar Posición Directa'</i> para resguardar intacto el dinero de la reserva (${op['reserva_stake_2']:,.0f} COP).
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
                                 else:
-                                    # BOTONES DINÁMICOS PARA CIERRE DIRECTO
+                                    st.markdown(f"""
+                                    <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
+                                        <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: EQUILIBRIO OPERATIVO VIABLE</h5>
+                                        <p style="margin: 0; font-size: 0.95rem;">
+                                            La cuota cubre eficientemente las expectativas de rentabilidad y resguarda el balance esperado.
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                if st.button("🔒 Confirmar y Registrar Cobertura", key=f"btn_sub_cob_{op['codigo']}"):
+                                    supabase.table("historial_trading").update({
+                                        "estado": "CUBIERTA", 
+                                        "cuota_cazada_real": cuota_ingresada,
+                                        "plataforma_cobertura": plataforma_cob
+                                    }).eq("codigo", op['codigo']).execute()
+                                    st.success("Operación registrada en el libro mayor como CUBIERTA.")
+                                    st.rerun()
+                                    
+                            # FLUJO 2: LIQUIDACIÓN DIRECTA (CON FORMULARIO PARA SEGURIDAD)
+                            else:
+                                with st.form(f"gestion_dir_{op['codigo']}"):
                                     resultado_directo = st.radio(
-                                        "¿Qué pasó con el Stake 1 (ya que no hubo cobertura)?", 
+                                        "¿Qué pasó con el Stake 1 finalizado el evento?", 
                                         [
                                             f"✅ Ganó {sel_ini} (Cobro completo)", 
                                             f"❌ Perdió {sel_ini} (Pérdida del Stake 1)"
                                         ]
                                     )
-
-                                if st.form_submit_button("Registrar Movimiento"):
-                                    if accion == "Ejecutar Cobertura en Mercado (Hedge)":
-                                        supabase.table("historial_trading").update({
-                                            "estado": "CUBIERTA", 
-                                            "cuota_cazada_real": cuota_ingresada,
-                                            "plataforma_cobertura": plataforma_cob
-                                        }).eq("codigo", op['codigo']).execute()
-                                        st.success("Cobertura registrada. Pendiente de liquidación.")
-                                    else:
+                                    if st.form_submit_button("Registrar Cierre Directo"):
+                                        # Lógica correcta que rescataste: Si no hay cobertura, la reserva queda ilesa
                                         if "Ganó" in resultado_directo:
                                             utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
                                             texto_cierre = "Cierre Directo: Ganó Inicial"
@@ -423,25 +476,21 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             "utilidad_neta_real": utilidad,
                                             "roi_real": (utilidad / op['capital_total']) * 100
                                         }).eq("codigo", op['codigo']).execute()
-                                        st.success(f"Posición liquidada. Utilidad neta: ${utilidad:,.0f} COP.")
-                                    st.rerun()
+                                        st.success(f"Posición liquidada de forma directa. Balance: ${utilidad:,.0f} COP.")
+                                        st.rerun()
 
                     elif op['estado'] == "CUBIERTA":
                         st.success(f"🛡️ Cobertura asegurada a tasa de {op.get('cuota_cazada_real', 0):.2f} en {op.get('plataforma_cobertura', 'N/A')}.")
                         with st.form(f"liq_{op['codigo']}"):
-                            
-                            # BOTONES DINÁMICOS PARA LIQUIDACIÓN FINAL
                             resultado_final_ui = st.radio(
-                                "Resolución del evento:", 
+                                "Resolución definitiva del evento:", 
                                 [
                                     f"✅ Pre-Partido: Ganó {sel_ini}", 
                                     f"🛡️ Cobertura: Ganó {sel_cob}", 
                                     "❌ Déficit Operativo General (Pérdida Total)"
                                 ]
                             )
-                            
                             if st.form_submit_button("Liquidar Posición Cubierta"):
-                                # Mapeo contable (Separa lo que ves de lo que se guarda para no dañar el Módulo 3)
                                 if "Pre-Partido" in resultado_final_ui:
                                     utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
                                     texto_db = "Efectividad de Apuesta Pre-Partido"
@@ -458,16 +507,17 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     "utilidad_neta_real": utilidad,
                                     "roi_real": (utilidad / op['capital_total']) * 100
                                 }).eq("codigo", op['codigo']).execute()
-                                st.success(f"Conciliación registrada: ${utilidad:,.0f} COP.")
+                                st.success(f"Conciliación registrada en el histórico: ${utilidad:,.0f} COP.")
                                 st.rerun()
 
+        # --- SECCIÓN INFERIOR: HISTORIAL DE CIERRES ---
         st.markdown("---")
         st.subheader("📊 Libro Mayor Contable (Historial de Cierres)")
         res_cerradas = supabase.table("historial_trading").select("*").eq("estado", "CERRADA").order("fecha", desc=True).execute()
         df = pd.DataFrame(res_cerradas.data)
         if not df.empty:
             st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
-            
+                        
 # =====================================================================
 # MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
 # =====================================================================
