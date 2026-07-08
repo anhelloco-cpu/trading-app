@@ -212,52 +212,44 @@ elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
                     st.error(f"❌ Error de Supabase: {str(e)}")
 
 # =====================================================================
-# MÓDULO 1: PAZ MENTAL + GUARDADO (ACTUALIZADO CON ENFOQUE HÍBRIDO)
+# MÓDULO 1: PAZ MENTAL + GUARDADO
 # =====================================================================
 elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
-    st.info("**Lógica:** Configura tu inversión. Si los números cuadran, inicia la operación y obtén tu código.")
+    st.info("**Lógica:** Configura tu inversión y registra la plataforma para correcta trazabilidad.")
     
-    # Selector de Entorno Operativo
     tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
     saldo_disponible = saldo_real if banca_activa == "REAL" else saldo_simulacion
     
-    # --- NUEVO: SELECTOR DE ENFOQUE OPERATIVO ---
+    # --- NUEVO: SELECTOR DE ENFOQUE (CLÁSICO VS INVERSO) ---
     st.markdown("---")
     enfoque_operativo = st.radio(
         "🎯 Enfoque de Mercado (Determina el libro de auditoría):",
-        [
-            "🔵 Clásico: Pre-partido al Favorito (Buscas cuota inicial baja, cazas alta en vivo)", 
-            "🔴 Inverso: Pre-partido a la Sorpresa (Buscas cuota inicial alta, cazas baja en vivo)"
-        ],
+        ["🔵 Clásico (Pre-partido a Favorito/Empate)", "🔴 Inverso (Pre-partido a Sorpresa/Rival)"],
         horizontal=True
     )
     
-    # Nombre contable para la base de datos
+    # Variables dinámicas para base de datos e interfaz
     nombre_estrategia_bd = "Estrategia 2: Paz Mental Clásica" if "Clásico" in enfoque_operativo else "Estrategia 2: Paz Mental Inversa"
-    
-    # Etiqueta y valor por defecto dinámicos para la interfaz
-    label_cuota = "Cuota Inicial (Favorito o Empate)" if "Clásico" in enfoque_operativo else "Cuota Inicial (Sorpresa / Underdog)"
-    valor_cuota_defecto = 1.25 if "Clásico" in enfoque_operativo else 3.50
+    label_cuota = "Cuota Inicial (Favorito o Empate)" if "Clásico" in enfoque_operativo else "Cuota Inicial (Sorpresa / Rival)"
+    val_cuota_def = 1.25 if "Clásico" in enfoque_operativo else 3.50
     st.markdown("---")
     
     col1, col2, col3 = st.columns(3)
     with col1:
         capital_total = st.number_input("Capital Total (COP)", min_value=10000, value=min(50000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
     with col2:
-        cuota_1 = st.number_input(label_cuota, min_value=1.01, value=float(valor_cuota_defecto), step=0.05)
+        cuota_1 = st.number_input(label_cuota, min_value=1.01, value=float(val_cuota_def), step=0.05)
     with col3:
         utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=10.0, step=0.5)
 
     riesgo = st.slider("Exigencia en Cobertura (0% = Librar, 100% = Ganancia Igualada):", min_value=0, max_value=100, value=50, step=10)
 
-    # Evaluación de impacto en la cuenta (Cálculo de Exposición)
     if saldo_disponible > 0:
         porcentaje_exposicion = (capital_total / saldo_disponible) * 100
         if porcentaje_exposicion > max_riesgo_permitido:
             st.warning(f"⚠️ Alerta de Exposición: Esta operación compromete el {porcentaje_exposicion:.1f}% de la banca disponible, superando el umbral establecido del {max_riesgo_permitido}%.")
 
-    # Cálculos
     retorno_objetivo_1 = capital_total * (1 + (utilidad_esperada / 100.0))
     utilidad_neta_plata = retorno_objetivo_1 - capital_total
     stake_1 = retorno_objetivo_1 / cuota_1
@@ -268,7 +260,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     if stake_2 < 5000:
         st.markdown(f'<div class="error-caja"><b>🚨 RESTRICCIÓN:</b> Reserva menor a $5,000. Ajusta el capital o utilidad.</div>', unsafe_allow_html=True)
     elif capital_total > saldo_disponible:
-        st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera el saldo disponible en la caja del entorno seleccionado.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera el saldo disponible.</div>', unsafe_allow_html=True)
     else:
         retorno_exigido_cobertura = capital_total + (utilidad_neta_plata * (riesgo / 100.0))
         cuota_a_cazar = retorno_exigido_cobertura / stake_2
@@ -279,18 +271,52 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
         with col_plan2:
             st.markdown(f'<div class="caja-objetivo"><h4>Fase 2: En Vivo</h4><p>Caza esta cuota:</p><h1 style="color:#15803D; font-size:3rem; margin:0;">{cuota_a_cazar:.2f}</h1></div>', unsafe_allow_html=True)
 
-        st.markdown("### 💾 Iniciar Operación")
+        st.markdown("### 💾 Detalles y Registro de la Operación")
         with st.form("guardar_operacion"):
-            nombre_partido = st.text_input("Partido (Ej: Nacional vs Santa Fe)")
+            
+            # Textos dinámicos en el formulario según el enfoque
+            if "Clásico" in enfoque_operativo:
+                st.info("💡 **Regla Activa Clásica:** El Stake 1 va al Gana/Empata del Favorito. La reserva caza al Rival.")
+                label_eq_fav = "⭐ Equipo Favorito (Stake 1)"
+                label_eq_riv = "⚠️ Equipo Rival (Cobertura)"
+            else:
+                st.info("💡 **Regla Activa Inversa:** El Stake 1 va a la Sorpresa. La reserva caza al Favorito/Empate.")
+                label_eq_fav = "⭐ Equipo Favorito (Cobertura)"
+                label_eq_riv = "⚠️ Equipo Rival / Sorpresa (Stake 1)"
+            
+            c_eq1, c_eq2 = st.columns(2)
+            with c_eq1:
+                eq_favorito = st.text_input(label_eq_fav)
+            with c_eq2:
+                eq_rival = st.text_input(label_eq_riv)
+            
+            plataforma_ini = st.selectbox("Plataforma de la Apuesta Inicial:", todas_las_plataformas)
+            plataforma_otra = ""
+            if plataforma_ini == "Otra":
+                plataforma_otra = st.text_input("Especifica la otra plataforma:")
+
             if st.form_submit_button("Generar Código e Iniciar"):
-                if not nombre_partido:
-                    st.error("Nombre del partido es obligatorio.")
+                if not eq_favorito or not eq_rival:
+                    st.error("Debes ingresar quién es el favorito y quién el rival.")
                 else:
                     nuevo_codigo = generar_codigo()
+                    plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
+                    
+                    # Inversión de selecciones para la base de datos
+                    if "Clásico" in enfoque_operativo:
+                        seleccion_ini = f"Gana o Empata {eq_favorito}"
+                        seleccion_cob = f"Gana {eq_rival}"
+                    else:
+                        seleccion_ini = f"Gana {eq_rival}"
+                        seleccion_cob = f"Gana o Empata {eq_favorito}"
+                    
                     datos = {
                         "codigo": nuevo_codigo,
-                        "partido": nombre_partido,
-                        "estrategia": nombre_estrategia_bd,  # <--- SE GUARDA EL ENFOQUE ESPECÍFICO PARA AUDITORÍA
+                        "partido": f"{eq_favorito} vs {eq_rival}",
+                        "estrategia": nombre_estrategia_bd,  # <--- GUARDADO DE LA ETIQUETA HÍBRIDA
+                        "seleccion_inicial": seleccion_ini,
+                        "seleccion_cobertura": seleccion_cob,
+                        "plataforma_inicial": plataforma_final,
                         "capital_total": capital_total,
                         "cuota_inicial": cuota_1,
                         "stake_1": stake_1,
