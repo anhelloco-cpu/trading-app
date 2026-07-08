@@ -565,23 +565,28 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 # --- BOTÓN DE ENTRADA A SUPABASE ---
                                 if st.button("📸 Guardar Foto y Cerrar Ventana (Auditoría completada)", key=f"btn_foto_{op['codigo']}", use_container_width=True):
-                                    nueva_foto = {
-                                        "codigo_posicion": op['codigo'],
-                                        "minuto_evaluado": minuto_actual,
-                                        "goles_local": g_local, "goles_vis": g_vis,
-                                        "atkp_local": atkp_local, "atkp_vis": atkp_vis,
-                                        "tir_local": tir_local, "tir_vis": tir_vis,
-                                        "cor_local": cor_local, "cor_vis": cor_vis,
-                                        "fal_local": fal_local, "fal_vis": fal_vis,
-                                        "ama_local": ama_local, "ama_vis": ama_vis,
-                                        "roj_local": roj_local, "roj_vis": roj_vis,
-                                        "pos_vis": pos_vis,
-                                        "ird_calculado": round(ird, 2)
-                                    }
-                                    supabase.table("registro_fotos").insert(nueva_foto).execute()
-                                    st.success(f"✅ Registro completado y respaldado en la tabla `registro_fotos` para el minuto {minuto_actual}.")
-                                    st.rerun()
-
+                                    try:
+                                        nueva_foto = {
+                                            "codigo_posicion": str(op['codigo']),
+                                            "minuto_evaluado": int(minuto_actual),
+                                            "goles_local": int(g_local or 0), "goles_vis": int(g_vis or 0),
+                                            "atkp_local": int(atkp_local or 0), "atkp_vis": int(atkp_vis or 0),
+                                            "tir_local": int(tir_local or 0), "tir_vis": int(tir_vis or 0),
+                                            "cor_local": int(cor_local or 0), "cor_vis": int(cor_vis or 0),
+                                            "fal_local": int(fal_local or 0), "fal_vis": int(fal_vis or 0),
+                                            "ama_local": int(ama_local or 0), "ama_vis": int(ama_vis or 0),
+                                            "roj_local": int(roj_local or 0), "roj_vis": int(roj_vis or 0),
+                                            "pos_vis": int(pos_vis or 0),
+                                            "ird_calculado": float(round(ird, 2))
+                                        }
+                                        supabase.table("registro_fotos").insert(nueva_foto).execute()
+                                        st.success(f"✅ Registro completado y respaldado en la tabla `registro_fotos` para el minuto {minuto_actual}.")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error("❌ Error al guardar en Supabase:")
+                                        st.write(f"Detalle del error: {str(e)}")
+                                        st.json(nueva_foto)
+                                        
                                 st.markdown("---")
                                 
                                 # --- 4. FINANZAS Y DICTAMEN DE EJECUCIÓN ---
