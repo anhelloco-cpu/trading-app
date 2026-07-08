@@ -282,6 +282,9 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                 # Textos fijos, sin inversión dinámica
                 eq_cobertura = st.text_input("🎯 Equipo a Cazar en Vivo (Cobertura: Solo Gana)")
             
+            # --- INYECCIÓN DEL RELOJ DE AUDITORÍA ---
+            hora_inicio = st.time_input("⏱️ Hora de inicio del partido:")
+            
             plataforma_ini = st.selectbox("Plataforma de la Apuesta Inicial:", todas_las_plataformas)
             plataforma_otra = ""
             if plataforma_ini == "Otra":
@@ -311,7 +314,8 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         "reserva_stake_2": stake_2,
                         "cuota_objetivo": cuota_a_cazar,
                         "estado": "EN VIVO",
-                        "tipo_banca": banca_activa
+                        "tipo_banca": banca_activa,
+                        "hora_inicio_partido": hora_inicio.strftime("%H:%M") # --- INYECCIÓN DEL DATO FORMATEADO ---
                     }
                     try:
                         supabase.table("historial_trading").insert(datos).execute()
@@ -439,14 +443,23 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     </div>
                                     """, unsafe_allow_html=True)
                                 
+                                # (Asumiendo que tienes import datetime al principio de tu script principal)
+                                import datetime # Lo pongo aquí por precaución si no lo tienes arriba
+                                
                                 st.markdown("<br>", unsafe_allow_html=True)
                                 if st.button("🔒 Confirmar y Registrar Cobertura", key=f"btn_sub_cob_{op['codigo']}"):
+                                    
+                                    # --- NUEVO: CAPTURA AUTOMÁTICA DE LA HORA ---
+                                    # Capturamos la hora local en el instante exacto del clic
+                                    hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                    
                                     supabase.table("historial_trading").update({
                                         "estado": "CUBIERTA", 
                                         "cuota_cazada_real": cuota_ingresada,
-                                        "plataforma_cobertura": plataforma_cob
+                                        "plataforma_cobertura": plataforma_cob,
+                                        "hora_cobertura": hora_actual # Grabamos el sello de tiempo
                                     }).eq("codigo", op['codigo']).execute()
-                                    st.success("Operación registrada en el libro mayor como CUBIERTA.")
+                                    st.success(f"Operación registrada a las {hora_actual} en el libro mayor como CUBIERTA.")
                                     st.rerun()
                                     
                             # FLUJO 2: LIQUIDACIÓN DIRECTA (CON FORMULARIO PARA SEGURIDAD)
