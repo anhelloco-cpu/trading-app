@@ -349,14 +349,18 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                 with st.expander(f"⚽ {op['partido']} | Ref: {op['codigo']} | Entorno: {op['tipo_banca']} | Estado: {op['estado']}"):
                     es_apuesta_libre = op['reserva_stake_2'] == 0
                     
+                    # Nombres dinámicos extraídos de la base de datos
+                    sel_ini = op.get('seleccion_inicial', 'Apuesta Inicial')
+                    sel_cob = op.get('seleccion_cobertura', 'Cobertura')
+                    
                     if es_apuesta_libre:
                         st.write(f"**Capital Comprometido (Libre):** ${op['capital_total']:,.0f}")
-                        st.info(f"🎯 **Selección:** **{op.get('seleccion_inicial', 'N/A')}** a cuota **{op['cuota_inicial']:.2f}** en **{op.get('plataforma_inicial', 'N/A')}**")
+                        st.info(f"🎯 **Selección:** **{sel_ini}** a cuota **{op['cuota_inicial']:.2f}** en **{op.get('plataforma_inicial', 'N/A')}**")
                     else:
                         st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
                         st.info(f"""
-                        🎯 **Stake Inicial:** A favor de **{op.get('seleccion_inicial', 'N/A')}** en **{op.get('plataforma_inicial', 'N/A')}**
-                        🛡️ **Misión en Vivo:** Cazar **{op.get('seleccion_cobertura', 'N/A')}** a cuota mínima de **{op['cuota_objetivo']:.2f}**
+                        🎯 **Stake Inicial:** A favor de **{sel_ini}** en **{op.get('plataforma_inicial', 'N/A')}**
+                        🛡️ **Misión en Vivo:** Cazar **{sel_cob}** a cuota mínima de **{op['cuota_objetivo']:.2f}**
                         """)
                     
                     if op['estado'] == "EN VIVO":
@@ -364,9 +368,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             # FORMULARIO SENCILLO PARA APUESTA LIBRE
                             st.write("Resolución final de la operación:")
                             with st.form(f"gestion_libre_{op['codigo']}"):
-                                resultado_libre = st.radio("Resultado:", ["✅ Ganada (Cobro Completo)", "❌ Perdida (Pérdida del Capital)"])
+                                resultado_libre = st.radio("Resultado:", [f"✅ Ganó {sel_ini} (Cobro Completo)", "❌ Perdida (Pérdida del Capital)"])
                                 if st.form_submit_button("Liquidar Apuesta Libre"):
-                                    if "Ganada" in resultado_libre:
+                                    if "Ganó" in resultado_libre:
                                         utilidad = (op['capital_total'] * op['cuota_inicial']) - op['capital_total']
                                         texto_cierre = "Libre: Ganada"
                                     else:
@@ -399,11 +403,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']))
                                     plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas)
                                 else:
+                                    # BOTONES DINÁMICOS PARA CIERRE DIRECTO
                                     resultado_directo = st.radio(
-                                        "¿Qué pasó con la Apuesta Inicial (ya que no hubo cobertura)?", 
+                                        "¿Qué pasó con el Stake 1 (ya que no hubo cobertura)?", 
                                         [
-                                            "✅ Ganó la Apuesta Inicial (Cobro completo)", 
-                                            "❌ Perdió la Apuesta Inicial (Pérdida del Stake 1)"
+                                            f"✅ Ganó {sel_ini} (Cobro completo)", 
+                                            f"❌ Perdió {sel_ini} (Pérdida del Stake 1)"
                                         ]
                                     )
 
@@ -433,21 +438,34 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.rerun()
 
                     elif op['estado'] == "CUBIERTA":
-                        # (Mantienes tu código intacto para liquidar operaciones CUBIERTAS aquí)
                         st.success(f"🛡️ Cobertura asegurada a tasa de {op.get('cuota_cazada_real', 0):.2f} en {op.get('plataforma_cobertura', 'N/A')}.")
                         with st.form(f"liq_{op['codigo']}"):
-                            resultado_final = st.radio("Resolución del evento:", ["Efectividad de Apuesta Pre-Partido", "Efectividad de Cobertura Ejecutada", "Déficit Operativo General (Pérdida Total)"])
+                            
+                            # BOTONES DINÁMICOS PARA LIQUIDACIÓN FINAL
+                            resultado_final_ui = st.radio(
+                                "Resolución del evento:", 
+                                [
+                                    f"✅ Pre-Partido: Ganó {sel_ini}", 
+                                    f"🛡️ Cobertura: Ganó {sel_cob}", 
+                                    "❌ Déficit Operativo General (Pérdida Total)"
+                                ]
+                            )
+                            
                             if st.form_submit_button("Liquidar Posición Cubierta"):
-                                if "Pre-Partido" in resultado_final:
+                                # Mapeo contable (Separa lo que ves de lo que se guarda para no dañar el Módulo 3)
+                                if "Pre-Partido" in resultado_final_ui:
                                     utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
-                                elif "Cobertura" in resultado_final:
+                                    texto_db = "Efectividad de Apuesta Pre-Partido"
+                                elif "Cobertura" in resultado_final_ui:
                                     utilidad = (op['reserva_stake_2'] * op['cuota_cazada_real']) - op['capital_total']
+                                    texto_db = "Efectividad de Cobertura Ejecutada"
                                 else:
                                     utilidad = -op['capital_total']
+                                    texto_db = "Déficit Operativo General (Pérdida Total)"
                                     
                                 supabase.table("historial_trading").update({
                                     "estado": "CERRADA",
-                                    "resultado_final": resultado_final,
+                                    "resultado_final": texto_db,
                                     "utilidad_neta_real": utilidad,
                                     "roi_real": (utilidad / op['capital_total']) * 100
                                 }).eq("codigo", op['codigo']).execute()
@@ -460,7 +478,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         df = pd.DataFrame(res_cerradas.data)
         if not df.empty:
             st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
-
+            
 # =====================================================================
 # MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
 # =====================================================================
