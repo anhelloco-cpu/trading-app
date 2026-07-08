@@ -193,6 +193,7 @@ elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
                 datos = {
                     "codigo": nuevo_codigo,
                     "partido": partido,
+                    "estrategia": "Estrategia 2: Paz Mental", # <--- ¡Nueva línea clave!
                     "seleccion_inicial": seleccion,
                     "seleccion_cobertura": "N/A (Apuesta Libre)",
                     "plataforma_inicial": plataforma_final,
@@ -446,76 +447,112 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
         res_sim = supabase.table("historial_trading").select("*").eq("tipo_banca", "SIMULACION").eq("estado", "CERRADA").execute()
         df_sim = pd.DataFrame(res_sim.data)
         
-        if df_sim.empty or len(df_sim) < 5:
-            st.warning("⏳ Muestra Insuficiente. Se requieren al menos 5 operaciones en simulación cerrada para emitir un dictamen estadístico confiable.")
+        if df_sim.empty:
+            st.info("Aún no hay operaciones de simulación finalizadas para auditar.")
         else:
-            # 1. Cálculos de Eficiencia Operativa
-            total_ops = len(df_sim)
-            victorias_pre_partido = df_sim['resultado_final'].str.contains("Pre-Partido|Ganó Inicial", na=False).sum()
-            victorias_cobertura = df_sim['resultado_final'].str.contains("Cobertura", na=False).sum()
-            derrotas_totales = df_sim['resultado_final'].str.contains("Déficit|Perdió Inicial", na=False).sum()
+            # 1. Filtro por Estrategia (Asumiendo que guardaste la columna 'estrategia')
+            if 'estrategia' not in df_sim.columns:
+                df_sim['estrategia'] = "Estrategia 2: Paz Mental" # Fallback por si la columna es nueva
+                
+            estrategias_disponibles = df_sim['estrategia'].dropna().unique().tolist()
+            estrategia_seleccionada = st.selectbox("📌 Selecciona la estrategia a auditar:", estrategias_disponibles)
             
-            win_rate = (victorias_pre_partido / total_ops) * 100
-            frecuencia_rescate = (victorias_cobertura / total_ops) * 100
-            loss_rate = (derrotas_totales / total_ops) * 100
-            cuota_promedio = df_sim['cuota_inicial'].mean()
+            # Filtramos el dataframe
+            df_est = df_sim[df_sim['estrategia'] == estrategia_seleccionada].copy()
+            total_ops = len(df_est)
             
-            # 2. Cálculos de Riesgo Institucional
-            roi_promedio = df_sim['roi_real'].mean()
-            volatilidad_roi = df_sim['roi_real'].std() if total_ops > 1 else 0
-            
-            # Esperanza Matemática (EV): Qué porcentaje del stake se espera ganar por operación
-            # EV = (Prob Ganar * Beneficio Promedio) - (Prob Perder * Pérdida Promedio)
-            ev = ((win_rate / 100) * (cuota_promedio - 1)) - (loss_rate / 100)
-            
-            # Ratio Sharpe Simulado
-            sharpe_ratio = (roi_promedio / volatilidad_roi) if volatilidad_roi > 0 else 0
-            
-            # Cálculo de Max Drawdown Real
-            df_sim = df_sim.sort_values(by='fecha')
-            df_sim['acumulado_utilidad'] = df_sim['utilidad_neta_real'].cumsum()
-            df_sim['pico_historico'] = df_sim['acumulado_utilidad'].cummax()
-            df_sim['drawdown'] = df_sim['pico_historico'] - df_sim['acumulado_utilidad']
-            max_drawdown_cop = df_sim['drawdown'].max()
-            
-            # 3. Motor de Decisión (Veredicto)
-            if ev <= 0:
-                veredicto = "🚨 ESTRATEGIA NO VIABLE (EV Negativo)"
-                color_v = "#EF4444"
-                desc_v = "La matemática demuestra que, a largo plazo, esta configuración quemará el capital."
-            elif sharpe_ratio < 0.8:
-                veredicto = "⚠️ ESTRATEGIA DE ALTO RIESGO"
-                color_v = "#F59E0B"
-                desc_v = "Rendimientos erráticos. La volatilidad no justifica el estrés operativo."
-            elif 0.8 <= sharpe_ratio <= 1.5:
-                veredicto = "✅ ESTRATEGIA MODERADA (Viable)"
-                color_v = "#10B981"
-                desc_v = "Configuración sólida. Se recomienda mantener una exposición máxima del 8% al 12% por operación."
+            if total_ops < 5:
+                st.warning(f"⏳ Muestra Insuficiente. Tienes {total_ops} operaciones. Se requieren al menos 5 para evitar errores de varianza matemática.")
             else:
-                veredicto = "💎 ESTRATEGIA INSTITUCIONAL (Óptima)"
-                color_v = "#3B82F6"
-                desc_v = "Excelente gestión de riesgo y baja volatilidad. Lista para escalado de capital."
+                # 2. El botón de generación de informe con el contador
+                if st.button(f"📈 Generar Dictamen Cuantitativo ({total_ops} Simulaciones)"):
+                    
+                    st.markdown("---")
+                    
+                    # 3. Advertencia Profesional de Auditoría
+                    if total_ops < 100:
+                        st.markdown(f"""
+                        <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                            <h4 style="color: #B45309; margin-top: 0;">⚠️ AVISO DE AUDITORÍA: MUESTRA EN DESARROLLO</h4>
+                            <p style="color: #92400E; margin-bottom: 0;">
+                                Este dictamen preliminar cuenta con <b>{total_ops} operaciones</b>. El estándar exige un mínimo de <b>100 eventos</b> para mitigar la desviación estándar y considerar los datos estadísticamente viables. Las siguientes métricas son orientativas.
+                            </p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.success("✅ VALIDACIÓN INSTITUCIONAL: La muestra estadística supera las 100 operaciones. El margen de error se considera aceptable para la toma de decisiones.")
 
-            # --- RENDERIZADO DEL DASHBOARD ---
-            st.markdown(f"""
-                <div style="background-color: {color_v}; padding: 20px; border-radius: 8px; color: white; text-align: center; margin-bottom: 25px;">
-                    <h2 style="margin: 0; color: white;">{veredicto}</h2>
-                    <p style="margin: 5px 0 0 0;">{desc_v}</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
-            with col_kpi1:
-                st.markdown(f'<div class="metric-card"><h4>Esperanza Matemática (EV)</h4><h2 style="color: {"#10B981" if ev > 0 else "#EF4444"}">{ev:,.3f}</h2><p>Rendimiento estadístico x unidad</p></div>', unsafe_allow_html=True)
-            with col_kpi2:
-                st.markdown(f'<div class="metric-card"><h4>Ratio Sharpe</h4><h2 style="color: {"#3B82F6" if sharpe_ratio >= 1.5 else "#F59E0B"}">{sharpe_ratio:,.2f}</h2><p>Retorno ajustado al riesgo</p></div>', unsafe_allow_html=True)
-            with col_kpi3:
-                st.markdown(f'<div class="metric-card"><h4>Max Drawdown</h4><h2 style="color: #EF4444">${max_drawdown_cop:,.0f}</h2><p>Mayor racha de pérdida soportada</p></div>', unsafe_allow_html=True)
-            
-            st.markdown("---")
-            st.subheader("📊 Eficiencia en la Cancha (Realidad Operativa)")
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Volumen Analizado", f"{total_ops} Ops")
-            c2.metric("Win Rate Inicial", f"{win_rate:.1f}%")
-            c3.metric("Frecuencia de Rescate", f"{frecuencia_rescate:.1f}%")
-            c4.metric("Tasa de Fracaso", f"{loss_rate:.1f}%")
+                    # 4. Cálculos de Eficiencia Operativa (Tu motor matemático)
+                    victorias_pre_partido = df_est['resultado_final'].str.contains("Pre-Partido", case=False, na=False).sum()
+                    victorias_cobertura = df_est['resultado_final'].str.contains("Cobertura Ejecutada", case=False, na=False).sum()
+                    derrotas_totales = df_est['resultado_final'].str.contains("Déficit|Perdid", case=False, na=False).sum()
+                    
+                    win_rate = (victorias_pre_partido / total_ops) * 100
+                    frecuencia_rescate = (victorias_cobertura / total_ops) * 100
+                    loss_rate = (derrotas_totales / total_ops) * 100
+                    cuota_promedio = df_est['cuota_inicial'].mean()
+                    
+                    # 5. Cálculos de Riesgo Institucional
+                    roi_promedio = df_est['roi_real'].mean()
+                    volatilidad_roi = df_est['roi_real'].std() if total_ops > 1 else 0
+                    
+                    ev = ((win_rate / 100) * (cuota_promedio - 1)) - (loss_rate / 100)
+                    sharpe_ratio = (roi_promedio / volatilidad_roi) if volatilidad_roi > 0 else 0
+                    
+                    # Cálculo de Max Drawdown Real
+                    df_est = df_est.sort_values(by='fecha')
+                    df_est['acumulado_utilidad'] = df_est['utilidad_neta_real'].cumsum()
+                    df_est['pico_historico'] = df_est['acumulado_utilidad'].cummax()
+                    df_est['drawdown'] = df_est['pico_historico'] - df_est['acumulado_utilidad']
+                    max_drawdown_cop = df_est['drawdown'].max()
+                    
+                    # 6. Motor de Decisión (Veredicto)
+                    if ev <= 0:
+                        veredicto = "🚨 ESTRATEGIA NO VIABLE (EV Negativo)"
+                        color_v = "#EF4444"
+                        desc_v = "La matemática demuestra que, a largo plazo, esta configuración quemará el capital."
+                    elif sharpe_ratio < 0.8:
+                        veredicto = "⚠️ ESTRATEGIA DE ALTO RIESGO"
+                        color_v = "#F59E0B"
+                        desc_v = "Rendimientos erráticos. La volatilidad no justifica el estrés operativo."
+                    elif 0.8 <= sharpe_ratio <= 1.5:
+                        veredicto = "✅ ESTRATEGIA MODERADA (Viable)"
+                        color_v = "#10B981"
+                        desc_v = "Configuración sólida. Se recomienda mantener una exposición máxima del 8% al 12% por operación."
+                    else:
+                        veredicto = "💎 ESTRATEGIA INSTITUCIONAL (Óptima)"
+                        color_v = "#3B82F6"
+                        desc_v = "Excelente gestión de riesgo y baja volatilidad. Lista para escalado de capital."
+
+                    # --- RENDERIZADO DEL DASHBOARD ---
+                    st.markdown(f"""
+                        <div style="background-color: {color_v}; padding: 20px; border-radius: 8px; color: white; text-align: center; margin-bottom: 25px;">
+                            <h2 style="margin: 0; color: white;">{veredicto}</h2>
+                            <p style="margin: 5px 0 0 0;">{desc_v}</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.markdown("""
+                    <style>
+                    .metric-card { background-color: #F8FAFC; border: 1px solid #E2E8F0; padding: 15px; border-radius: 8px; text-align: center; }
+                    .metric-card h4 { margin-top: 0; color: #475569; font-size: 1rem; }
+                    .metric-card h2 { margin: 10px 0; font-size: 2rem; }
+                    .metric-card p { margin-bottom: 0; color: #64748B; font-size: 0.85rem; }
+                    </style>
+                    """, unsafe_allow_html=True)
+
+                    col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+                    with col_kpi1:
+                        st.markdown(f'<div class="metric-card"><h4>Esperanza Matemática (EV)</h4><h2 style="color: {"#10B981" if ev > 0 else "#EF4444"}">{ev:,.3f}</h2><p>Rendimiento estadístico x unidad</p></div>', unsafe_allow_html=True)
+                    with col_kpi2:
+                        st.markdown(f'<div class="metric-card"><h4>Ratio Sharpe</h4><h2 style="color: {"#3B82F6" if sharpe_ratio >= 1.5 else "#F59E0B"}">{sharpe_ratio:,.2f}</h2><p>Retorno ajustado al riesgo</p></div>', unsafe_allow_html=True)
+                    with col_kpi3:
+                        st.markdown(f'<div class="metric-card"><h4>Max Drawdown</h4><h2 style="color: #EF4444">${max_drawdown_cop:,.0f}</h2><p>Mayor caída de capital soportada</p></div>', unsafe_allow_html=True)
+                    
+                    st.markdown("---")
+                    st.subheader("📊 Eficiencia en la Cancha (Realidad Operativa)")
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("Volumen Analizado", f"{total_ops} Ops")
+                    c2.metric("Efectividad Inicial", f"{win_rate:.1f}%")
+                    c3.metric("Frecuencia de Rescate", f"{frecuencia_rescate:.1f}%")
+                    c4.metric("Tasa de Fracaso", f"{loss_rate:.1f}%")
