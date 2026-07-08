@@ -345,16 +345,32 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     # Nombres dinámicos extraídos de la base de datos
                     sel_ini = op.get('seleccion_inicial', 'Apuesta Inicial')
                     sel_cob = op.get('seleccion_cobertura', 'Cobertura')
+                    tipo_estrategia = op.get('estrategia', 'Estrategia 2: Paz Mental Clásica')
+                    
+                    # --- CONCIENCIA DE MERCADO (FAVORITO VS RIVAL) ---
+                    if "Inversa" in tipo_estrategia:
+                        perfil_caza = "⭐ FAVORITO"
+                        color_perfil = "#3B82F6"
+                        contexto_mercado = "El reloj es tu aliado. Si la Sorpresa (Stake 1) aguanta el marcador o anota, la cuota de este Favorito se disparará, dándote tu objetivo rápidamente."
+                    else:
+                        perfil_caza = "⚠️ RIVAL / SORPRESA"
+                        color_perfil = "#F59E0B"
+                        contexto_mercado = "El reloj es tu enemigo. Necesitas que el Favorito (Stake 1) reciba un gol o sufra presión temprana para que la cuota de esta Sorpresa baje y te permita cubrir."
                     
                     if es_apuesta_libre:
                         st.write(f"**Capital Comprometido (Libre):** ${op['capital_total']:,.0f}")
                         st.info(f"🎯 **Selección:** **{sel_ini}** a cuota **{op['cuota_inicial']:.2f}** en **{op.get('plataforma_inicial', 'N/A')}**")
                     else:
                         st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
-                        st.info(f"""
-                        🎯 **Stake Inicial:** A favor de **{sel_ini}** en **{op.get('plataforma_inicial', 'N/A')}**
-                        🛡️ **Misión en Vivo:** Cazar **{sel_cob}** a cuota mínima de **{op['cuota_objetivo']:.2f}**
-                        """)
+                        
+                        # Inyección visual del contexto en la misión
+                        st.markdown(f"""
+                        <div style="background-color: #F8FAFC; padding: 15px; border-left: 4px solid {color_perfil}; border-radius: 4px; margin-bottom: 15px;">
+                            <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Stake Inicial:</b> A favor de <b>{sel_ini}</b> en {op.get('plataforma_inicial', 'N/A')}</p>
+                            <p style="margin: 8px 0 8px 0; font-size: 0.95rem;">🛡️ <b>Misión en Vivo:</b> Cazar al <b style="color:{color_perfil};">{perfil_caza} ({sel_cob})</b> a cuota mínima de <b>{op['cuota_objetivo']:.2f}</b></p>
+                            <p style="margin: 0; font-size: 0.85rem; color: #64748B;"><i>💡 Contexto: {contexto_mercado}</i></p>
+                        </div>
+                        """, unsafe_allow_html=True)
                     
                     if op['estado'] == "EN VIVO":
                         if es_apuesta_libre:
@@ -419,83 +435,78 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     </div>
                                     """, unsafe_allow_html=True)
                                 
-                                # --- EMISIÓN AUTOMÁTICA DEL DICTAMEN DE RIESGO (LÓGICA AVANZADA) ---
+                                # --- EMISIÓN AUTOMÁTICA DEL DICTAMEN DE RIESGO (LÓGICA AVANZADA Y CONTEXTO) ---
+                                costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
+                                mejora_escenario_negativo = util_cobertura_con_cob - util_perdida_sin_cob
                                 
-                                # 1. Escenario Ideal: Arbitraje Positivo (Utilidad garantizada en ambos lados)
+                                # 1. Arbitraje Perfecto (Utilidad en ambos lados)
                                 if util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
                                     st.markdown(f"""
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
                                         <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: ARBITRAJE PERFECTO (RIESGO CERO)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            Independientemente de tu objetivo original, esta cobertura te garantiza salir en verde (o a ras) pase lo que pase en el partido. <b>Es una decisión financiera óptima para asegurar la utilidad sin estrés.</b>
+                                            Al tratarse del <b>{perfil_caza}</b>, conseguir esta cuota garantiza salir en verde (o librar) sin importar el resultado. <b>Decisión institucional recomendada: Ejecutar y asegurar ganancia.</b>
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
                                     
-                                # 2. Cumple perfectamente con la meta matemática planeada
+                                # 2. Meta Alcanzada (Matemática inicial lograda)
                                 elif cuota_ingresada >= op['cuota_objetivo']:
                                     st.markdown(f"""
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
-                                        <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: EQUILIBRIO OPERATIVO VIABLE</h5>
+                                        <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: EQUILIBRIO OPERATIVO ALCANZADO</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            La cuota actual cubre al 100% las exigencias matemáticas de la estrategia original.
+                                            La cuota actual cubre al 100% las exigencias matemáticas de la estrategia original. Cobertura avalada.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
                                     
-                                # 3. No cumple la meta ideal, pero salva el patrimonio (Tu ejemplo)
-                                elif util_cobertura_con_cob > util_perdida_sin_cob:
-                                    costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
-                                    ahorro_perdida = abs(util_perdida_sin_cob) - abs(util_cobertura_con_cob)
-                                    
-                                    # Valida si el ahorro es mayor al costo del seguro
-                                    if ahorro_perdida >= costo_seguro:
-                                        st.markdown(f"""
-                                        <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
-                                            <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: REDUCCIÓN DE RIESGO INTELIGENTE (DEFENSA)</h5>
-                                            <p style="margin: 0; font-size: 0.95rem;">
-                                                La cuota de {cuota_ingresada:.2f} está por debajo del objetivo, pero <b>la matemática valida tu movimiento defensivo.</b>
-                                                <br><br>
-                                                <b>Análisis Costo-Beneficio:</b> Sacrificas ${costo_seguro:,.0f} COP de tu utilidad potencial para salvar ${ahorro_perdida:,.0f} COP del capital. El impacto del golpe se reduce drásticamente.
-                                            </p>
-                                        </div>
-                                        """, unsafe_allow_html=True)
-                                    else:
-                                        st.markdown(f"""
-                                        <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
-                                            <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: COBERTURA MEDIOCRE (ALTO COSTO)</h5>
-                                            <p style="margin: 0; font-size: 0.95rem;">
-                                                <b>Análisis Desfavorable:</b> Estás pagando ${costo_seguro:,.0f} de tu ganancia para salvar apenas ${ahorro_perdida:,.0f} de la pérdida. El costo de este seguro es desproporcionado a la protección que ofrece.
-                                            </p>
-                                        </div>
-                                        """, unsafe_allow_html=True)
+                                # 3. Mitigación Inteligente (El costo del seguro es menor a la pérdida que evita)
+                                elif mejora_escenario_negativo > costo_seguro:
+                                    st.markdown(f"""
+                                    <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
+                                        <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: REDUCCIÓN DE RIESGO DEFENSIVA</h5>
+                                        <p style="margin: 0; font-size: 0.95rem;">
+                                            La cuota ({cuota_ingresada:.2f}) está por debajo de tu objetivo ({op['cuota_objetivo']:.2f}), pero al estar cazando al <b>{perfil_caza}</b>, la matemática respalda protegerse. 
+                                            <br><br>
+                                            <b>Auditoría:</b> Pagas un seguro de ${costo_seguro:,.0f} COP para salvar ${mejora_escenario_negativo:,.0f} COP del desplome total. Es un movimiento defensivo inteligente si lees que el partido está en peligro.
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
                                 
-                                # 4. Cobertura inútil o destructiva
+                                # 4. Cobertura Mediocre (Pagas más de lo que salvas)
+                                elif mejora_escenario_negativo > 0:
+                                    st.markdown(f"""
+                                    <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
+                                        <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: SEGURO COSTOSO (MALA RELACIÓN RIESGO/BENEFICIO)</h5>
+                                        <p style="margin: 0; font-size: 0.95rem;">
+                                            Estás sacrificando ${costo_seguro:,.0f} de tu ganancia para aliviar apenas ${mejora_escenario_negativo:,.0f} de tu pérdida total. Como cazas al <b>{perfil_caza}</b>, es preferible confiar en tu lectura inicial (Cierre Directo) que pagar un seguro tan ineficiente, a menos que el gol en contra sea inminente.
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # 5. Cobertura Destructiva
                                 else:
                                     st.markdown(f"""
                                     <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
                                         <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: COBERTURA DESTRUCTIVA (ABANDONAR)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            Ejecutar el seguro a esta cuota destruye tu patrimonio. Perderías ${abs(util_cobertura_con_cob):,.0f} COP cubriendo, un escenario peor o igual a los ${abs(util_perdida_sin_cob):,.0f} COP de dejar correr la operación sin hacer nada.
+                                            ¡Peligro Operativo! Ejecutar la cobertura a esta cuota empeora o iguala la pérdida de no hacer nada. Sugerencia contable: Selecciona 'Liquidar Posición Directa' y asume el riesgo del Stake 1, manteniendo la reserva a salvo.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 
-                                # (Asumiendo que tienes import datetime al principio de tu script principal)
-                                import datetime # Lo pongo aquí por precaución si no lo tienes arriba
-                                
+                                import datetime
                                 st.markdown("<br>", unsafe_allow_html=True)
                                 if st.button("🔒 Confirmar y Registrar Cobertura", key=f"btn_sub_cob_{op['codigo']}"):
-                                    
-                                    # --- NUEVO: CAPTURA AUTOMÁTICA DE LA HORA ---
-                                    # Capturamos la hora local en el instante exacto del clic
+                                    # --- CAPTURA AUTOMÁTICA DE LA HORA DE COBERTURA ---
                                     hora_actual = datetime.datetime.now().strftime("%H:%M")
                                     
                                     supabase.table("historial_trading").update({
                                         "estado": "CUBIERTA", 
                                         "cuota_cazada_real": cuota_ingresada,
                                         "plataforma_cobertura": plataforma_cob,
-                                        "hora_cobertura": hora_actual # Grabamos el sello de tiempo
+                                        "hora_cobertura": hora_actual
                                     }).eq("codigo", op['codigo']).execute()
                                     st.success(f"Operación registrada a las {hora_actual} en el libro mayor como CUBIERTA.")
                                     st.rerun()
@@ -511,7 +522,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         ]
                                     )
                                     if st.form_submit_button("Registrar Cierre Directo"):
-                                        # Lógica correcta que rescataste: Si no hay cobertura, la reserva queda ilesa
                                         if "Ganó" in resultado_directo:
                                             utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
                                             texto_cierre = "Cierre Directo: Ganó Inicial"
