@@ -349,6 +349,18 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     sel_cob = op.get('seleccion_cobertura', 'Cobertura')
                     tipo_estrategia = op.get('estrategia', 'Estrategia 2: Paz Mental Clásica')
                     
+                    # Inicializar variables en la memoria de Streamlit para este partido si no existen
+                    if f"min_{op['codigo']}" not in st.session_state:
+                        st.session_state[f"min_{op['codigo']}"] = 0
+                    if f"gl_{op['codigo']}" not in st.session_state:
+                        st.session_state[f"gl_{op['codigo']}"] = 0
+                    if f"gv_{op['codigo']}" not in st.session_state:
+                        st.session_state[f"gv_{op['codigo']}"] = 0
+                    if f"presion_{op['codigo']}" not in st.session_state:
+                        st.session_state[f"presion_{op['codigo']}"] = False
+                    if f"analizado_{op['codigo']}" not in st.session_state:
+                        st.session_state[f"analizado_{op['codigo']}"] = False
+                    
                     # --- CONCIENCIA DE MERCADO (FAVORITO VS RIVAL) ---
                     if "Inversa" in tipo_estrategia:
                         perfil_caza = "⭐ FAVORITO"
@@ -404,91 +416,95 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             
                             if accion == "Ejecutar Cobertura en Mercado (Hedge)":
                                 
-                                # --- REGLA DE DESIGNACIÓN DE EQUIPO (OPCIÓN A) ---
                                 st.markdown("#### 🎯 Alineación de Trazabilidad")
                                 st1_lado = st.radio("¿En qué lado de la cancha se encuentra tu Stake 1 de Betplay?", ["🏠 Local", "🚀 Visitante"], horizontal=True, key=f"lado_{op['codigo']}")
                                 
-                                # --- OPCIÓN 3: CAJAS DE PEGADO RÁPIDO (INTEGRACIÓN CON BETPLAY) ---
+                                # --- CAJAS DE PEGADO RÁPIDO ---
                                 st.markdown("#### 🗲 Radar Táctico Automatizado (Pegar Datos de Betplay)")
                                 col_p1, col_p2 = st.columns(2)
                                 with col_p1:
-                                    raw_stats = st.text_area("Pega aquí las 'Estadísticas' de Betplay:", height=100, key=f"raw_stat_{op['codigo']}", help="Copia todo el bloque de estadísticas de la cancha de Betplay y suéltalo aquí.")
+                                    raw_stats = st.text_area("Pega aquí las 'Estadísticas' de Betplay:", height=100, key=f"raw_stat_{op['codigo']}")
                                 with col_p2:
-                                    raw_timeline = st.text_area("Pega aquí la 'Línea de tiempo' de Betplay:", height=100, key=f"raw_time_{op['codigo']}", help="Copia la lista de hitos de la línea de tiempo de Betplay y suéltalo aquí.")
+                                    raw_timeline = st.text_area("Pega aquí la 'Línea de tiempo' de Betplay:", height=100, key=f"raw_time_{op['codigo']}")
                                 
-                                # --- PROCESAMIENTO INTERNO Y EXTRACCIÓN DETECTADA ---
-                                min_detectado = None
-                                g_local_detectado = None
-                                g_vis_detectado = None
-                                
-                                att_local = 0
-                                att_vis = 0
-                                tiros_local = 0
-                                tiros_vis = 0
-                                
-                                # 1. Procesar la línea de tiempo (Extrae goles y minuto actual automáticamente)
-                                if raw_timeline:
-                                    marcador_m = re.search(r'(\d+)\s*-\s*(\d+)', raw_timeline)
-                                    if marcador_m:
-                                        g_local_detectado = int(marcador_m.group(1))
-                                        g_vis_detectado = int(marcador_m.group(2))
+                                # --- NUEVO BOTÓN EXPLICITO DE ANÁLISIS ---
+                                if st.button("🔍 Analizar e Inyectar Datos de Campo", key=f"btn_analizar_{op['codigo']}", use_container_width=True):
+                                    with st.spinner("Sintetizando métricas de Betplay..."):
+                                        min_detectado = None
+                                        g_local_detectado = 0
+                                        g_vis_detectado = 0
+                                        att_local = 0
+                                        att_vis = 0
+                                        tiros_local = 0
+                                        tiros_vis = 0
                                         
-                                    minuto_m = re.search(r'(\d+)\s*\'', raw_timeline)
-                                    if minuto_m:
-                                        min_detectado = int(minuto_m.group(1))
-                                
-                                # 2. Procesar las estadísticas generales (Extrae volumen y presión)
-                                if raw_stats:
-                                    att_pct_m = re.search(r'(\d+)%\s*\n+\s*Tiempo en ataques peligrosos\s*\n+\s*(\d+)%', raw_stats, re.IGNORECASE)
-                                    if att_pct_m:
-                                        att_local = int(att_pct_m.group(1))
-                                        att_vis = int(att_pct_m.group(2))
+                                        # Procesar Línea de Tiempo
+                                        if raw_timeline:
+                                            marcador_m = re.search(r'(\d+)\s*-\s*(\d+)', raw_timeline)
+                                            if marcador_m:
+                                                g_local_detectado = int(marcador_m.group(1))
+                                                g_vis_detectado = int(marcador_m.group(2))
+                                            minuto_m = re.search(r'(\d+)\s*\'', raw_timeline)
+                                            if minuto_m:
+                                                min_detectado = int(minuto_m.group(1))
+                                                
+                                        # Procesar Estadísticas
+                                        if raw_stats:
+                                            att_pct_m = re.search(r'(\d+)%\s*\n+\s*Tiempo en ataques peligrosos\s*\n+\s*(\d+)%', raw_stats, re.IGNORECASE)
+                                            if att_pct_m:
+                                                att_local = int(att_pct_m.group(1))
+                                                att_vis = int(att_pct_m.group(2))
+                                            tiros_m = re.search(r'(\d+)\s*\n+\s*Tiros a portería\s*\n+\s*(\d+)', raw_stats, re.IGNORECASE)
+                                            if tiros_m:
+                                                tiros_local = int(tiros_m.group(1))
+                                                tiros_vis = int(tiros_m.group(2))
+                                                
+                                        # Fallback de tiempo si la línea de tiempo vino vacía
+                                        if min_detectado is None:
+                                            hora_ini_str = op.get("hora_inicio_partido", "")
+                                            if hora_ini_str:
+                                                try:
+                                                    ahora = datetime.datetime.now()
+                                                    hora_inicio = datetime.datetime.strptime(hora_ini_str, "%H:%M").replace(year=ahora.year, month=ahora.month, day=ahora.day)
+                                                    if ahora < hora_inicio: hora_inicio -= datetime.timedelta(days=1)
+                                                    diff_m = int((ahora - hora_inicio).total_seconds() / 60)
+                                                    min_detectado = diff_m if diff_m <= 45 else (45 if diff_m < 60 else diff_m - 15)
+                                                except Exception: pass
                                         
-                                    tiros_m = re.search(r'(\d+)\s*\n+\s*Tiros a portería\s*\n+\s*(\d+)', raw_stats, re.IGNORECASE)
-                                    if tiros_m:
-                                        tiros_local = int(tiros_m.group(1))
-                                        tiros_vis = int(tiros_m.group(2))
+                                        # Guardar en memoria interna (Session State)
+                                        st.session_state[f"min_{op['codigo']}"] = int(min_detectado) if min_detectado else 0
+                                        st.session_state[f"gl_{op['codigo']}"] = g_local_detectado
+                                        st.session_state[f"gv_{op['codigo']}"] = g_vis_detectado
+                                        
+                                        # Calcular presión según el lado de tu apuesta
+                                        if "Local" in st1_lado:
+                                            st.session_state[f"presion_{op['codigo']}"] = att_vis > 55 or tiros_vis > (tiros_local + 1)
+                                        else:
+                                            st.session_state[f"presion_{op['codigo']}"] = att_local > 55 or tiros_local > (tiros_vis + 1)
+                                            
+                                        st.session_state[f"analizado_{op['codigo']}"] = True
                                 
-                                # --- ASIGNACIÓN DE FALLBACKS INTELIGENTES ---
-                                if min_detectado is None:
-                                    # Fallback matemático por hora de inicio si no hay pegado
-                                    minuto_estimado = 0
-                                    hora_ini_str = op.get("hora_inicio_partido", "")
-                                    if hora_ini_str:
-                                        try:
-                                            ahora = datetime.datetime.now()
-                                            hora_inicio = datetime.datetime.strptime(hora_ini_str, "%H:%M").replace(year=ahora.year, month=ahora.month, day=ahora.day)
-                                            if ahora < hora_inicio:
-                                                hora_inicio -= datetime.timedelta(days=1)
-                                            diff_m = int((ahora - hora_inicio).total_seconds() / 60)
-                                            minuto_estimado = diff_m if diff_m <= 45 else (45 if diff_m < 60 else diff_m - 15)
-                                            minuto_estimado = min(max(minuto_estimado, 0), 120)
-                                        except Exception:
-                                            minuto_estimado = 0
-                                    min_detectado = minuto_estimado
-                                    
-                                # --- DESPLIEGUE DE VARIABLES EDITABLES ---
+                                # Indicador visual de estado de lectura
+                                if st.session_state[f"analizado_{op['codigo']}"]:
+                                    st.markdown("<span style='color:#22C55E; font-weight:bold;'>🟢 Análisis consolidado con éxito. Métricas cargadas abajo.</span>", unsafe_allow_html=True)
+                                else:
+                                    st.markdown("<span style='color:#64748B; font-style:italic;'>⚪ Esperando carga de datos de Betplay...</span>", unsafe_allow_html=True)
+                                
+                                # --- FORMULARIO DE REVISIÓN EDITABLE ---
                                 st.markdown("#### ⏱️ Conciliación del Estado de Campo")
                                 col_t1, col_t2, col_t3 = st.columns(3)
                                 with col_t1:
-                                    minuto_actual = st.number_input("Minuto del Partido:", min_value=0, max_value=120, value=int(min_detectado), step=1, key=f"min_{op['codigo']}")
+                                    minuto_actual = st.number_input("Minuto del Partido:", min_value=0, max_value=120, value=st.session_state[f"min_{op['codigo']}"], step=1, key=f"inp_min_{op['codigo']}")
                                 with col_t2:
-                                    val_g1 = g_local_detectado if g_local_detectado is not None else 0
-                                    goles_local = st.number_input("Goles Local:", min_value=0, value=int(val_g1), step=1, key=f"g1_{op['codigo']}")
+                                    goles_local = st.number_input("Goles Local:", min_value=0, value=st.session_state[f"gl_{op['codigo']}"], step=1, key=f"inp_g1_{op['codigo']}")
                                 with col_t3:
-                                    val_g2 = g_vis_detectado if g_vis_detectado is not None else 0
-                                    goles_vis = st.number_input("Goles Visitante:", min_value=0, value=int(val_g2), step=1, key=f"g2_{op['codigo']}")
-                                    
-                                # Conversión de goles según el lado elegido para la lógica del informe
-                                if "Local" in st1_lado:
-                                    goles_ini = goles_local
-                                    goles_cob = goles_vis
-                                    presion_sufrida = att_vis > 55 or tiros_vis > (tiros_local + 1)
-                                else:
-                                    goles_ini = goles_vis
-                                    goles_cob = goles_local
-                                    presion_sufrida = att_local > 55 or tiros_local > (tiros_vis + 1)
-                                    
+                                    goles_vis = st.number_input("Goles Visitante:", min_value=0, value=st.session_state[f"gv_{op['codigo']}"], step=1, key=f"inp_g2_{op['codigo']}")
+                                
+                                # Sincronizar cambios manuales de última hora si el usuario edita las casillas a mano
+                                goles_ini = goles_local if "Local" in st1_lado else goles_vis
+                                goles_cob = goles_vis if "Local" in st1_lado else goles_local
+                                presion_sufrida = st.session_state[f"presion_{op['codigo']}"]
+                                
                                 st.markdown("---")
                                 
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
@@ -523,7 +539,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
                                 mejora_escenario_negativo = util_cobertura_con_cob - util_perdida_sin_cob
                                 
-                                # --- DICTAMEN DE RIESGO INTELIGENTE MULTICAPA ---
+                                # --- DICTAMEN DE RIESGO ---
                                 if goles_local == goles_vis:
                                     st.info(f"💡 **ESTADO PRINCIPAL EN POSITIVO (MARCADOR: {goles_local}-{goles_vis})**: El partido marcha empatado. Tu inversión del Stake 1 está cubriendo el **Empate**. El balance temporal juega enteramente a tu favor. No existe una urgencia táctica real para forzar la cobertura.")
 
@@ -546,8 +562,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     </div>
                                     """, unsafe_allow_html=True)
                                 elif mejora_escenario_negativo > costo_seguro:
-                                    # Evaluación cruzada con el volumen de ataques de Betplay
-                                    if presion_sufrida:
+                                    if b'presion_sufrida' in locals() and presion_sufrida:
                                         diagnostico_tactivo = "⚡ <b>ALERTA DE VOLUMEN (ASEDIO DETECTADO):</b> Los datos de Betplay confirman que el rival está encima y el peligro de quiebre es alto. Aunque la cuota es subóptima, la protección patrimonial está plenamente justificada. Mitiga el golpe."
                                     elif goles_local == goles_vis:
                                         diagnostico_tactivo = "💡 <b>Análisis de Control:</b> Al marchar empatados, ejecutar el seguro es estrictamente un costo opcional por tranquilidad mental, puesto que tu escenario pre-partido se está cumpliendo."
@@ -595,6 +610,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         "plataforma_cobertura": plataforma_cob,
                                         "hora_cobertura": hora_actual
                                     }).eq("codigo", op['codigo']).execute()
+                                    
+                                    # Limpiar memoria al cerrar para el siguiente partido
+                                    st.session_state[f"analizado_{op['codigo']}"] = False
                                     st.success(f"Operación registrada a las {hora_actual} en el libro mayor como CUBIERTA.")
                                     st.rerun()
                                     
