@@ -329,6 +329,8 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
 elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
     st.markdown("### 📝 Panel de Control y Auditoría")
     
+    import datetime
+    
     if supabase is None:
         st.error("Conecta Supabase primero.")
     else:
@@ -342,7 +344,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                 with st.expander(f"⚽ {op['partido']} | Ref: {op['codigo']} | Entorno: {op['tipo_banca']} | Estado: {op['estado']}"):
                     es_apuesta_libre = op['reserva_stake_2'] == 0
                     
-                    # Nombres dinámicos extraídos de la base de datos
                     sel_ini = op.get('seleccion_inicial', 'Apuesta Inicial')
                     sel_cob = op.get('seleccion_cobertura', 'Cobertura')
                     tipo_estrategia = op.get('estrategia', 'Estrategia 2: Paz Mental Clásica')
@@ -351,11 +352,11 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     if "Inversa" in tipo_estrategia:
                         perfil_caza = "⭐ FAVORITO"
                         color_perfil = "#3B82F6"
-                        contexto_mercado = "El reloj es tu aliado. Si la Sorpresa (Stake 1) aguanta el marcador o anota, la cuota de este Favorito se disparará, dándote tu objetivo rápidamente."
+                        contexto_mercado = "El reloj es tu aliado. Si la Sorpresa (Stake 1) aguanta el marcador o anota, la cuota de este Favorito se disparará."
                     else:
                         perfil_caza = "⚠️ RIVAL / SORPRESA"
                         color_perfil = "#F59E0B"
-                        contexto_mercado = "El reloj es tu enemigo. Necesitas que el Favorito (Stake 1) reciba un gol o sufra presión temprana para que la cuota de esta Sorpresa baje y te permita cubrir."
+                        contexto_mercado = "El reloj es tu enemigo. Necesitas que el Favorito (Stake 1) reciba un gol o sufra presión temprana para que esta cuota baje."
                     
                     if es_apuesta_libre:
                         st.write(f"**Capital Comprometido (Libre):** ${op['capital_total']:,.0f}")
@@ -363,7 +364,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     else:
                         st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
                         
-                        # Inyección visual del contexto en la misión
                         st.markdown(f"""
                         <div style="background-color: #F8FAFC; padding: 15px; border-left: 4px solid {color_perfil}; border-radius: 4px; margin-bottom: 15px;">
                             <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Stake Inicial:</b> A favor de <b>{sel_ini}</b> en {op.get('plataforma_inicial', 'N/A')}</p>
@@ -374,10 +374,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     
                     if op['estado'] == "EN VIVO":
                         if es_apuesta_libre:
-                            # FORMULARIO SENCILLO PARA APUESTA LIBRE
-                            st.write("Resolución final de la operación:")
+                            st.write("Resolución final de la operation:")
                             with st.form(f"gestion_libre_{op['codigo']}"):
-                                resultado_libre = st.radio("Resultado:", [f"✅ Ganó {sel_ini} (Cobro Completo)", "❌ Perdida (Pérdida del Capital)"])
+                                resultado_libre = st.radio("Resultado:", [f"✅ Ganó {sel_ini} (Cobro Completo)", "❌ Perdida (Pérdida del Capital)"], key=f"rad_lib_{op['codigo']}")
                                 if st.form_submit_button("Liquidar Apuesta Libre"):
                                     if "Ganó" in resultado_libre:
                                         utilidad = (op['capital_total'] * op['cuota_inicial']) - op['capital_total']
@@ -395,7 +394,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.success(f"Posición liquidada. Utilidad neta: ${utilidad:,.0f} COP.")
                                     st.rerun()
                         else:
-                            # ENTORNO DE EVALUACIÓN EXPERTA PARA PAZ MENTAL
                             st.write("### 🛡️ Gestión de Riesgo y Viabilidad en Tiempo Real")
                             accion = st.radio(
                                 "Acción a ejecutar:", 
@@ -403,12 +401,49 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 key=f"radio_accion_{op['codigo']}"
                             )
                             
-                            # FLUJO 1: EJECUTAR COBERTURA (REACTIVO - FUERA DE FORMULARIO)
                             if accion == "Ejecutar Cobertura en Mercado (Hedge)":
+                                
+                                # --- CÁLCULO INTELIGENTE DEL MINUTO ---
+                                minuto_estimado = 0
+                                hora_ini_str = op.get("hora_inicio_partido", "")
+                                if hora_ini_str:
+                                    try:
+                                        ahora = datetime.datetime.now()
+                                        hora_inicio = datetime.datetime.strptime(hora_ini_str, "%H:%M").replace(year=ahora.year, month=ahora.month, day=ahora.day)
+                                        
+                                        if ahora < hora_inicio:
+                                            hora_inicio -= datetime.timedelta(days=1)
+                                            
+                                        diff_minutos = int((ahora - hora_inicio).total_seconds() / 60)
+                                        
+                                        if diff_minutos < 0:
+                                            minuto_estimado = 0
+                                        elif diff_minutos <= 45:
+                                            minuto_estimado = diff_minutos
+                                        elif 45 < diff_minutos < 60:
+                                            minuto_estimado = 45
+                                        else:
+                                            minuto_estimado = diff_minutos - 15
+                                            
+                                        minuto_estimado = min(minuto_estimado, 120)
+                                    except Exception:
+                                        minuto_estimado = 0
+
+                                # --- INTERFAZ DE CONTEXTO DE PARTIDO ---
+                                st.markdown("#### ⏱️ Contexto en la Cancha")
+                                col_t1, col_t2, col_t3 = st.columns(3)
+                                with col_t1:
+                                    minuto_actual = st.number_input("Minuto (Calculado/Editable):", min_value=0, max_value=120, value=minuto_estimado, step=1, key=f"min_{op['codigo']}")
+                                with col_t2:
+                                    goles_ini = st.number_input(f"Goles de tu Apuesta (Stake 1):", min_value=0, step=1, key=f"g1_{op['codigo']}")
+                                with col_t3:
+                                    goles_cob = st.number_input(f"Goles del Rival a Cazar:", min_value=0, step=1, key=f"g2_{op['codigo']}")
+                                
+                                st.markdown("---")
+                                
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
                                 plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
                                 
-                                # --- PROYECCIONES DE AUDITORÍA FINANCIERA ---
                                 util_inicial_con_cob = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
                                 util_cobertura_con_cob = (op['reserva_stake_2'] * cuota_ingresada) - op['capital_total']
                                 
@@ -435,71 +470,73 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     </div>
                                     """, unsafe_allow_html=True)
                                 
-                                # --- EMISIÓN AUTOMÁTICA DEL DICTAMEN DE RIESGO (LÓGICA AVANZADA Y CONTEXTO) ---
                                 costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
                                 mejora_escenario_negativo = util_cobertura_con_cob - util_perdida_sin_cob
                                 
-                                # 1. Arbitraje Perfecto (Utilidad en ambos lados)
+                                # --- DICTAMEN DE RIESGO AVANZADO (CON TIEMPO, GOLES Y REGLA DE EMPATE) ---
+                                
+                                # Alerta prioritaria si el partido va empatado
+                                if goles_ini == goles_cob:
+                                    st.info(f"💡 **ESTADO PRINCIPAL SEGURO (MARCADOR: {goles_ini}-{goles_cob})**: El partido marcha igualado. Recuerda que bajo cualquier enfoque operativo (Clásico o Inverso), tu Stake 1 cubre el **Empate**. Actualmente la posición principal está en zona de ganancia total. No hay urgencia estructural para cubrir.")
+
                                 if util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
                                     st.markdown(f"""
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
                                         <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: ARBITRAJE PERFECTO (RIESGO CERO)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            Al tratarse del <b>{perfil_caza}</b>, conseguir esta cuota garantiza salir en verde (o librar) sin importar el resultado. <b>Decisión institucional recomendada: Ejecutar y asegurar ganancia.</b>
+                                            Independientemente del minuto ({minuto_actual}) o el marcador, conseguir esta cuota garantiza salir en verde en cualquier escenario. <b>Asegura la ganancia inmediatamente.</b>
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
-                                    
-                                # 2. Meta Alcanzada (Matemática inicial lograda)
                                 elif cuota_ingresada >= op['cuota_objetivo']:
                                     st.markdown(f"""
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
                                         <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: EQUILIBRIO OPERATIVO ALCANZADO</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            La cuota actual cubre al 100% las exigencias matemáticas de la estrategia original. Cobertura avalada.
+                                            La cuota actual cumple al 100% tu planeación matemática. Cobertura avalada.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
-                                    
-                                # 3. Mitigación Inteligente (El costo del seguro es menor a la pérdida que evita)
                                 elif mejora_escenario_negativo > costo_seguro:
+                                    if goles_ini == goles_cob:
+                                        advertencia_tiempo = "💡 <b>Análisis Estratégico:</b> La cuota no es la ideal, pero como el partido va empatado, la decisión de cubrir es netamente opcional para congelar ganancias o protegerse de sorpresas agónicas. Tu inversión inicial está a salvo ahora mismo."
+                                    elif minuto_actual < 45 and goles_cob == 0:
+                                        advertencia_tiempo = "⚠️ <b>Nota de Auditoría:</b> Es el primer tiempo y aún no te anotan goles. Podrías estar cediendo al pánico temprano. Evalúa si vale la pena pagar el seguro ahora o esperar al entretiempo."
+                                    elif minuto_actual >= 75:
+                                        advertencia_tiempo = "🛡 shrink <b>Ventana Crítica:</b> El tiempo se agota (Minuto 75+). El riesgo de un gol agónico es altísimo. Este es el momento ideal para ejecutar una maniobra defensiva."
+                                    else:
+                                        advertencia_tiempo = f"El impacto del golpe se reduce drásticamente salvando ${mejora_escenario_negativo:,.0f} COP."
+                                        
                                     st.markdown(f"""
                                     <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
                                         <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: REDUCCIÓN DE RIESGO DEFENSIVA</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            La cuota ({cuota_ingresada:.2f}) está por debajo de tu objetivo ({op['cuota_objetivo']:.2f}), pero al estar cazando al <b>{perfil_caza}</b>, la matemática respalda protegerse. 
-                                            <br><br>
-                                            <b>Auditoría:</b> Pagas un seguro de ${costo_seguro:,.0f} COP para salvar ${mejora_escenario_negativo:,.0f} COP del desplome total. Es un movimiento defensivo inteligente si lees que el partido está en peligro.
+                                            La cuota ({cuota_ingresada:.2f}) está por debajo de tu objetivo, pero la matemática respalda protegerse.<br><br>
+                                            {advertencia_tiempo}
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
-                                
-                                # 4. Cobertura Mediocre (Pagas más de lo que salvas)
                                 elif mejora_escenario_negativo > 0:
                                     st.markdown(f"""
                                     <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
                                         <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: SEGURO COSTOSO (MALA RELACIÓN RIESGO/BENEFICIO)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            Estás sacrificando ${costo_seguro:,.0f} de tu ganancia para aliviar apenas ${mejora_escenario_negativo:,.0f} de tu pérdida total. Como cazas al <b>{perfil_caza}</b>, es preferible confiar en tu lectura inicial (Cierre Directo) que pagar un seguro tan ineficiente, a menos que el gol en contra sea inminente.
+                                            Estás sacrificando ${costo_seguro:,.0f} de tu ganancia para aliviar apenas ${mejora_escenario_negativo:,.0f} de tu pérdida. A menos que la presión en la cancha te indique que el gol en contra es inminente, este seguro es financieramente ineficiente.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
-                                
-                                # 5. Cobertura Destructiva
                                 else:
                                     st.markdown(f"""
                                     <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
                                         <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: COBERTURA DESTRUCTIVA (ABANDONAR)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            ¡Peligro Operativo! Ejecutar la cobertura a esta cuota empeora o iguala la pérdida de no hacer nada. Sugerencia contable: Selecciona 'Liquidar Posición Directa' y asume el riesgo del Stake 1, manteniendo la reserva a salvo.
+                                            ¡Peligro Operativo! Ejecutar la cobertura a esta cuota empeora la pérdida de no hacer nada. Selecciona 'Liquidar Posición Directa' y asume el riesgo del Stake 1, manteniendo la reserva a salvo.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 
-                                import datetime
                                 st.markdown("<br>", unsafe_allow_html=True)
                                 if st.button("🔒 Confirmar y Registrar Cobertura", key=f"btn_sub_cob_{op['codigo']}"):
-                                    # --- CAPTURA AUTOMÁTICA DE LA HORA DE COBERTURA ---
                                     hora_actual = datetime.datetime.now().strftime("%H:%M")
                                     
                                     supabase.table("historial_trading").update({
@@ -511,7 +548,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.success(f"Operación registrada a las {hora_actual} en el libro mayor como CUBIERTA.")
                                     st.rerun()
                                     
-                            # FLUJO 2: LIQUIDACIÓN DIRECTA (CON FORMULARIO PARA SEGURIDAD)
                             else:
                                 with st.form(f"gestion_dir_{op['codigo']}"):
                                     resultado_directo = st.radio(
@@ -519,7 +555,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         [
                                             f"✅ Ganó {sel_ini} (Cobro completo)", 
                                             f"❌ Perdió {sel_ini} (Pérdida del Stake 1)"
-                                        ]
+                                        ],
+                                        key=f"rad_dir_{op['codigo']}"
                                     )
                                     if st.form_submit_button("Registrar Cierre Directo"):
                                         if "Ganó" in resultado_directo:
@@ -547,7 +584,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     f"✅ Pre-Partido: Ganó {sel_ini}", 
                                     f"🛡️ Cobertura: Ganó {sel_cob}", 
                                     "❌ Déficit Operativo General (Pérdida Total)"
-                                ]
+                                ],
+                                key=f"rad_fin_{op['codigo']}"
                             )
                             if st.form_submit_button("Liquidar Posición Cubierta"):
                                 if "Pre-Partido" in resultado_final_ui:
@@ -569,7 +607,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.success(f"Conciliación registrada en el histórico: ${utilidad:,.0f} COP.")
                                 st.rerun()
 
-        # --- SECCIÓN INFERIOR: HISTORIAL DE CIERRES ---
         st.markdown("---")
         st.subheader("📊 Libro Mayor Contable (Historial de Cierres)")
         res_cerradas = supabase.table("historial_trading").select("*").eq("estado", "CERRADA").order("fecha", desc=True).execute()
