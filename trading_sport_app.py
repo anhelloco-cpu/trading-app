@@ -335,7 +335,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
     if supabase is None:
         st.error("Conecta Supabase primero.")
     else:
-        # Ordenamos las posiciones activas por hora de inicio
+        # Consulta organizada por hora de inicio
         res = supabase.table("historial_trading").select("*").in_("estado", ["EN VIVO", "CUBIERTA"]).order("hora_inicio_partido", desc=False).execute()
         ops = res.data
         
@@ -350,15 +350,36 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     sel_cob = op.get('seleccion_cobertura', 'Cobertura')
                     tipo_estrategia = op.get('estrategia', 'Estrategia 2: Paz Mental Clásica')
                     
+                    # --- DESGLOSE AUTOMÁTICO DE NOMBRES DE EQUIPOS ---
+                    partido_str = op.get('partido', 'Local vs Visitante')
+                    if ' vs ' in partido_str:
+                        eq_local = partido_str.split(' vs ')[0].strip()
+                        eq_vis = partido_str.split(' vs ')[1].strip()
+                    elif ' - ' in partido_str:
+                        eq_local = partido_str.split(' - ')[0].strip()
+                        eq_vis = partido_str.split(' - ')[1].strip()
+                    else:
+                        eq_local = "Local"
+                        eq_vis = "Visitante"
+                    
+                    # Identificación automática de bando para el algoritmo
+                    es_st1_local = (sel_ini.lower() in eq_local.lower()) or (eq_local.lower() in sel_ini.lower())
+                    
+                    # --- INICIALIZACIÓN DE MEMORIA DIFERENCIAL ---
+                    variables_memoria = [
+                        'min', 'g_local', 'g_vis', 'atkp_local', 'atkp_vis', 
+                        'tir_local', 'tir_vis', 'cor_local', 'cor_vis', 
+                        'fal_local', 'fal_vis', 'ama_local', 'ama_vis', 'roj_local', 'roj_vis'
+                    ]
+                    for var in variables_memoria:
+                        if f"prev_{var}_{op['codigo']}" not in st.session_state:
+                            st.session_state[f"prev_{var}_{op['codigo']}"] = 0
+                    
                     # --- CONCIENCIA DE MERCADO ---
                     if "Inversa" in tipo_estrategia:
-                        perfil_caza = "⭐ FAVORITO"
-                        color_perfil = "#3B82F6"
-                        contexto_mercado = "El reloj es aliado. Si el Stake 1 aguanta, la cuota del Favorito se disparará."
+                        contexto_mercado = f"El reloj es aliado. Si {sel_ini} aguanta o anota, la cuota de {sel_cob} se disparará."
                     else:
-                        perfil_caza = "⚠️ RIVAL / SORPRESA"
-                        color_perfil = "#F59E0B"
-                        contexto_mercado = "El reloj es enemigo. Necesitas un gol del Stake 1 o presión temprana para que la cuota baje."
+                        contexto_mercado = f"El reloj es enemigo. Necesitas un gol de {sel_ini} o presión temprana para bajar la cuota."
                     
                     if es_apuesta_libre:
                         st.write(f"**Capital Comprometido (Libre):** ${op['capital_total']:,.0f}")
@@ -367,9 +388,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
                         
                         st.markdown(f"""
-                        <div style="background-color: #F8FAFC; padding: 15px; border-left: 4px solid {color_perfil}; border-radius: 4px; margin-bottom: 15px;">
-                            <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Stake 1 (Protegido):</b> A favor de <b>{sel_ini}</b> en {op.get('plataforma_inicial', 'N/A')}</p>
-                            <p style="margin: 8px 0 8px 0; font-size: 0.95rem;">🛡️ <b>Misión en Vivo:</b> Cazar a <b style="color:{color_perfil};">{sel_cob}</b> a cuota mínima de <b>{op['cuota_objetivo']:.2f}</b></p>
+                        <div style="background-color: #F8FAFC; padding: 15px; border-left: 4px solid #3B82F6; border-radius: 4px; margin-bottom: 15px;">
+                            <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Stake 1:</b> A favor de <b>{sel_ini}</b></p>
+                            <p style="margin: 8px 0 8px 0; font-size: 0.95rem;">🛡️ <b>Misión en Vivo:</b> Cazar a <b>{sel_cob}</b> a cuota mínima de <b>{op['cuota_objetivo']:.2f}</b></p>
                             <p style="margin: 0; font-size: 0.85rem; color: #64748B;"><i>💡 {contexto_mercado}</i></p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -405,9 +426,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             
                             if accion == "Evaluar Asedio y Cobertura (IRD)":
                                 
-                                st.markdown("#### 🎯 Definición de Bandos (Estructura Espejo)")
-                                st1_lado = st.radio("¿En qué lado de la cancha se encuentra tu Stake 1?", ["🏠 Local", "🚀 Visitante"], horizontal=True, key=f"lado_{op['codigo']}")
-                                
                                 # --- 1. RECUPERACIÓN DE LA ÚLTIMA FOTO DESDE SUPABASE ---
                                 res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
                                 
@@ -415,7 +433,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     ultima_foto = res_fotos.data[0]
                                     min_base = ultima_foto['minuto_evaluado']
                                 else:
-                                    # Si no hay fotos previas, inicializamos en ceros
                                     ultima_foto = {
                                         'goles_local': 0, 'goles_vis': 0, 'atkp_local': 0, 'atkp_vis': 0,
                                         'tir_local': 0, 'tir_vis': 0, 'cor_local': 0, 'cor_vis': 0,
@@ -426,7 +443,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
 
                                 st.markdown("#### ⏱️ Auditoría Táctica (Ingresar Totales Acumulados)")
                                 
-                                # Cálculo de sugerencia del reloj si es la primera foto
                                 minuto_sugerido = min_base
                                 if minuto_sugerido == 0:
                                     hora_ini_str = op.get("hora_inicio_partido", "")
@@ -439,48 +455,48 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             minuto_sugerido = diff_m if diff_m <= 45 else (45 if diff_m < 60 else diff_m - 15)
                                         except Exception: pass
                                 
-                                # Tope máximo corregido a 95
                                 minuto_sugerido = max(0, min(95, int(minuto_sugerido)))
                                 minuto_actual = st.number_input("⏱️ Minuto del Partido:", min_value=0, max_value=110, value=minuto_sugerido, step=1, key=f"min_{op['codigo']}")
                                 
                                 st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
                                 col_t1, col_t2 = st.columns(2)
                                 
-                                # --- INTERFAZ ESPEJO: LOCAL VS VISITANTE ---
+                                # --- FORMULARIO ESPEJO USANDO LOS NOMBRES REALES EN LAS ETIQUETAS ---
                                 with col_t1:
-                                    bg_color = "#F0FDF4" if "Local" in st1_lado else "#F8FAFC"
-                                    text_color = "#166534" if "Local" in st1_lado else "#334155"
-                                    st.markdown(f"<div style='background-color:{bg_color}; padding:5px; border-radius:5px; text-align:center;'><b style='color:{text_color};'>🏠 LOCAL</b></div>", unsafe_allow_html=True)
+                                    # Si es tu equipo, lo pinta de verde sutil
+                                    bg_local = "#F0FDF4" if es_st1_local else "#F8FAFC"
+                                    lbl_local = f"🏠 {eq_local} (Tu Equipo)" if es_st1_local else f"🏠 {eq_local}"
+                                    st.markdown(f"<div style='background-color:{bg_local}; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>{lbl_local}</div>", unsafe_allow_html=True)
                                     
-                                    g_local = st.number_input("⚽ Goles", min_value=0, value=ultima_foto['goles_local'], key=f"g_l_{op['codigo']}")
-                                    atkp_local = st.number_input("🔥 Atq. Peligrosos", min_value=0, value=ultima_foto['atkp_local'], key=f"atkp_l_{op['codigo']}")
-                                    tir_local = st.number_input("🎯 Tiros a Puerta", min_value=0, value=ultima_foto['tir_local'], key=f"tir_l_{op['codigo']}")
-                                    cor_local = st.number_input("🚩 Córneres", min_value=0, value=ultima_foto['cor_local'], key=f"cor_l_{op['codigo']}")
-                                    fal_local = st.number_input("🛑 Faltas Cometidas", min_value=0, value=ultima_foto['fal_local'], key=f"fal_l_{op['codigo']}")
-                                    ama_local = st.number_input("🟨 T. Amarillas", min_value=0, value=ultima_foto['ama_local'], key=f"ama_l_{op['codigo']}")
-                                    roj_local = st.number_input("🟥 T. Rojas", min_value=0, value=ultima_foto['roj_local'], key=f"roj_l_{op['codigo']}")
+                                    g_local = st.number_input(f"⚽ Goles de {eq_local}", min_value=0, value=ultima_foto['goles_local'], key=f"g_l_{op['codigo']}")
+                                    atkp_local = st.number_input(f"🔥 Atq. Peligrosos {eq_local}", min_value=0, value=ultima_foto['atkp_local'], key=f"atkp_l_{op['codigo']}")
+                                    tir_local = st.number_input(f"🎯 Tiros a Puerta {eq_local}", min_value=0, value=ultima_foto['tir_local'], key=f"tir_l_{op['codigo']}")
+                                    cor_local = st.number_input(f"🚩 Córneres de {eq_local}", min_value=0, value=ultima_foto['cor_local'], key=f"cor_l_{op['codigo']}")
+                                    fal_local = st.number_input(f"🛑 Faltas de {eq_local}", min_value=0, value=ultima_foto['fal_local'], key=f"fal_l_{op['codigo']}")
+                                    ama_local = st.number_input(f"🟨 Amarillas de {eq_local}", min_value=0, value=ultima_foto['ama_local'], key=f"ama_l_{op['codigo']}")
+                                    roj_local = st.number_input(f"🟥 Rojas de {eq_local}", min_value=0, value=ultima_foto['roj_local'], key=f"roj_l_{op['codigo']}")
                                 
                                 with col_t2:
-                                    bg_color = "#F0FDF4" if "Visitante" in st1_lado else "#FEF2F2"
-                                    text_color = "#166534" if "Visitante" in st1_lado else "#991B1B"
-                                    st.markdown(f"<div style='background-color:{bg_color}; padding:5px; border-radius:5px; text-align:center;'><b style='color:{text_color};'>🚀 VISITANTE</b></div>", unsafe_allow_html=True)
+                                    bg_vis = "#F0FDF4" if not es_st1_local else "#FEF2F2"
+                                    lbl_vis = f"🚀 {eq_vis} (Tu Equipo)" if not es_st1_local else f"🚀 {eq_vis} (Rival)"
+                                    st.markdown(f"<div style='background-color:{bg_vis}; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>{lbl_vis}</div>", unsafe_allow_html=True)
                                     
-                                    g_vis = st.number_input("⚽ Goles", min_value=0, value=ultima_foto['goles_vis'], key=f"g_v_{op['codigo']}")
-                                    atkp_vis = st.number_input("🔥 Atq. Peligrosos", min_value=0, value=ultima_foto['atkp_vis'], key=f"atkp_v_{op['codigo']}")
-                                    tir_vis = st.number_input("🎯 Tiros a Puerta", min_value=0, value=ultima_foto['tir_vis'], key=f"tir_v_{op['codigo']}")
-                                    cor_vis = st.number_input("🚩 Córneres", min_value=0, value=ultima_foto['cor_vis'], key=f"cor_v_{op['codigo']}")
-                                    fal_vis = st.number_input("🛑 Faltas Cometidas", min_value=0, value=ultima_foto['fal_vis'], key=f"fal_v_{op['codigo']}")
-                                    ama_vis = st.number_input("🟨 T. Amarillas", min_value=0, value=ultima_foto['ama_vis'], key=f"ama_v_{op['codigo']}")
-                                    roj_vis = st.number_input("🟥 T. Rojas", min_value=0, value=ultima_foto['roj_vis'], key=f"roj_v_{op['codigo']}")
+                                    g_vis = st.number_input(f"⚽ Goles de {eq_vis}", min_value=0, value=ultima_foto['goles_vis'], key=f"g_v_{op['codigo']}")
+                                    atkp_vis = st.number_input(f"🔥 Atq. Peligrosos {eq_vis}", min_value=0, value=ultima_foto['atkp_vis'], key=f"atkp_v_{op['codigo']}")
+                                    tir_vis = st.number_input(f"🎯 Tiros a Puerta {eq_vis}", min_value=0, value=ultima_foto['tir_vis'], key=f"tir_v_{op['codigo']}")
+                                    cor_vis = st.number_input(f"🚩 Córneres de {eq_vis}", min_value=0, value=ultima_foto['cor_vis'], key=f"cor_v_{op['codigo']}")
+                                    fal_vis = st.number_input(f"🛑 Faltas de {eq_vis}", min_value=0, value=ultima_foto['fal_vis'], key=f"fal_v_{op['codigo']}")
+                                    ama_vis = st.number_input(f"🟨 Amarillas de {eq_vis}", min_value=0, value=ultima_foto['ama_vis'], key=f"ama_v_{op['codigo']}")
+                                    roj_vis = st.number_input(f"🟥 Rojas de {eq_vis}", min_value=0, value=ultima_foto['roj_vis'], key=f"roj_v_{op['codigo']}")
 
-                                pos_vis = st.number_input(f"⏱️ % Posesión del 🚀 VISITANTE:", min_value=0, max_value=100, value=ultima_foto['pos_vis'], step=1, key=f"pos_{op['codigo']}")
+                                pos_vis = st.number_input(f"⏱️ % Posesión de {eq_vis}:", min_value=0, max_value=100, value=ultima_foto['pos_vis'], step=1, key=f"pos_{op['codigo']}")
                                 
-                                # --- 2. MOTOR MATEMÁTICO: REPARTO DINÁMICO DE BANDOS ---
+                                # --- 2. MOTOR MATEMÁTICO AUTOMATIZADO ---
                                 delta_min = max(1, minuto_actual - min_base)
-                                factor_norm = max(0.3, delta_min / 10.0) # Normalización a bloque de 10 min
+                                factor_norm = max(0.3, delta_min / 10.0)
                                 
-                                # Asignación matemática según dónde esté tu Stake 1
-                                if "Local" in st1_lado:
+                                # Mapeo automático de variables basado en la detección de bandos
+                                if es_st1_local:
                                     goles_nuestros = g_local
                                     goles_amenaza = g_vis
                                     
@@ -490,7 +506,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     
                                     d_fal_nuestras = max(0, fal_local - ultima_foto['fal_local']) / factor_norm
                                     d_ama_nuestras = max(0, ama_local - ultima_foto['ama_local']) / factor_norm
-                                    exc_pos = max(0, pos_vis - 50) # Posesión visitante que supera la mitad
+                                    exc_pos = max(0, pos_vis - 50)
                                     
                                     rojas_nuestras = roj_local
                                     rojas_rival = roj_vis
@@ -505,12 +521,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     d_fal_nuestras = max(0, fal_vis - ultima_foto['fal_vis']) / factor_norm
                                     d_ama_nuestras = max(0, ama_vis - ultima_foto['ama_vis']) / factor_norm
                                     pos_local = 100 - pos_vis
-                                    exc_pos = max(0, pos_local - 50) # Posesión local que supera la mitad
+                                    exc_pos = max(0, pos_local - 50)
                                     
                                     rojas_nuestras = roj_vis
                                     rojas_rival = roj_local
 
-                                # --- CÁLCULO DEL ÍNDICE DE RIESGO DINÁMICO (IRD) ---
+                                # --- CÁLCULO DEL ÍNDICE DE RIESGO ---
                                 p_pos = min(10.0, exc_pos * 0.5)
                                 p_base = (d_tiros_rival * 11.6) + (d_ataques_rival * 1.33) + (d_cor_rival * 5.0) + \
                                          (d_fal_nuestras * 2.5) + (d_ama_nuestras * 10.0) + p_pos
@@ -530,7 +546,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.markdown("---")
                                 st.markdown("#### 🌡️ Índice de Riesgo Dinámico (IRD)")
                                 if min_base == 0:
-                                    st.info("📌 **Fase de Calibración:** Primera foto del partido. Guarda esta foto en la base de datos al finalizar para medir la aceleración en la próxima revisión.")
+                                    st.info(f"📌 **Fase de Calibración:** Primera foto registrada para este partido. Guarda la línea base para iniciar.")
                                 else:
                                     st.info(f"🔎 Auditando la ventana del minuto **{min_base} al {minuto_actual}** ({delta_min} min de flujo transcurrido).")
                                 
@@ -547,7 +563,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.progress(int(ird) / 100)
                                 st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
                                 
-                                # --- GUARDADO PERMANENTE EN SUPABASE ---
+                                # --- BOTÓN DE ENTRADA A SUPABASE ---
                                 if st.button("📸 Guardar Foto y Cerrar Ventana (Auditoría completada)", key=f"btn_foto_{op['codigo']}", use_container_width=True):
                                     nueva_foto = {
                                         "codigo_posicion": op['codigo'],
@@ -563,7 +579,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         "ird_calculado": round(ird, 2)
                                     }
                                     supabase.table("registro_fotos").insert(nueva_foto).execute()
-                                    st.success(f"✅ Línea base actualizada y registrada en Supabase al minuto {minuto_actual}.")
+                                    st.success(f"✅ Registro completado y respaldado en la tabla `registro_fotos` para el minuto {minuto_actual}.")
                                     st.rerun()
 
                                 st.markdown("---")
@@ -641,7 +657,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
                                                 <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 MITIGACIÓN TÁCTICA URGENTE</h5>
                                                 <p style="margin: 0; font-size: 0.95rem;">
-                                                    La presión de la amenaza es asfixiante (Riesgo: {ird:.1f}%). Decisión contable correcta: mitigar golpe y rescatar ${mejora_escenario_negativo:,.0f} COP.
+                                                    La presión de la amenaza es asfixiante en la ventana evaluada (Riesgo: {ird:.1f}%). Decisión contable correcta: mitigar golpe y rescatar ${mejora_escenario_negativo:,.0f} COP.
                                                 </p>
                                             </div>
                                             """, unsafe_allow_html=True)
@@ -682,7 +698,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.rerun()
                                     
                             else:
-                                with st.form(f"gestion_dir_{op['codigo']}"):
+                                with st.form(f"get_dir_{op['codigo']}"):
                                     resultado_directo = st.radio(
                                         "Resolución Post-Partido:", 
                                         [f"✅ Ganó {sel_ini} (Cobro completo)", f"❌ Perdió {sel_ini} (Pérdida Stake 1)"],
