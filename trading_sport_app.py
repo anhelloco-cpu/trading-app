@@ -228,17 +228,16 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
         horizontal=True
     )
     
-    # Variables dinámicas para base de datos e interfaz
+    # Variables dinámicas solo para la base de datos y la cuota sugerida
     nombre_estrategia_bd = "Estrategia 2: Paz Mental Clásica" if "Clásico" in enfoque_operativo else "Estrategia 2: Paz Mental Inversa"
-    label_cuota = "Cuota Inicial (Gana/Empata Favorito)" if "Clásico" in enfoque_operativo else "Cuota Inicial (Gana/Empata Rival)"
-    val_cuota_def = 1.25 if "Clásico" in enfoque_operativo else 1.80 # Ajusté el valor por defecto a algo más realista para el Gana/Empata del no favorito
+    val_cuota_def = 1.25 if "Clásico" in enfoque_operativo else 1.80 
     st.markdown("---")
     
     col1, col2, col3 = st.columns(3)
     with col1:
         capital_total = st.number_input("Capital Total (COP)", min_value=10000, value=min(50000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
     with col2:
-        cuota_1 = st.number_input(label_cuota, min_value=1.01, value=float(val_cuota_def), step=0.05)
+        cuota_1 = st.number_input("Cuota Inicial (Apuesta Pre-partido)", min_value=1.01, value=float(val_cuota_def), step=0.05)
     with col3:
         utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=10.0, step=0.5)
 
@@ -273,21 +272,15 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
         st.markdown("### 💾 Detalles y Registro de la Operación")
         with st.form("guardar_operacion"):
             
-            # Textos dinámicos en el formulario según el enfoque CORREGIDOS
-            if "Clásico" in enfoque_operativo:
-                st.info("💡 **Regla Activa Clásica:** El Stake 1 va al Gana/Empata del Favorito. La reserva caza el Gana del Rival.")
-                label_eq_fav = "⭐ Equipo Favorito (Stake 1: Gana/Empata)"
-                label_eq_riv = "⚠️ Equipo Rival (Cobertura: Solo Gana)"
-            else:
-                st.info("💡 **Regla Activa Inversa:** El Stake 1 va al Gana/Empata del Rival. La reserva caza el Gana del Favorito.")
-                label_eq_fav = "⭐ Equipo Favorito (Cobertura: Solo Gana)"
-                label_eq_riv = "⚠️ Equipo Rival (Stake 1: Gana/Empata)"
+            st.info("💡 **Regla Fija:** Escribe en la Caja 1 el equipo de tu apuesta pre-partido. Escribe en la Caja 2 el equipo que debes cazar en vivo.")
             
             c_eq1, c_eq2 = st.columns(2)
             with c_eq1:
-                eq_favorito = st.text_input(label_eq_fav)
+                # Textos fijos, sin inversión dinámica
+                eq_apuesta_inicial = st.text_input("⚽ Equipo Apuesta Inicial (Stake 1: Gana/Empata)")
             with c_eq2:
-                eq_rival = st.text_input(label_eq_riv)
+                # Textos fijos, sin inversión dinámica
+                eq_cobertura = st.text_input("🎯 Equipo a Cazar en Vivo (Cobertura: Solo Gana)")
             
             plataforma_ini = st.selectbox("Plataforma de la Apuesta Inicial:", todas_las_plataformas)
             plataforma_otra = ""
@@ -295,23 +288,19 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                 plataforma_otra = st.text_input("Especifica la otra plataforma:")
 
             if st.form_submit_button("Generar Código e Iniciar"):
-                if not eq_favorito or not eq_rival:
-                    st.error("Debes ingresar quién es el favorito y quién el rival.")
+                if not eq_apuesta_inicial or not eq_cobertura:
+                    st.error("Debes ingresar los nombres de los equipos en ambas cajas.")
                 else:
                     nuevo_codigo = generar_codigo()
                     plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
                     
-                    # Lógica de guardado de los mercados CORREGIDA
-                    if "Clásico" in enfoque_operativo:
-                        seleccion_ini = f"Gana o Empata {eq_favorito}"
-                        seleccion_cob = f"Gana {eq_rival}"
-                    else:
-                        seleccion_ini = f"Gana o Empata {eq_rival}"
-                        seleccion_cob = f"Gana {eq_favorito}"
+                    # Lógica limpia y directa: Lo que escribes, es lo que se guarda.
+                    seleccion_ini = f"Gana o Empata {eq_apuesta_inicial}"
+                    seleccion_cob = f"Gana {eq_cobertura}"
                     
                     datos = {
                         "codigo": nuevo_codigo,
-                        "partido": f"{eq_favorito} vs {eq_rival}",
+                        "partido": f"{eq_apuesta_inicial} vs {eq_cobertura}",
                         "estrategia": nombre_estrategia_bd,
                         "seleccion_inicial": seleccion_ini,
                         "seleccion_cobertura": seleccion_cob,
