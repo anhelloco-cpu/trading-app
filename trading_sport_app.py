@@ -330,6 +330,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
     st.markdown("### 📝 Panel de Control y Auditoría")
     
     import datetime
+    import re
     
     if supabase is None:
         st.error("Conecta Supabase primero.")
@@ -374,7 +375,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     
                     if op['estado'] == "EN VIVO":
                         if es_apuesta_libre:
-                            st.write("Resolución final de la operation:")
+                            st.write("Resolución final de la operación:")
                             with st.form(f"gestion_libre_{op['codigo']}"):
                                 resultado_libre = st.radio("Resultado:", [f"✅ Ganó {sel_ini} (Cobro Completo)", "❌ Perdida (Pérdida del Capital)"], key=f"rad_lib_{op['codigo']}")
                                 if st.form_submit_button("Liquidar Apuesta Libre"):
@@ -403,42 +404,91 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             
                             if accion == "Ejecutar Cobertura en Mercado (Hedge)":
                                 
-                                # --- CÁLCULO INTELIGENTE DEL MINUTO ---
-                                minuto_estimado = 0
-                                hora_ini_str = op.get("hora_inicio_partido", "")
-                                if hora_ini_str:
-                                    try:
-                                        ahora = datetime.datetime.now()
-                                        hora_inicio = datetime.datetime.strptime(hora_ini_str, "%H:%M").replace(year=ahora.year, month=ahora.month, day=ahora.day)
+                                # --- REGLA DE DESIGNACIÓN DE EQUIPO (OPCIÓN A) ---
+                                st.markdown("#### 🎯 Alineación de Trazabilidad")
+                                st1_lado = st.radio("¿En qué lado de la cancha se encuentra tu Stake 1 de Betplay?", ["🏠 Local", "🚀 Visitante"], horizontal=True, key=f"lado_{op['codigo']}")
+                                
+                                # --- OPCIÓN 3: CAJAS DE PEGADO RÁPIDO (INTEGRACIÓN CON BETPLAY) ---
+                                st.markdown("#### 🗲 Radar Táctico Automatizado (Pegar Datos de Betplay)")
+                                col_p1, col_p2 = st.columns(2)
+                                with col_p1:
+                                    raw_stats = st.text_area("Pega aquí las 'Estadísticas' de Betplay:", height=100, key=f"raw_stat_{op['codigo']}", help="Copia todo el bloque de estadísticas de la cancha de Betplay y suéltalo aquí.")
+                                with col_p2:
+                                    raw_timeline = st.text_area("Pega aquí la 'Línea de tiempo' de Betplay:", height=100, key=f"raw_time_{op['codigo']}", help="Copia la lista de hitos de la línea de tiempo de Betplay y suéltalo aquí.")
+                                
+                                # --- PROCESAMIENTO INTERNO Y EXTRACCIÓN DETECTADA ---
+                                min_detectado = None
+                                g_local_detectado = None
+                                g_vis_detectado = None
+                                
+                                att_local = 0
+                                att_vis = 0
+                                tiros_local = 0
+                                tiros_vis = 0
+                                
+                                # 1. Procesar la línea de tiempo (Extrae goles y minuto actual automáticamente)
+                                if raw_timeline:
+                                    marcador_m = re.search(r'(\d+)\s*-\s*(\d+)', raw_timeline)
+                                    if marcador_m:
+                                        g_local_detectado = int(marcador_m.group(1))
+                                        g_vis_detectado = int(marcador_m.group(2))
                                         
-                                        if ahora < hora_inicio:
-                                            hora_inicio -= datetime.timedelta(days=1)
-                                            
-                                        diff_minutos = int((ahora - hora_inicio).total_seconds() / 60)
+                                    minuto_m = re.search(r'(\d+)\s*\'', raw_timeline)
+                                    if minuto_m:
+                                        min_detectado = int(minuto_m.group(1))
+                                
+                                # 2. Procesar las estadísticas generales (Extrae volumen y presión)
+                                if raw_stats:
+                                    att_pct_m = re.search(r'(\d+)%\s*\n+\s*Tiempo en ataques peligrosos\s*\n+\s*(\d+)%', raw_stats, re.IGNORECASE)
+                                    if att_pct_m:
+                                        att_local = int(att_pct_m.group(1))
+                                        att_vis = int(att_pct_m.group(2))
                                         
-                                        if diff_minutos < 0:
+                                    tiros_m = re.search(r'(\d+)\s*\n+\s*Tiros a portería\s*\n+\s*(\d+)', raw_stats, re.IGNORECASE)
+                                    if tiros_m:
+                                        tiros_local = int(tiros_m.group(1))
+                                        tiros_vis = int(tiros_m.group(2))
+                                
+                                # --- ASIGNACIÓN DE FALLBACKS INTELIGENTES ---
+                                if min_detectado is None:
+                                    # Fallback matemático por hora de inicio si no hay pegado
+                                    minuto_estimado = 0
+                                    hora_ini_str = op.get("hora_inicio_partido", "")
+                                    if hora_ini_str:
+                                        try:
+                                            ahora = datetime.datetime.now()
+                                            hora_inicio = datetime.datetime.strptime(hora_ini_str, "%H:%M").replace(year=ahora.year, month=ahora.month, day=ahora.day)
+                                            if ahora < hora_inicio:
+                                                hora_inicio -= datetime.timedelta(days=1)
+                                            diff_m = int((ahora - hora_inicio).total_seconds() / 60)
+                                            minuto_estimado = diff_m if diff_m <= 45 else (45 if diff_m < 60 else diff_m - 15)
+                                            minuto_estimado = min(max(minuto_estimado, 0), 120)
+                                        except Exception:
                                             minuto_estimado = 0
-                                        elif diff_minutos <= 45:
-                                            minuto_estimado = diff_minutos
-                                        elif 45 < diff_minutos < 60:
-                                            minuto_estimado = 45
-                                        else:
-                                            minuto_estimado = diff_minutos - 15
-                                            
-                                        minuto_estimado = min(minuto_estimado, 120)
-                                    except Exception:
-                                        minuto_estimado = 0
-
-                                # --- INTERFAZ DE CONTEXTO DE PARTIDO ---
-                                st.markdown("#### ⏱️ Contexto en la Cancha")
+                                    min_detectado = minuto_estimado
+                                    
+                                # --- DESPLIEGUE DE VARIABLES EDITABLES ---
+                                st.markdown("#### ⏱️ Conciliación del Estado de Campo")
                                 col_t1, col_t2, col_t3 = st.columns(3)
                                 with col_t1:
-                                    minuto_actual = st.number_input("Minuto (Calculado/Editable):", min_value=0, max_value=120, value=minuto_estimado, step=1, key=f"min_{op['codigo']}")
+                                    minuto_actual = st.number_input("Minuto del Partido:", min_value=0, max_value=120, value=int(min_detectado), step=1, key=f"min_{op['codigo']}")
                                 with col_t2:
-                                    goles_ini = st.number_input(f"Goles de tu Apuesta (Stake 1):", min_value=0, step=1, key=f"g1_{op['codigo']}")
+                                    val_g1 = g_local_detectado if g_local_detectado is not None else 0
+                                    goles_local = st.number_input("Goles Local:", min_value=0, value=int(val_g1), step=1, key=f"g1_{op['codigo']}")
                                 with col_t3:
-                                    goles_cob = st.number_input(f"Goles del Rival a Cazar:", min_value=0, step=1, key=f"g2_{op['codigo']}")
-                                
+                                    val_g2 = g_vis_detectado if g_vis_detectado is not None else 0
+                                    goles_vis = st.number_input("Goles Visitante:", min_value=0, value=int(val_g2), step=1, key=f"g2_{op['codigo']}")
+                                    
+                                # Conversión de goles según el lado elegido para la lógica del informe
+                                if "Local" in st1_lado:
+                                    goles_ini = goles_local
+                                    goles_cob = goles_vis
+                                    presion_sufrida = att_vis > 55 or tiros_vis > (tiros_local + 1)
+                                else:
+                                    goles_ini = goles_vis
+                                    goles_cob = goles_local
+                                    presion_sufrida = att_local > 55 or tiros_local > (tiros_vis + 1)
+                                    
                                 st.markdown("---")
                                 
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
@@ -473,18 +523,16 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
                                 mejora_escenario_negativo = util_cobertura_con_cob - util_perdida_sin_cob
                                 
-                                # --- DICTAMEN DE RIESGO AVANZADO (CON TIEMPO, GOLES Y REGLA DE EMPATE) ---
-                                
-                                # Alerta prioritaria si el partido va empatado
-                                if goles_ini == goles_cob:
-                                    st.info(f"💡 **ESTADO PRINCIPAL SEGURO (MARCADOR: {goles_ini}-{goles_cob})**: El partido marcha igualado. Recuerda que bajo cualquier enfoque operativo (Clásico o Inverso), tu Stake 1 cubre el **Empate**. Actualmente la posición principal está en zona de ganancia total. No hay urgencia estructural para cubrir.")
+                                # --- DICTAMEN DE RIESGO INTELIGENTE MULTICAPA ---
+                                if goles_local == goles_vis:
+                                    st.info(f"💡 **ESTADO PRINCIPAL EN POSITIVO (MARCADOR: {goles_local}-{goles_vis})**: El partido marcha empatado. Tu inversión del Stake 1 está cubriendo el **Empate**. El balance temporal juega enteramente a tu favor. No existe una urgencia táctica real para forzar la cobertura.")
 
                                 if util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
                                     st.markdown(f"""
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
                                         <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: ARBITRAJE PERFECTO (RIESGO CERO)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            Independientemente del minuto ({minuto_actual}) o el marcador, conseguir esta cuota garantiza salir en verde en cualquier escenario. <b>Asegura la ganancia inmediatamente.</b>
+                                            Independientemente de las métricas de campo, esta cuota asegura un saldo en verde total. <b>Cierre de libro mayor recomendado: confirma y congela ganancias ya.</b>
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
@@ -493,44 +541,47 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
                                         <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: EQUILIBRIO OPERATIVO ALCANZADO</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            La cuota actual cumple al 100% tu planeación matemática. Cobertura avalada.
+                                            La tasa cumple estrictamente la planeación matemática planteada originalmente. Ejecución avalada.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 elif mejora_escenario_negativo > costo_seguro:
-                                    if goles_ini == goles_cob:
-                                        advertencia_tiempo = "💡 <b>Análisis Estratégico:</b> La cuota no es la ideal, pero como el partido va empatado, la decisión de cubrir es netamente opcional para congelar ganancias o protegerse de sorpresas agónicas. Tu inversión inicial está a salvo ahora mismo."
+                                    # Evaluación cruzada con el volumen de ataques de Betplay
+                                    if presion_sufrida:
+                                        diagnostico_tactivo = "⚡ <b>ALERTA DE VOLUMEN (ASEDIO DETECTADO):</b> Los datos de Betplay confirman que el rival está encima y el peligro de quiebre es alto. Aunque la cuota es subóptima, la protección patrimonial está plenamente justificada. Mitiga el golpe."
+                                    elif goles_local == goles_vis:
+                                        diagnostico_tactivo = "💡 <b>Análisis de Control:</b> Al marchar empatados, ejecutar el seguro es estrictamente un costo opcional por tranquilidad mental, puesto que tu escenario pre-partido se está cumpliendo."
                                     elif minuto_actual < 45 and goles_cob == 0:
-                                        advertencia_tiempo = "⚠️ <b>Nota de Auditoría:</b> Es el primer tiempo y aún no te anotan goles. Podrías estar cediendo al pánico temprano. Evalúa si vale la pena pagar el seguro ahora o esperar al entretiempo."
+                                        diagnostico_tactivo = "⚠️ <b>Auditoría de Comportamiento:</b> Primer tiempo en desarrollo y sin goles en contra. Podrías estar sobrepagando un seguro debido a la volatilidad psicológica a corto plazo. Considera esperar al descanso."
                                     elif minuto_actual >= 75:
-                                        advertencia_tiempo = "🛡 shrink <b>Ventana Crítica:</b> El tiempo se agota (Minuto 75+). El riesgo de un gol agónico es altísimo. Este es el momento ideal para ejecutar una maniobra defensiva."
+                                        diagnostico_tactivo = "🛡️ <b>Ventana de Cierre (Riesgo Agónico):</b> Cruzaste el minuto 75+. El tiempo apremia y el riesgo total del Stake 1 se expone. La matemática defiende realizar el movimiento defensivo para salvar el balance general."
                                     else:
-                                        advertencia_tiempo = f"El impacto del golpe se reduce drásticamente salvando ${mejora_escenario_negativo:,.0f} COP."
+                                        diagnostico_tactivo = f"El movimiento defensivo reduce las pérdidas potenciales rescatando ${mejora_escenario_negativo:,.0f} COP."
                                         
                                     st.markdown(f"""
                                     <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
                                         <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: REDUCCIÓN DE RIESGO DEFENSIVA</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            La cuota ({cuota_ingresada:.2f}) está por debajo de tu objetivo, pero la matemática respalda protegerse.<br><br>
-                                            {advertencia_tiempo}
+                                            La tasa actual de {cuota_ingresada:.2f} está por debajo de la meta, pero el contexto de campo valida la protección.<br><br>
+                                            {diagnostico_tactivo}
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 elif mejora_escenario_negativo > 0:
                                     st.markdown(f"""
                                     <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
-                                        <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: SEGURO COSTOSO (MALA RELACIÓN RIESGO/BENEFICIO)</h5>
+                                        <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: SEGURO INEFICIENTE (ALTO COSTO ADQUISICIÓN)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            Estás sacrificando ${costo_seguro:,.0f} de tu ganancia para aliviar apenas ${mejora_escenario_negativo:,.0f} de tu pérdida. A menos que la presión en la cancha te indique que el gol en contra es inminente, este seguro es financieramente ineficiente.
+                                            Estás comprometiendo ${costo_seguro:,.0f} de tu ganancia potencial para aliviar una porción muy baja de la pérdida (${mejora_escenario_negativo:,.0f}). A menos que la lectura en vivo de la cancha demuestre una ráfaga inminente de peligro, este seguro destruye margen operativo sin rentabilidad.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 else:
                                     st.markdown(f"""
                                     <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
-                                        <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: COBERTURA DESTRUCTIVA (ABANDONAR)</h5>
+                                        <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: COBERTURA DESTRUCTIVA (VALOR DEPRECIADO)</h5>
                                         <p style="margin: 0; font-size: 0.95rem;">
-                                            ¡Peligro Operativo! Ejecutar la cobertura a esta cuota empeora la pérdida de no hacer nada. Selecciona 'Liquidar Posición Directa' y asume el riesgo del Stake 1, manteniendo la reserva a salvo.
+                                            ¡Peligro! Ejecutar la cobertura a este precio empeoraría el rendimiento financiero frente a dejar correr el partido a ciegas. Se aconseja mutar a 'Cierre Directo', proteger el fondo de la reserva y dar por expuesto el Stake 1.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
@@ -538,7 +589,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.markdown("<br>", unsafe_allow_html=True)
                                 if st.button("🔒 Confirmar y Registrar Cobertura", key=f"btn_sub_cob_{op['codigo']}"):
                                     hora_actual = datetime.datetime.now().strftime("%H:%M")
-                                    
                                     supabase.table("historial_trading").update({
                                         "estado": "CUBIERTA", 
                                         "cuota_cazada_real": cuota_ingresada,
