@@ -362,7 +362,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         eq_local = "Local"
                         eq_vis = "Visitante"
                     
-                    # Identificación automática de bando para el algoritmo
+                    # Identificación automática de bando
                     es_st1_local = (sel_ini.lower() in eq_local.lower()) or (eq_local.lower() in sel_ini.lower())
                     
                     # --- CONCIENCIA DE MERCADO ---
@@ -416,17 +416,17 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             
                             if accion == "Evaluar Asedio y Cobertura (IRD)":
                                 
-                                # --- 1. RECUPERACIÓN DE LA ÚLTIMA FOTO (LIMPIA) ---
+                                # --- 1. RECUPERACIÓN DE LA ÚLTIMA FOTO ---
                                 res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
                                 
                                 if res_fotos.data:
                                     ultima_foto = res_fotos.data[0]
                                     min_base = ultima_foto['minuto_evaluado']
                                 else:
-                                    ultima_foto = {'goles_local': 0, 'goles_vis': 0, 'dominio_vis': 50}
+                                    ultima_foto = {'goles_local': 0, 'goles_vis': 0, 'atkp_local': 0, 'atkp_vis': 0}
                                     min_base = 0
 
-                                st.markdown("#### ⏱️ Auditoría Táctica Simplificada")
+                                st.markdown("#### ⏱️ Auditoría Táctica por Ritmo de Juego")
                                 
                                 minuto_sugerido = min_base
                                 if minuto_sugerido == 0:
@@ -446,50 +446,52 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
                                 col_t1, col_t2 = st.columns(2)
                                 
-                                # --- FORMULARIO ESPEJO: SOLO GOLES ---
+                                # --- FORMULARIO ESPEJO: GOLES Y ATAQUES ABSOLUTOS ---
                                 with col_t1:
                                     bg_local = "#F0FDF4" if es_st1_local else "#F8FAFC"
                                     lbl_local = f"🏠 {eq_local} (Tu Equipo)" if es_st1_local else f"🏠 {eq_local}"
                                     st.markdown(f"<div style='background-color:{bg_local}; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>{lbl_local}</div>", unsafe_allow_html=True)
-                                    g_local = st.number_input(f"⚽ Goles de {eq_local}", min_value=0, value=ultima_foto['goles_local'], key=f"g_l_{op['codigo']}")
+                                    g_local = st.number_input(f"⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_local', 0)), key=f"g_l_{op['codigo']}")
+                                    atkp_local = st.number_input(f"🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_local', 0)), key=f"atk_l_{op['codigo']}")
                                 
                                 with col_t2:
                                     bg_vis = "#F0FDF4" if not es_st1_local else "#FEF2F2"
                                     lbl_vis = f"🚀 {eq_vis} (Tu Equipo)" if not es_st1_local else f"🚀 {eq_vis} (Rival)"
                                     st.markdown(f"<div style='background-color:{bg_vis}; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>{lbl_vis}</div>", unsafe_allow_html=True)
-                                    g_vis = st.number_input(f"⚽ Goles de {eq_vis}", min_value=0, value=ultima_foto['goles_vis'], key=f"g_v_{op['codigo']}")
+                                    g_vis = st.number_input(f"⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_{op['codigo']}")
+                                    atkp_vis = st.number_input(f"🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_{op['codigo']}")
 
-                                # --- ENTRADA DE ASEDIO (% ATAQUES PELIGROSOS) ---
-                                st.markdown("---")
-                                dominio_vis = st.slider(
-                                    f"🔥 % de Ataques Peligrosos de {eq_vis} (Visitante):", 
-                                    min_value=0, max_value=100, 
-                                    value=int(ultima_foto.get('dominio_vis', 50)), 
-                                    step=1, key=f"dom_vis_{op['codigo']}"
-                                )
-                                dominio_local = 100 - dominio_vis
-                                st.caption(f"📊 Distribución de Asedio: {eq_local} {dominio_local}% | {eq_vis} {dominio_vis}%")
-                                
-                                # --- 2. MOTOR MATEMÁTICO REALISTA (SOLO 3 DATOS) ---
+                                # --- 2. MOTOR MATEMÁTICO REALISTA (APM - Ataques Por Minuto) ---
                                 if es_st1_local:
                                     goles_nuestros = g_local
                                     goles_amenaza = g_vis
-                                    dominio_rival = dominio_vis
+                                    atkp_nuestros = atkp_local
+                                    atkp_amenaza = atkp_vis
                                 else:
                                     goles_nuestros = g_vis
                                     goles_amenaza = g_local
-                                    dominio_rival = dominio_local
+                                    atkp_nuestros = atkp_vis
+                                    atkp_amenaza = atkp_local
 
-                                # Riesgo Base por Marcador
-                                if goles_amenaza > goles_nuestros:
-                                    ird_base = 100.0
-                                elif goles_amenaza == goles_nuestros:
-                                    ird_base = 30.0
+                                # Cálculo de la diferencia de goles
+                                diferencia_goles = goles_nuestros - goles_amenaza
+
+                                if diferencia_goles < 0:
+                                    ird_base = 100.0  # Perdiendo
+                                elif diferencia_goles == 0:
+                                    ird_base = 55.0   # Empatados: Alerta severa
+                                elif diferencia_goles == 1:
+                                    ird_base = 30.0   # Ganando por 1: Riesgo latente
                                 else:
-                                    ird_base = 0.0
+                                    ird_base = 0.0    # Ganando por >1: Colchón de seguridad
                                 
-                                # Acelerador de asedio (Solo si superan el 45% de dominio empieza a sumar riesgo)
-                                presion_dominio = max(0, (dominio_rival - 45) * 1.5)
+                                # Cálculo de APM (Ritmo de Asedio)
+                                min_divisor = max(1, minuto_actual)
+                                apm_rival = atkp_amenaza / min_divisor
+                                apm_total = (atkp_nuestros + atkp_amenaza) / min_divisor
+                                
+                                # Ponderación del Asedio (Acelerador matemático)
+                                presion_dominio = apm_rival * 45.0  # 1.0 APM aporta 45 puntos de riesgo
                                 
                                 # Multiplicador Temporal
                                 if minuto_actual <= 60: f_t = 0.8
@@ -507,22 +509,22 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 if min_base == 0:
                                     st.info(f"📌 **Fase de Calibración:** Primera foto registrada. Guarda la línea base para iniciar.")
                                 else:
-                                    st.info(f"🔎 Auditando ventana (Min {min_base} al {minuto_actual}).")
+                                    st.info(f"🔎 Auditando ritmo: Rival ataca a **{apm_rival:.2f} veces por minuto**. Partido a {apm_total:.2f} APM total.")
                                 
                                 if ird < 40:
                                     color = "#10B981"
-                                    estado = f"BAJO - Dominio rival bajo control ({dominio_rival}%). Posición segura."
+                                    estado = f"BAJO - Asedio del rival controlado ({apm_rival:.2f} APM)."
                                 elif ird < 70:
                                     color = "#F59E0B"
-                                    estado = f"MODERADO - El rival presiona ({dominio_rival}%). Vigilar cuotas."
+                                    estado = f"MODERADO - El rival empuja la línea ({apm_rival:.2f} APM). Vigilar cuotas."
                                 else:
                                     color = "#EF4444"
-                                    estado = f"CRÍTICO - ¡Tunda del rival! {dominio_rival}% de asedio letal."
+                                    estado = f"CRÍTICO - ¡Tunda del rival! Bombardeo de {apm_rival:.2f} ataques x minuto."
                                     
                                 st.progress(int(ird) / 100)
                                 st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
                                 
-                                # --- BOTÓN DE ENTRADA A SUPABASE (PAYLOAD LIMPIO) ---
+                                # --- BOTÓN DE ENTRADA A SUPABASE ---
                                 if st.button("📸 Guardar Foto y Cerrar Ventana", key=f"btn_foto_{op['codigo']}", use_container_width=True):
                                     try:
                                         nueva_foto = {
@@ -530,11 +532,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             "minuto_evaluado": int(minuto_actual),
                                             "goles_local": int(g_local or 0), 
                                             "goles_vis": int(g_vis or 0),
-                                            "dominio_vis": int(dominio_vis or 50),
+                                            "atkp_local": int(atkp_local or 0),
+                                            "atkp_vis": int(atkp_vis or 0),
                                             "ird_calculado": float(round(ird, 2))
                                         }
                                         supabase.table("registro_fotos").insert(nueva_foto).execute()
-                                        st.success(f"✅ Registro completado y respaldado en la tabla `registro_fotos` para el minuto {minuto_actual}.")
+                                        st.success(f"✅ Registro completado y respaldado para el minuto {minuto_actual}.")
                                         st.rerun()
                                     except Exception as e:
                                         st.error("❌ Error al guardar en Supabase:")
@@ -543,7 +546,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         
                                 st.markdown("---")
                                 
-                                # --- 4. FINANZAS Y DICTAMEN DE EJECUCIÓN (INTACTO) ---
+                                # --- 4. FINANZAS Y DICTAMEN DE EJECUCIÓN ---
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
                                 plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
                                 
@@ -718,6 +721,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         df = pd.DataFrame(res_cerradas.data)
         if not df.empty:
             st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
+            
 # =====================================================================
 # MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
 # =====================================================================
