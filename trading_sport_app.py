@@ -887,16 +887,10 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                         df_tiempos = df_est.dropna(subset=['hora_inicio_partido', 'hora_cobertura']).copy()
                         if not df_tiempos.empty:
                             try:
-                                # Convertimos las cadenas "HH:MM" a objetos de tiempo de Pandas para restarlos
                                 t_inicio = pd.to_datetime(df_tiempos['hora_inicio_partido'], format='%H:%M')
                                 t_cob = pd.to_datetime(df_tiempos['hora_cobertura'], format='%H:%M')
-                                
-                                # Calculamos la diferencia en minutos
                                 diff_minutos = (t_cob - t_inicio).dt.total_seconds() / 60.0
-                                
-                                # Ajuste por si el partido empezó antes de medianoche y se cubrió después
                                 diff_minutos = diff_minutos.apply(lambda x: x + 1440 if x < 0 else x)
-                                
                                 tiempo_promedio_cob = diff_minutos.mean()
                             except Exception:
                                 tiempo_promedio_cob = 0
@@ -960,13 +954,49 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     st.markdown("---")
                     st.subheader("📊 Eficiencia en la Cancha (Realidad Operativa)")
                     
-                    # Añadimos una columna más al renderizado inferior para mostrar el tiempo
                     c1, c2, c3, c4, c5 = st.columns(5)
                     c1.metric("Volumen Analizado", f"{total_ops} Ops")
                     c2.metric("Efectividad Inicial", f"{win_rate:.1f}%")
                     c3.metric("Frecuencia Rescate", f"{frecuencia_rescate:.1f}%")
                     c4.metric("Tasa Fracaso", f"{loss_rate:.1f}%")
                     
-                    # Formateo visual del tiempo: Si no hay coberturas mostrar "N/A"
                     texto_tiempo = f"{tiempo_promedio_cob:.0f} min" if tiempo_promedio_cob > 0 else "N/A"
                     c5.metric("Tiempo Promedio a Cobertura", texto_tiempo)
+
+                    # =====================================================================
+                    # 🧠 NUEVO INTERNALLY ADDED: RADAR DE LÍMITES DE MERCADO (FEEDBACK LOOP)
+                    # =====================================================================
+                    st.markdown("---")
+                    st.subheader("🎯 Calibración de Cuotas e Inteligencia de Límites")
+                    
+                    # Filtramos operaciones que usaron esquema de cobertura (cuota_objetivo > 0)
+                    df_cob_data = df_est[df_est['cuota_objetivo'] > 0].copy()
+                    
+                    if not df_cob_data.empty:
+                        # Cuotas mapeadas por éxito/fracaso contable
+                        df_exito_cob = df_cob_data[df_cob_data['cuota_cazada_real'] > 0]
+                        df_fallo_cob = df_cob_data[df_cob_data['cuota_cazada_real'] == 0]
+                        
+                        # A. Cuotas que MÁS alcanzó (Promedio real capturado)
+                        cuota_mas_alcanzada = df_exito_cob['cuota_cazada_real'].mean() if not df_exito_cob.empty else 0
+                        
+                        # B. Cuotas que NUNCA alcanzó (Promedio de objetivos en operaciones fallidas)
+                        cuota_nunca_alcanzada = df_fallo_cob['cuota_objetivo'].mean() if not df_fallo_cob.empty else 0
+                        
+                        col_rad1, col_rad2 = st.columns(2)
+                        with col_rad1:
+                            val_mas = f"{cuota_mas_alcanzada:.2f}" if cuota_mas_alcanzada > 0 else "N/A"
+                            st.metric(label="✅ Zona de Captura Más Alcanzada (Real)", value=val_mas, help="La tasa promedio donde el mercado sí te da tiempo de congelar ganancias.")
+                        with col_rad2:
+                            val_nunca = f"{cuota_nunca_alcanzada:.2f}" if cuota_nunca_alcanzada > 0 else "N/A"
+                            st.metric(label="❌ Umbral Inalcanzable (Cuotas Fantasma)", value=val_nunca, help="El promedio de las cuotas ambiciosas que fijaste pero que el mercado te cerró con un gol antes de llegar.")
+                        
+                        # Dictamen Táctico de Ajuste para el Módulo 1
+                        if cuota_nunca_alcanzada > 0 and cuota_mas_alcanzada > 0:
+                            st.warning(f"💡 **Recomendación Contable:** Estás quemando póliza por ambición. Tus operaciones fallidas apuntaban a un promedio utópico de **{cuota_nunca_alcanzada:.2f}**. El mercado te demuestra que tu zona real de liquidación eficiente está en **{cuota_mas_alcanzada:.2f}**. Configura tus próximas cuotas objetivo en el Módulo 1 basándote en este límite.")
+                        elif cuota_nunca_alcanzada > 0 and cuota_mas_alcanzada == 0:
+                            st.error(f"🚨 **Alerta de Desfase:** No has logrado capturar ninguna cobertura. El objetivo promedio de **{cuota_nunca_alcanzada:.2f}** está completamente fuera de la realidad del ritmo de juego actual. Reduce drásticamente la cuota objetivo pre-partido.")
+                        else:
+                            st.success(f"🔥 **Calibración Perfecta:** El 100% de tus coberturas se ejecutan con éxito en una media de **{cuota_mas_alcanzada:.2f}**. Sigue utilizando este patrón en tus aperturas.")
+                    else:
+                        st.info("Muestra insuficiente de coberturas para realizar el cruce predictivo de límites.")
