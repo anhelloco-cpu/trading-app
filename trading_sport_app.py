@@ -212,10 +212,10 @@ elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
                 except Exception as e:
                     st.error(f"❌ Error de Supabase: {str(e)}")
 # =====================================================================
-# MÓDULO 1: PAZ MENTAL + GUARDADO
+# MÓDULO 1: PAZ MENTAL + GUARDADO (MOTOR DE ARBITRAJE INTEGRADO)
 # =====================================================================
 elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
-    st.info("**Lógica:** Configura tu inversión y registra la plataforma para correcta trazabilidad.")
+    st.info("**Lógica:** Auditoría financiera previa, configuración de capital y trazabilidad operativa.")
     
     tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
@@ -229,17 +229,55 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
         horizontal=True
     )
     
-    # Variables dinámicas solo para la base de datos y la cuota sugerida
     nombre_estrategia_bd = "Estrategia 2: Paz Mental Clásica" if "Clásico" in enfoque_operativo else "Estrategia 2: Paz Mental Inversa"
-    val_cuota_def = 1.25 if "Clásico" in enfoque_operativo else 1.80 
-    st.markdown("---")
     
-    col1, col2, col3 = st.columns(3)
+    # =================================================================
+    # ⚖️ MOTOR DE ARBITRAJE (DUTCHING CALCULATOR)
+    # =================================================================
+    st.markdown("---")
+    st.markdown("### ⚖️ 1. Motor de Arbitraje (Auditoría de Cuotas)")
+    
+    col_odd1, col_odd2, col_odd3, col_odd4 = st.columns(4)
+    with col_odd1:
+        cuota_gana = st.number_input("1. Gana Tu Equipo", min_value=1.01, value=2.00, step=0.05, help="Cuota individual a que gana tu selección.")
+    with col_odd2:
+        cuota_empate = st.number_input("2. Empate (X)", min_value=1.01, value=3.65, step=0.05, help="Cuota individual del empate.")
+    with col_odd3:
+        cuota_dc_casa = st.number_input("3. Doble Oportunidad", min_value=1.01, value=1.26, step=0.01, help="Lo que ofrece la casa por Gana/Empata junto.")
+    with col_odd4:
+        cuota_rival = st.number_input("4. Gana Rival", min_value=1.01, value=4.00, step=0.05, help="Cuota del rival (La que vamos a cazar después).")
+
+    # Cálculos Matemáticos Propios
+    prob_gana = 1.0 / cuota_gana
+    prob_empate = 1.0 / cuota_empate
+    prob_total = prob_gana + prob_empate
+    cuota_sintetica = 1.0 / prob_total
+
+    diferencia_cuotas = cuota_sintetica - cuota_dc_casa
+
+    # Veredicto de Inversión
+    if diferencia_cuotas > 0.01:
+        usar_dutching = True
+        cuota_efectiva = cuota_sintetica
+        st.success(f"🚨 **INEFICIENCIA DETECTADA:** La cuota sintética es **{cuota_sintetica:.3f}**. Le ganas {diferencia_cuotas:.3f} de ventaja a la casa. **El sistema dividirá tu apuesta por separado.**")
+    else:
+        usar_dutching = False
+        cuota_efectiva = cuota_dc_casa
+        if diferencia_cuotas < -0.01:
+            st.info(f"✅ **CUOTA JUSTA:** La casa te está pagando mejor (**{cuota_dc_casa:.2f}**) que apostar por separado ({cuota_sintetica:.3f}). **Ve directo al botón de Doble Oportunidad.**")
+        else:
+            st.info(f"⚖️ **MERCADO BALANCEADO:** No hay ventaja matemática en separar la apuesta. **Ve directo al botón de Doble Oportunidad.**")
+
+    # =================================================================
+    # 💰 CONFIGURACIÓN DE CAPITAL (AHORA USA LA CUOTA EFECTIVA AUTOMÁTICA)
+    # =================================================================
+    st.markdown("---")
+    st.markdown("### 💰 2. Asignación de Capital")
+    
+    col1, col2 = st.columns(2)
     with col1:
         capital_total = st.number_input("Capital Total (COP)", min_value=10000, value=min(50000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
     with col2:
-        cuota_1 = st.number_input("Cuota Inicial (Apuesta Pre-partido)", min_value=1.01, value=float(val_cuota_def), step=0.05)
-    with col3:
         utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=10.0, step=0.5)
 
     riesgo = st.slider("Exigencia en Cobertura (0% = Librar, 100% = Ganancia Igualada):", min_value=0, max_value=100, value=50, step=10)
@@ -247,12 +285,21 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     if saldo_disponible > 0:
         porcentaje_exposicion = (capital_total / saldo_disponible) * 100
         if porcentaje_exposicion > max_riesgo_permitido:
-            st.warning(f"⚠️ Alerta de Exposición: Esta operación compromete el {porcentaje_exposicion:.1f}% de la banca disponible, superando el umbral establecido del {max_riesgo_permitido}%.")
+            st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca. Superas el umbral de {max_riesgo_permitido}%.")
 
+    # Matemática Financiera Base
     retorno_objetivo_1 = capital_total * (1 + (utilidad_esperada / 100.0))
     utilidad_neta_plata = retorno_objetivo_1 - capital_total
-    stake_1 = retorno_objetivo_1 / cuota_1
+    stake_1 = retorno_objetivo_1 / cuota_efectiva
     stake_2 = capital_total - stake_1
+
+    # Cálculos específicos de partición (Dutching)
+    if usar_dutching:
+        stake_base = stake_1 * (cuota_empate / (cuota_gana + cuota_empate))
+        stake_emp_dutch = stake_1 * (cuota_gana / (cuota_gana + cuota_empate))
+    else:
+        stake_base = stake_1
+        stake_emp_dutch = 0
 
     st.markdown("---")
 
@@ -266,24 +313,57 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
         
         col_plan1, col_plan2 = st.columns(2)
         with col_plan1:
-            st.markdown(f'<div class="caja-inversion"><h4>Fase 1: Pre-partido</h4><p>Ingresa: <b>${stake_1:,.0f} COP</b> a cuota <b>{cuota_1:.2f}</b>.</p><hr><p>Reserva: <b>${stake_2:,.0f} COP</b></p></div>', unsafe_allow_html=True)
+            if usar_dutching:
+                st.markdown(f"""
+                <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
+                    <h4 style="margin-top:0;">Fase 1: Pre-partido (Dutching)</h4>
+                    <p style="margin:0;">Divide tu Stake 1 de <b>${stake_1:,.0f} COP</b> así:</p>
+                    <ul style="margin-top: 5px; margin-bottom: 5px;">
+                        <li><b>${stake_base:,.0f}</b> ➔ Gana tu Equipo (Cuota {cuota_gana:.2f})</li>
+                        <li><b>${stake_emp_dutch:,.0f}</b> ➔ Empate (Cuota {cuota_empate:.2f})</li>
+                    </ul>
+                    <hr style="margin: 10px 0;">
+                    <p style="margin:0; color:#475569;">Fondo de Reserva: <b>${stake_2:,.0f} COP</b></p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
+                    <h4 style="margin-top:0;">Fase 1: Pre-partido (Directo)</h4>
+                    <p style="margin:0;">Ejecuta un ticket único:</p>
+                    <ul style="margin-top: 5px; margin-bottom: 5px;">
+                        <li><b>${stake_1:,.0f}</b> ➔ Gana/Empata (Cuota {cuota_efectiva:.2f})</li>
+                    </ul>
+                    <hr style="margin: 10px 0;">
+                    <p style="margin:0; color:#475569;">Fondo de Reserva: <b>${stake_2:,.0f} COP</b></p>
+                </div>
+                """, unsafe_allow_html=True)
+                
         with col_plan2:
-            st.markdown(f'<div class="caja-objetivo"><h4>Fase 2: En Vivo</h4><p>Caza esta cuota:</p><h1 style="color:#15803D; font-size:3rem; margin:0;">{cuota_a_cazar:.2f}</h1></div>', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div style="background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 15px; border-radius: 4px; text-align: center;">
+                <h4 style="margin-top:0;">Fase 2: En Vivo</h4>
+                <p style="margin:0;">Caza el Seguro Mínimo a:</p>
+                <h1 style="color:#15803D; font-size:3rem; margin:10px 0;">{cuota_a_cazar:.2f}</h1>
+                <p style="margin:0; font-size: 0.85rem; color:#475569;">(Cuota actual del rival: {cuota_rival:.2f})</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-        st.markdown("### 💾 Detalles y Registro de la Operación")
+        # =================================================================
+        # 💾 REGISTRO CONTABLE
+        # =================================================================
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("### 💾 3. Detalles y Registro de la Operación")
         with st.form("guardar_operacion"):
             
-            st.info("💡 **Regla Fija:** Escribe en la Caja 1 el equipo de tu apuesta pre-partido. Escribe en la Caja 2 el equipo que debes cazar en vivo.")
+            st.info("💡 **Regla Fija:** Escribe en la Caja 1 tu selección base. Escribe en la Caja 2 el equipo rival (la amenaza).")
             
             c_eq1, c_eq2 = st.columns(2)
             with c_eq1:
-                # Textos fijos, sin inversión dinámica
-                eq_apuesta_inicial = st.text_input("⚽ Equipo Apuesta Inicial (Stake 1: Gana/Empata)")
+                eq_apuesta_inicial = st.text_input("⚽ Equipo Apuesta Inicial (Tu equipo)")
             with c_eq2:
-                # Textos fijos, sin inversión dinámica
-                eq_cobertura = st.text_input("🎯 Equipo a Cazar en Vivo (Cobertura: Solo Gana)")
+                eq_cobertura = st.text_input("🎯 Equipo Amenaza (A Cazar en Vivo)")
             
-            # --- INYECCIÓN DEL RELOJ DE AUDITORÍA ---
             hora_inicio = st.time_input("⏱️ Hora de inicio del partido:")
             
             plataforma_ini = st.selectbox("Plataforma de la Apuesta Inicial:", todas_las_plataformas)
@@ -291,15 +371,14 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
             if plataforma_ini == "Otra":
                 plataforma_otra = st.text_input("Especifica la otra plataforma:")
 
-            if st.form_submit_button("Generar Código e Iniciar"):
+            if st.form_submit_button("Generar Código e Iniciar Auditoría"):
                 if not eq_apuesta_inicial or not eq_cobertura:
                     st.error("Debes ingresar los nombres de los equipos en ambas cajas.")
                 else:
                     nuevo_codigo = generar_codigo()
                     plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
                     
-                    # Lógica limpia y directa: Lo que escribes, es lo que se guarda.
-                    seleccion_ini = f"Gana o Empata {eq_apuesta_inicial}"
+                    seleccion_ini = f"Dutching: {eq_apuesta_inicial} + Empate" if usar_dutching else f"Doble Oportunidad: {eq_apuesta_inicial}"
                     seleccion_cob = f"Gana {eq_cobertura}"
                     
                     datos = {
@@ -310,13 +389,20 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         "seleccion_cobertura": seleccion_cob,
                         "plataforma_inicial": plataforma_final,
                         "capital_total": capital_total,
-                        "cuota_inicial": cuota_1,
+                        "cuota_inicial": round(cuota_efectiva, 3),
                         "stake_1": stake_1,
                         "reserva_stake_2": stake_2,
                         "cuota_objetivo": cuota_a_cazar,
                         "estado": "EN VIVO",
                         "tipo_banca": banca_activa,
-                        "hora_inicio_partido": hora_inicio.strftime("%H:%M") # --- INYECCIÓN DEL DATO FORMATEADO ---
+                        "hora_inicio_partido": hora_inicio.strftime("%H:%M"),
+                        # Nuevas variables de auditoría de cuotas
+                        "cuota_base_audit": cuota_gana,
+                        "cuota_empate_audit": cuota_empate,
+                        "cuota_dc_audit": cuota_dc_casa,
+                        "es_dutching": usar_dutching,
+                        "stake_dutch_base": round(stake_base, 2),
+                        "stake_dutch_empate": round(stake_emp_dutch, 2)
                     }
                     try:
                         supabase.table("historial_trading").insert(datos).execute()
