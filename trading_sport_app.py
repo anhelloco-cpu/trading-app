@@ -444,7 +444,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         eq_vis = partido_str.split(' vs ')[1].strip()
                     elif ' - ' in partido_str:
                         eq_local = partido_str.split(' - ')[0].strip()
-                        eq_vis = partido_str.split(' - ')[1].strip()
+                        eq_vis = partido_split = partido_str.split(' - ')[1].strip()
                     else:
                         eq_local = "Local"
                         eq_vis = "Visitante"
@@ -474,7 +474,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     
                     if op['estado'] == "EN VIVO":
                         if es_apuesta_libre:
-                            st.write("Resolución final de la operation:")
+                            st.write("Resolución final de la operación:")
                             with st.form(f"gestion_libre_{op['codigo']}"):
                                 resultado_libre = st.radio("Resultado:", [f"✅ Ganó {sel_ini} (Cobro Completo)", "❌ Perdida (Pérdida del Capital)"], key=f"rad_lib_{op['codigo']}")
                                 if st.form_submit_button("Liquidar Apuesta Libre"):
@@ -548,7 +548,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     g_vis = st.number_input(f"⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_{op['codigo']}")
                                     atkp_vis = st.number_input(f"🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_{op['codigo']}")
 
-                                # --- MOTOR MATEMÁTICO REALISTA (APM - Ataques Por Minuto) ---
+                                # =====================================================================
+                                # 🧠 NUEVO MOTOR MATEMÁTICO: TIEMPO, LETALIDAD Y MOMENTUM
+                                # =====================================================================
                                 if es_st1_local:
                                     goles_nuestros = g_local
                                     goles_amenaza = g_vis
@@ -560,35 +562,53 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     atkp_nuestros = atkp_vis
                                     atkp_amenaza = atkp_local
 
-                                # Cálculo de la diferencia de goles
                                 diferencia_goles = goles_nuestros - goles_amenaza
 
-                                if diferencia_goles < 0:
-                                    ird_base = 100.0  # Perdiendo
-                                elif diferencia_goles == 0:
-                                    ird_base = 55.0   # Empatados: Alerta severa
-                                elif diferencia_goles == 1:
-                                    ird_base = 30.0   # Ganando por 1: Riesgo latente
-                                else:
-                                    ird_base = 0.0    # Ganando por >1: Colchón de seguridad
-                                
-                                # Cálculo de APM (Ritmo de Asedio)
+                                # 1. Variables de Tiempo
+                                tiempo_restante = max(1, 95 - minuto_actual)
                                 min_divisor = max(1, minuto_actual)
+                                
+                                # 2. Cálculo de APM (Ritmo) y Dominio
+                                apm_nuestros = atkp_nuestros / min_divisor
                                 apm_rival = atkp_amenaza / min_divisor
-                                apm_total = (atkp_nuestros + atkp_amenaza) / min_divisor
+                                apm_total = apm_nuestros + apm_rival
                                 
-                                # Ponderación del Asedio (Acelerador matemático)
-                                presion_dominio = apm_rival * 45.0  # 1.0 APM aporta 45 puntos de riesgo
+                                atkp_totales = atkp_nuestros + atkp_amenaza
+                                share_nuestro = (atkp_nuestros / atkp_totales * 100) if atkp_totales > 0 else 50.0
                                 
-                                # Multiplicador Temporal
+                                # 3. Proyecciones y Letalidad (El Filo de la Espada)
+                                ataques_futuros_nuestros = tiempo_restante * apm_nuestros
+                                ataques_futuros_rival = tiempo_restante * apm_rival
+                                
+                                letalidad_nuestra = (goles_nuestros + 1) / (atkp_nuestros + 10)
+                                letalidad_rival = (goles_amenaza + 1) / (atkp_amenaza + 10)
+                                
+                                exp_goles_nuestros = ataques_futuros_nuestros * letalidad_nuestra
+                                exp_goles_rival = ataques_futuros_rival * letalidad_rival
+
+                                # 4. Cálculo Base del Riesgo
+                                if diferencia_goles < 0: ird_base = 100.0       # Perdiendo
+                                elif diferencia_goles == 0: ird_base = 55.0     # Empatados
+                                elif diferencia_goles == 1: ird_base = 30.0     # Ganando por 1
+                                else: ird_base = 0.0                            # Ganando por >1
+                                
+                                presion_dominio = apm_rival * 45.0  # El rival nos asusta
+                                
                                 if minuto_actual <= 60: f_t = 0.8
                                 elif minuto_actual <= 75: f_t = 1.0
                                 else: f_t = 1.0 + ((minuto_actual - 75) * 0.035) 
                                 
-                                if ird_base == 100.0:
-                                    ird = 100.0
+                                # 5. El Escudo de Dominio (Canibalización de Tiempo)
+                                if share_nuestro > 50.0:
+                                    escudo_dominio_base = (share_nuestro - 50.0) * 1.5
+                                    factor_decaimiento = tiempo_restante / 95.0 # Se destruye al acercarse al min 90
+                                    escudo_dominio = escudo_dominio_base * factor_decaimiento
                                 else:
-                                    ird = min(100.0, ird_base + (presion_dominio * f_t))
+                                    escudo_dominio = 0.0
+
+                                # 6. Consolidación Final del Termómetro IRD
+                                ird_crudo = ird_base + (presion_dominio * f_t) - escudo_dominio
+                                ird = max(0.0, min(100.0, ird_crudo))
                                 
                                 # --- RENDERIZADO DEL TERMÓMETRO (IRD) ---
                                 st.markdown("---")
@@ -596,17 +616,17 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 if min_base == 0:
                                     st.info(f"📌 **Fase de Calibración:** Primera foto registrada. Guarda la línea base para iniciar.")
                                 else:
-                                    st.info(f"🔎 Auditando ritmo: Rival ataca a **{apm_rival:.2f} veces por minuto**. Partido a {apm_total:.2f} APM total.")
+                                    st.info(f"🔎 Auditando ritmo: Rival ataca a **{apm_rival:.2f} APM**. Partido a {apm_total:.2f} APM total. (Tú dominas el **{share_nuestro:.1f}%** de los ataques).")
                                 
                                 if ird < 40:
                                     color = "#10B981"
-                                    estado = f"BAJO - Asedio del rival controlado ({apm_rival:.2f} APM)."
+                                    estado = f"BAJO - Asedio controlado."
                                 elif ird < 70:
                                     color = "#F59E0B"
-                                    estado = f"MODERADO - El rival empuja la línea ({apm_rival:.2f} APM). Vigilar cuotas."
+                                    estado = f"MODERADO - Presión mitigada. Vigilar letalidad."
                                 else:
                                     color = "#EF4444"
-                                    estado = f"CRÍTICO - ¡Tunda del rival! Bombardeo de {apm_rival:.2f} ataques x minuto."
+                                    estado = f"CRÍTICO - ¡Alerta Máxima! El escudo temporal ha colapsado."
                                     
                                 st.progress(int(ird) / 100)
                                 st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
@@ -670,32 +690,48 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 # 🧠 INTELIGENCIA DE RIESGO ADICIONAL INDEPENDIENTE (SUMAR, NO RESTAR)
                                 # =====================================================================
                                 
-                                # CANDADO A: ORDEN DE EVACUACIÓN POR CATÁSTROFE (SE MUESTRA ADICIONALMENTE)
+                                # CANDADO A: ORDEN DE EVACUACIÓN POR CATÁSTROFE
                                 if ird >= 85.0:
                                     st.markdown(f"""
                                     <div style='background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;'>
                                         <h5 style='margin-top:0; color:#991B1B;'>🚨 DICTAMEN DE AUDITORÍA: ORDEN DE EVACUACIÓN INMEDIATA</h5>
                                         <p style='margin:0; font-size:0.95rem;'>
-                                            El rival mantiene un bombardeo absoluto (Riesgo Crítico: {ird:.1f}%). No es momento de evaluar la eficiencia del precio o la inflación de la cuota. 
+                                            El rival mantiene un bombardeo absoluto (Riesgo Crítico: {ird:.1f}%). No es momento de evaluar la eficiencia del precio. 
                                             La posición pre-partido está en riesgo de colapso inminente. <b>Ejecuta la cobertura de inmediato para salvar el capital residual.</b>
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 
-                                # CANDADO B: CONTROL DE RESERVA POR PALIZA A FAVOR (SE MUESTRA ADICIONALMENTE)
+                                # CANDADO B: CONTROL DE RESERVA POR PALIZA A FAVOR
                                 if diferencia_goles >= 2 and ird < 40.0:
                                     st.markdown(f"""
                                     <div style='background-color: #F8FAFC; border-left: 6px solid #8B5CF6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #4C1D95;'>
                                         <h5 style='margin-top:0; color:#5B21B6;'>💡 DICTAMEN DE AUDITORÍA: REVOCAR COBERTURA</h5>
                                         <p style='margin:0; font-size:0.95rem;'>
                                             Tu selección sostiene una ventaja sólida de <b>+{diferencia_goles} goles</b> con asedio rival controlado (IRD: {ird:.1f}%). La probabilidad contable de remontada es insignificante.
-                                            <br><br><b>Recomendación Operativa:</b> NO entres al seguro. Retener el patrimonio de la reserva intacto en la caja te ahorra un costo operativo innecesario y eleva tu beneficio neto real al 100%. Deja correr la posición principal.
+                                            <br><br><b>Recomendación Operativa:</b> NO entres al seguro. Retener el patrimonio de la reserva intacto en la caja te ahorra un costo operativo innecesario. Deja correr la posición principal.
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                # CANDADO C: AUDITORÍA DE MOMENTUM Y LETALIDAD (ESCENARIOS EN DESVENTAJA/EMPATE)
+                                if (diferencia_goles <= 0) and (share_nuestro > 60.0) and (ird < 85.0):
+                                    st.markdown(f"""
+                                    <div style='background-color: #F0FDF4; border-left: 6px solid #059669; padding: 15px; margin-top: 15px; border-radius: 4px; color: #064E3B;'>
+                                        <h5 style='margin-top:0; color:#047857;'>🔍 AUDITORÍA DE MOMENTUM: PACIENCIA TÁCTICA ACTIVA</h5>
+                                        <p style='margin:0; font-size:0.95rem;'>
+                                            <b>Tiempo Líquido Restante:</b> {tiempo_restante} minutos.<br>
+                                            Aunque el marcador no favorece, tu equipo concentra el <b>{share_nuestro:.1f}%</b> de la participación ofensiva. 
+                                            Se proyecta que fabricarás <b>{ataques_futuros_nuestros:.0f} llegadas más</b> frente a solo {ataques_futuros_rival:.0f} del rival. <br><br>
+                                            <b>Letalidad actual:</b> {letalidad_nuestra*100:.1f}% (Tú) vs {letalidad_rival*100:.1f}% (Rival).<br>
+                                            Esperanza de Goles a favor (E[G]): <b>+{exp_goles_nuestros:.2f}</b>.<br><br>
+                                            <b>Dictamen:</b> El momentum está de tu lado y la probabilidad estadística de empate/remontada es fuerte. No sacrifiques utilidad en una cobertura prematura; el sistema te protege. Aguanta la posición.
                                         </p>
                                     </div>
                                     """, unsafe_allow_html=True)
 
                                 # =====================================================================
-                                # 📊 MATRIZ DE ESCENARIOS ORIGINAL (INTACTA SIN TOCAR UNA SOLA LÍNEA)
+                                # 📊 MATRIZ DE ESCENARIOS ORIGINAL (INTACTA)
                                 # =====================================================================
                                 if util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
                                     st.markdown(f"""
