@@ -350,7 +350,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
             """, unsafe_allow_html=True)
 
         # =================================================================
-        # 💾 REGISTRO CONTABLE
+        # 💾 REGISTRO CONTABLE (CORREGIDO)
         # =================================================================
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("### 💾 3. Detalles y Registro de la Operación")
@@ -396,11 +396,11 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         "estado": "EN VIVO",
                         "tipo_banca": banca_activa,
                         "hora_inicio_partido": hora_inicio.strftime("%H:%M"),
-                        # Nuevas variables de auditoría de cuotas
+                        # Variables de auditoría sincronizadas
                         "cuota_base_audit": cuota_gana,
                         "cuota_empate_audit": cuota_empate,
                         "cuota_dc_audit": cuota_dc_casa,
-                        "cuota_amenaza_audit": cuota_pierde,
+                        "cuota_amenaza_audit": cuota_rival, # ➔ ¡CONEXIÓN CORREGIDA AQUÍ!
                         "es_dutching": usar_dutching,
                         "stake_dutch_base": round(stake_base, 2),
                         "stake_dutch_empate": round(stake_emp_dutch, 2)
@@ -408,6 +408,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                     try:
                         supabase.table("historial_trading").insert(datos).execute()
                         st.markdown(f'<div class="caja-codigo"><h3>Código ({banca_activa}): {nuevo_codigo}</h3></div>', unsafe_allow_html=True)
+                        st.rerun()
                     except Exception as e:
                         st.error(f"❌ Error de Supabase: {str(e)}")
 
