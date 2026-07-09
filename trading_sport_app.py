@@ -365,16 +365,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     # Identificación automática de bando para el algoritmo
                     es_st1_local = (sel_ini.lower() in eq_local.lower()) or (eq_local.lower() in sel_ini.lower())
                     
-                    # --- INICIALIZACIÓN DE MEMORIA DIFERENCIAL ---
-                    variables_memoria = [
-                        'min', 'g_local', 'g_vis', 'atkp_local', 'atkp_vis', 
-                        'tir_local', 'tir_vis', 'cor_local', 'cor_vis', 
-                        'fal_local', 'fal_vis', 'ama_local', 'ama_vis', 'roj_local', 'roj_vis'
-                    ]
-                    for var in variables_memoria:
-                        if f"prev_{var}_{op['codigo']}" not in st.session_state:
-                            st.session_state[f"prev_{var}_{op['codigo']}"] = 0
-                    
                     # --- CONCIENCIA DE MERCADO ---
                     if "Inversa" in tipo_estrategia:
                         contexto_mercado = f"El reloj es aliado. Si {sel_ini} aguanta o anota, la cuota de {sel_cob} se disparará."
@@ -426,22 +416,17 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             
                             if accion == "Evaluar Asedio y Cobertura (IRD)":
                                 
-                                # --- 1. RECUPERACIÓN DE LA ÚLTIMA FOTO DESDE SUPABASE ---
+                                # --- 1. RECUPERACIÓN DE LA ÚLTIMA FOTO (LIMPIA) ---
                                 res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
                                 
                                 if res_fotos.data:
                                     ultima_foto = res_fotos.data[0]
                                     min_base = ultima_foto['minuto_evaluado']
                                 else:
-                                    ultima_foto = {
-                                        'goles_local': 0, 'goles_vis': 0, 'atkp_local': 0, 'atkp_vis': 0,
-                                        'tir_local': 0, 'tir_vis': 0, 'cor_local': 0, 'cor_vis': 0,
-                                        'fal_local': 0, 'fal_vis': 0, 'ama_local': 0, 'ama_vis': 0,
-                                        'roj_local': 0, 'roj_vis': 0, 'pos_vis': 50
-                                    }
+                                    ultima_foto = {'goles_local': 0, 'goles_vis': 0, 'dominio_vis': 50}
                                     min_base = 0
 
-                                st.markdown("#### ⏱️ Auditoría Táctica (Ingresar Totales Acumulados)")
+                                st.markdown("#### ⏱️ Auditoría Táctica Simplificada")
                                 
                                 minuto_sugerido = min_base
                                 if minuto_sugerido == 0:
@@ -461,122 +446,91 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
                                 col_t1, col_t2 = st.columns(2)
                                 
-                                # --- FORMULARIO ESPEJO USANDO LOS NOMBRES REALES EN LAS ETIQUETAS ---
+                                # --- FORMULARIO ESPEJO: SOLO GOLES ---
                                 with col_t1:
-                                    # Si es tu equipo, lo pinta de verde sutil
                                     bg_local = "#F0FDF4" if es_st1_local else "#F8FAFC"
                                     lbl_local = f"🏠 {eq_local} (Tu Equipo)" if es_st1_local else f"🏠 {eq_local}"
                                     st.markdown(f"<div style='background-color:{bg_local}; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>{lbl_local}</div>", unsafe_allow_html=True)
-                                    
                                     g_local = st.number_input(f"⚽ Goles de {eq_local}", min_value=0, value=ultima_foto['goles_local'], key=f"g_l_{op['codigo']}")
-                                    atkp_local = st.number_input(f"🔥 Atq. Peligrosos {eq_local}", min_value=0, value=ultima_foto['atkp_local'], key=f"atkp_l_{op['codigo']}")
-                                    tir_local = st.number_input(f"🎯 Tiros a Puerta {eq_local}", min_value=0, value=ultima_foto['tir_local'], key=f"tir_l_{op['codigo']}")
-                                    cor_local = st.number_input(f"🚩 Córneres de {eq_local}", min_value=0, value=ultima_foto['cor_local'], key=f"cor_l_{op['codigo']}")
-                                    fal_local = st.number_input(f"🛑 Faltas de {eq_local}", min_value=0, value=ultima_foto['fal_local'], key=f"fal_l_{op['codigo']}")
-                                    ama_local = st.number_input(f"🟨 Amarillas de {eq_local}", min_value=0, value=ultima_foto['ama_local'], key=f"ama_l_{op['codigo']}")
-                                    roj_local = st.number_input(f"🟥 Rojas de {eq_local}", min_value=0, value=ultima_foto['roj_local'], key=f"roj_l_{op['codigo']}")
                                 
                                 with col_t2:
                                     bg_vis = "#F0FDF4" if not es_st1_local else "#FEF2F2"
                                     lbl_vis = f"🚀 {eq_vis} (Tu Equipo)" if not es_st1_local else f"🚀 {eq_vis} (Rival)"
                                     st.markdown(f"<div style='background-color:{bg_vis}; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>{lbl_vis}</div>", unsafe_allow_html=True)
-                                    
                                     g_vis = st.number_input(f"⚽ Goles de {eq_vis}", min_value=0, value=ultima_foto['goles_vis'], key=f"g_v_{op['codigo']}")
-                                    atkp_vis = st.number_input(f"🔥 Atq. Peligrosos {eq_vis}", min_value=0, value=ultima_foto['atkp_vis'], key=f"atkp_v_{op['codigo']}")
-                                    tir_vis = st.number_input(f"🎯 Tiros a Puerta {eq_vis}", min_value=0, value=ultima_foto['tir_vis'], key=f"tir_v_{op['codigo']}")
-                                    cor_vis = st.number_input(f"🚩 Córneres de {eq_vis}", min_value=0, value=ultima_foto['cor_vis'], key=f"cor_v_{op['codigo']}")
-                                    fal_vis = st.number_input(f"🛑 Faltas de {eq_vis}", min_value=0, value=ultima_foto['fal_vis'], key=f"fal_v_{op['codigo']}")
-                                    ama_vis = st.number_input(f"🟨 Amarillas de {eq_vis}", min_value=0, value=ultima_foto['ama_vis'], key=f"ama_v_{op['codigo']}")
-                                    roj_vis = st.number_input(f"🟥 Rojas de {eq_vis}", min_value=0, value=ultima_foto['roj_vis'], key=f"roj_v_{op['codigo']}")
 
-                                pos_vis = st.number_input(f"⏱️ % Posesión de {eq_vis}:", min_value=0, max_value=100, value=ultima_foto['pos_vis'], step=1, key=f"pos_{op['codigo']}")
+                                # --- ENTRADA DE ASEDIO (% ATAQUES PELIGROSOS) ---
+                                st.markdown("---")
+                                dominio_vis = st.slider(
+                                    f"🔥 % de Ataques Peligrosos de {eq_vis} (Visitante):", 
+                                    min_value=0, max_value=100, 
+                                    value=int(ultima_foto.get('dominio_vis', 50)), 
+                                    step=1, key=f"dom_vis_{op['codigo']}"
+                                )
+                                dominio_local = 100 - dominio_vis
+                                st.caption(f"📊 Distribución de Asedio: {eq_local} {dominio_local}% | {eq_vis} {dominio_vis}%")
                                 
-                                # --- 2. MOTOR MATEMÁTICO AUTOMATIZADO ---
-                                delta_min = max(1, minuto_actual - min_base)
-                                factor_norm = max(0.3, delta_min / 10.0)
-                                
-                                # Mapeo automático de variables basado en la detección de bandos
+                                # --- 2. MOTOR MATEMÁTICO REALISTA (SOLO 3 DATOS) ---
                                 if es_st1_local:
                                     goles_nuestros = g_local
                                     goles_amenaza = g_vis
-                                    
-                                    d_tiros_rival = max(0, tir_vis - ultima_foto['tir_vis']) / factor_norm
-                                    d_ataques_rival = max(0, atkp_vis - ultima_foto['atkp_vis']) / factor_norm
-                                    d_cor_rival = max(0, cor_vis - ultima_foto['cor_vis']) / factor_norm
-                                    
-                                    d_fal_nuestras = max(0, fal_local - ultima_foto['fal_local']) / factor_norm
-                                    d_ama_nuestras = max(0, ama_local - ultima_foto['ama_local']) / factor_norm
-                                    exc_pos = max(0, pos_vis - 50)
-                                    
-                                    rojas_nuestras = roj_local
-                                    rojas_rival = roj_vis
+                                    dominio_rival = dominio_vis
                                 else:
                                     goles_nuestros = g_vis
                                     goles_amenaza = g_local
-                                    
-                                    d_tiros_rival = max(0, tir_local - ultima_foto['tir_local']) / factor_norm
-                                    d_ataques_rival = max(0, atkp_local - ultima_foto['atkp_local']) / factor_norm
-                                    d_cor_rival = max(0, cor_local - ultima_foto['cor_local']) / factor_norm
-                                    
-                                    d_fal_nuestras = max(0, fal_vis - ultima_foto['fal_vis']) / factor_norm
-                                    d_ama_nuestras = max(0, ama_vis - ultima_foto['ama_vis']) / factor_norm
-                                    pos_local = 100 - pos_vis
-                                    exc_pos = max(0, pos_local - 50)
-                                    
-                                    rojas_nuestras = roj_vis
-                                    rojas_rival = roj_local
+                                    dominio_rival = dominio_local
 
-                                # --- CÁLCULO DEL ÍNDICE DE RIESGO ---
-                                p_pos = min(10.0, exc_pos * 0.5)
-                                p_base = (d_tiros_rival * 11.6) + (d_ataques_rival * 1.33) + (d_cor_rival * 5.0) + \
-                                         (d_fal_nuestras * 2.5) + (d_ama_nuestras * 10.0) + p_pos
-                                p_base = min(100.0, p_base)
+                                # Riesgo Base por Marcador
+                                if goles_amenaza > goles_nuestros:
+                                    ird_base = 100.0
+                                elif goles_amenaza == goles_nuestros:
+                                    ird_base = 30.0
+                                else:
+                                    ird_base = 0.0
                                 
-                                m_rojas = 1.0
-                                if rojas_nuestras > 0: m_rojas = 1.5
-                                if rojas_rival > 0: m_rojas = 0.5
+                                # Acelerador de asedio (Solo si superan el 45% de dominio empieza a sumar riesgo)
+                                presion_dominio = max(0, (dominio_rival - 45) * 1.5)
                                 
+                                # Multiplicador Temporal
                                 if minuto_actual <= 60: f_t = 0.8
                                 elif minuto_actual <= 75: f_t = 1.0
-                                else: f_t = 1.0 + (((minuto_actual - 75) ** 2) * 0.0035)
+                                else: f_t = 1.0 + ((minuto_actual - 75) * 0.035) 
                                 
-                                ird = min(100.0, p_base * m_rojas * f_t)
+                                if ird_base == 100.0:
+                                    ird = 100.0
+                                else:
+                                    ird = min(100.0, ird_base + (presion_dominio * f_t))
                                 
                                 # --- 3. RENDERIZADO DEL TERMÓMETRO (IRD) ---
                                 st.markdown("---")
                                 st.markdown("#### 🌡️ Índice de Riesgo Dinámico (IRD)")
                                 if min_base == 0:
-                                    st.info(f"📌 **Fase de Calibración:** Primera foto registrada para este partido. Guarda la línea base para iniciar.")
+                                    st.info(f"📌 **Fase de Calibración:** Primera foto registrada. Guarda la línea base para iniciar.")
                                 else:
-                                    st.info(f"🔎 Auditando la ventana del minuto **{min_base} al {minuto_actual}** ({delta_min} min de flujo transcurrido).")
+                                    st.info(f"🔎 Auditando ventana (Min {min_base} al {minuto_actual}).")
                                 
                                 if ird < 40:
                                     color = "#10B981"
-                                    estado = "BAJO - El bloque actual refleja asedio nulo o fricción controlada."
+                                    estado = f"BAJO - Dominio rival bajo control ({dominio_rival}%). Posición segura."
                                 elif ird < 70:
                                     color = "#F59E0B"
-                                    estado = "MODERADO - El rival acelera y gana terreno. Mantener vigilancia."
+                                    estado = f"MODERADO - El rival presiona ({dominio_rival}%). Vigilar cuotas."
                                 else:
                                     color = "#EF4444"
-                                    estado = "CRÍTICO - ¡Volumen ofensivo letal o tiempo agónico!"
+                                    estado = f"CRÍTICO - ¡Tunda del rival! {dominio_rival}% de asedio letal."
                                     
                                 st.progress(int(ird) / 100)
                                 st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
                                 
-                                # --- BOTÓN DE ENTRADA A SUPABASE ---
-                                if st.button("📸 Guardar Foto y Cerrar Ventana (Auditoría completada)", key=f"btn_foto_{op['codigo']}", use_container_width=True):
+                                # --- BOTÓN DE ENTRADA A SUPABASE (PAYLOAD LIMPIO) ---
+                                if st.button("📸 Guardar Foto y Cerrar Ventana", key=f"btn_foto_{op['codigo']}", use_container_width=True):
                                     try:
                                         nueva_foto = {
                                             "codigo_posicion": str(op['codigo']),
                                             "minuto_evaluado": int(minuto_actual),
-                                            "goles_local": int(g_local or 0), "goles_vis": int(g_vis or 0),
-                                            "atkp_local": int(atkp_local or 0), "atkp_vis": int(atkp_vis or 0),
-                                            "tir_local": int(tir_local or 0), "tir_vis": int(tir_vis or 0),
-                                            "cor_local": int(cor_local or 0), "cor_vis": int(cor_vis or 0),
-                                            "fal_local": int(fal_local or 0), "fal_vis": int(fal_vis or 0),
-                                            "ama_local": int(ama_local or 0), "ama_vis": int(ama_vis or 0),
-                                            "roj_local": int(roj_local or 0), "roj_vis": int(roj_vis or 0),
-                                            "pos_vis": int(pos_vis or 0),
+                                            "goles_local": int(g_local or 0), 
+                                            "goles_vis": int(g_vis or 0),
+                                            "dominio_vis": int(dominio_vis or 50),
                                             "ird_calculado": float(round(ird, 2))
                                         }
                                         supabase.table("registro_fotos").insert(nueva_foto).execute()
@@ -589,7 +543,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         
                                 st.markdown("---")
                                 
-                                # --- 4. FINANZAS Y DICTAMEN DE EJECUCIÓN ---
+                                # --- 4. FINANZAS Y DICTAMEN DE EJECUCIÓN (INTACTO) ---
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
                                 plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
                                 
@@ -643,7 +597,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
                                                 <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 ALERTA DE QUIEBRE: SALVATAJE DEL EMPATE</h5>
                                                 <p style="margin: 0; font-size: 0.95rem;">
-                                                    El modelo predictivo arroja <b>{ird:.1f}% de riesgo</b> de destrucción del empate en este bloque. <b>Fuerza el seguro ahora para proteger patrimonio.</b>
+                                                    El modelo predictivo arroja <b>{ird:.1f}% de riesgo</b> de destrucción del empate. <b>Fuerza el seguro ahora para proteger patrimonio.</b>
                                                 </p>
                                             </div>
                                             """, unsafe_allow_html=True)
@@ -652,7 +606,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             <div style="background-color: #F8FAFC; border-left: 6px solid #94A3B8; padding: 15px; margin-top: 15px; border-radius: 4px; color: #334155;">
                                                 <h5 style="margin: 0 0 5px 0; color: #334155;">💡 PACIENCIA TÁCTICA: EMPATE PROTEGIDO</h5>
                                                 <p style="margin: 0; font-size: 0.95rem;">
-                                                    El marcador favorece y la aceleración de la amenaza está controlada ({ird:.1f}%). La auditoría aconseja esperar maduración de cuota.
+                                                    El marcador favorece y la aceleración de la amenaza está controlada ({ird:.1f}%). Esperar maduración de cuota.
                                                 </p>
                                             </div>
                                             """, unsafe_allow_html=True)
@@ -662,7 +616,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
                                                 <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 MITIGACIÓN TÁCTICA URGENTE</h5>
                                                 <p style="margin: 0; font-size: 0.95rem;">
-                                                    La presión de la amenaza es asfixiante en la ventana evaluada (Riesgo: {ird:.1f}%). Decisión contable correcta: mitigar golpe y rescatar ${mejora_escenario_negativo:,.0f} COP.
+                                                    La presión es asfixiante (Riesgo: {ird:.1f}%). Mitigar golpe y rescatar ${mejora_escenario_negativo:,.0f} COP.
                                                 </p>
                                             </div>
                                             """, unsafe_allow_html=True)
@@ -671,7 +625,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
                                                 <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ MANTENER POSICIÓN CON CAUTELA</h5>
                                                 <p style="margin: 0; font-size: 0.95rem;">
-                                                    La cuota es subóptma pero el Índice de Riesgo es manejable ({ird:.1f}%). No se justifica sobrepagar el seguro.
+                                                    La cuota es subóptma pero el riesgo es manejable ({ird:.1f}%). No sobrepagar seguro.
                                                 </p>
                                             </div>
                                             """, unsafe_allow_html=True)
@@ -679,7 +633,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.markdown(f"""
                                     <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
                                         <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ SEGURO INEFICIENTE (INFLACIÓN DE PRECIO)</h5>
-                                        <p style="margin: 0; font-size: 0.95rem;">Comprometes demasiada utilidad para blindar una porción ínfima. Es preferible soportar la posición abierta.</p>
+                                        <p style="margin: 0; font-size: 0.95rem;">Comprometes demasiada utilidad para blindar una porción ínfima. Preferible soportar.</p>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 else:
