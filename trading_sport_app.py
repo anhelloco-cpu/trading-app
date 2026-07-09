@@ -474,7 +474,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     
                     if op['estado'] == "EN VIVO":
                         if es_apuesta_libre:
-                            st.write("Resolución final de la operación:")
+                            st.write("Resolución final de la operation:")
                             with st.form(f"gestion_libre_{op['codigo']}"):
                                 resultado_libre = st.radio("Resultado:", [f"✅ Ganó {sel_ini} (Cobro Completo)", "❌ Perdida (Pérdida del Capital)"], key=f"rad_lib_{op['codigo']}")
                                 if st.form_submit_button("Liquidar Apuesta Libre"):
@@ -548,7 +548,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     g_vis = st.number_input(f"⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_{op['codigo']}")
                                     atkp_vis = st.number_input(f"🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_{op['codigo']}")
 
-                                # --- 2. MOTOR MATEMÁTICO REALISTA (APM - Ataques Por Minuto) ---
+                                # --- MOTOR MATEMÁTICO REALISTA (APM - Ataques Por Minuto) ---
                                 if es_st1_local:
                                     goles_nuestros = g_local
                                     goles_amenaza = g_vis
@@ -590,7 +590,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 else:
                                     ird = min(100.0, ird_base + (presion_dominio * f_t))
                                 
-                                # --- 3. RENDERIZADO DEL TERMÓMETRO (IRD) ---
+                                # --- RENDERIZADO DEL TERMÓMETRO (IRD) ---
                                 st.markdown("---")
                                 st.markdown("#### 🌡️ Índice de Riesgo Dinámico (IRD)")
                                 if min_base == 0:
@@ -633,7 +633,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         
                                 st.markdown("---")
                                 
-                                # --- 4. FINANZAS Y DICTAMEN DE EJECUCIÓN ---
+                                # --- FINANZAS Y DICTAMEN DE EJECUCIÓN ---
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
                                 plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
                                 
@@ -666,6 +666,37 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 mejora_escenario_negativo = util_cobertura_con_cob - util_perdida_sin_cob
                                 va_empatado = (goles_nuestros == goles_amenaza)
                                 
+                                # =====================================================================
+                                # 🧠 INTELIGENCIA DE RIESGO ADICIONAL INDEPENDIENTE (SUMAR, NO RESTAR)
+                                # =====================================================================
+                                
+                                # CANDADO A: ORDEN DE EVACUACIÓN POR CATÁSTROFE (SE MUESTRA ADICIONALMENTE)
+                                if ird >= 85.0:
+                                    st.markdown(f"""
+                                    <div style='background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;'>
+                                        <h5 style='margin-top:0; color:#991B1B;'>🚨 DICTAMEN DE AUDITORÍA: ORDEN DE EVACUACIÓN INMEDIATA</h5>
+                                        <p style='margin:0; font-size:0.95rem;'>
+                                            El rival mantiene un bombardeo absoluto (Riesgo Crítico: {ird:.1f}%). No es momento de evaluar la eficiencia del precio o la inflación de la cuota. 
+                                            La posición pre-partido está en riesgo de colapso inminente. <b>Ejecuta la cobertura de inmediato para salvar el capital residual.</b>
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                # CANDADO B: CONTROL DE RESERVA POR PALIZA A FAVOR (SE MUESTRA ADICIONALMENTE)
+                                if diferencia_goles >= 2 and ird < 40.0:
+                                    st.markdown(f"""
+                                    <div style='background-color: #F8FAFC; border-left: 6px solid #8B5CF6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #4C1D95;'>
+                                        <h5 style='margin-top:0; color:#5B21B6;'>💡 DICTAMEN DE AUDITORÍA: REVOCAR COBERTURA</h5>
+                                        <p style='margin:0; font-size:0.95rem;'>
+                                            Tu selección sostiene una ventaja sólida de <b>+{diferencia_goles} goles</b> con asedio rival controlado (IRD: {ird:.1f}%). La probabilidad contable de remontada es insignificante.
+                                            <br><br><b>Recomendación Operativa:</b> NO entres al seguro. Retener el patrimonio de la reserva intacto en la caja te ahorra un costo operativo innecesario y eleva tu beneficio neto real al 100%. Deja correr la posición principal.
+                                        </p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+
+                                # =====================================================================
+                                # 📊 MATRIZ DE ESCENARIOS ORIGINAL (INTACTA SIN TOCAR UNA SOLA LÍNEA)
+                                # =====================================================================
                                 if util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
                                     st.markdown(f"""
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
