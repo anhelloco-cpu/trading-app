@@ -832,25 +832,39 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     """
                                 
                                 # =====================================================================
-                                # 🛡️ ALERTA PATRIMONIAL ADICIONAL AUTOMÁTICA
+                                # 🛡️ AUDITORÍA PATRIMONIAL PERMANENTE (IMPACTO EN CAJA)
                                 # =====================================================================
                                 saldo_banca_actual = obtener_saldo_banca(tipo_banca_operacion)
                                 exposicion_pct = (op['capital_total'] / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
-                                alerta_patrimonial_html = ""
+                                pct_rescate_banca = (capital_rescatado / saldo_banca_actual) * 100 if saldo_banca_actual > 0 and capital_rescatado > 0 else 0
                                 
-                                if tipo_banca_operacion == "REAL" and exposicion_pct >= 15.0:
-                                    if capital_rescatado > 0 and ratio_eficiencia < 1.0 and ird > 60.0:
-                                        alerta_patrimonial_html = f"""
-                                        <div style="background-color: #FFF1F2; border-left: 6px solid #E11D48; padding: 15px; margin-top: 10px; border-radius: 4px; color: #881337;">
-                                            <h5 style="margin: 0 0 5px 0; color: #BE123C;">🛡️ ALERTA DE SUPERVIVENCIA: EXPOSICIÓN CRÍTICA ({exposicion_pct:.1f}% DE LA BANCA)</h5>
-                                            <p style="margin: 0; font-size: 0.95rem;">
-                                                Tienes comprometido el <b>{exposicion_pct:.1f}%</b> de tu patrimonio operativo. Aunque el sistema dictamina arriba que el seguro es ineficiente, <b>la supervivencia de tu cuenta está en riesgo estructural.</b><br><br>
-                                                Rescatar esos <b>${capital_rescatado:,.0f} COP</b> asegura mantener viva tu liquidez. En bancas reales con alta exposición, considerar pagar primas ineficientes es un mal necesario para evitar la quiebra absoluta por una racha negativa.
-                                            </p>
-                                        </div>
-                                        """
+                                # Determinar si el rescate es considerable para la cuenta general
+                                if pct_rescate_banca >= 5.0:
+                                    impacto_str = "🛑 ALTAMENTE CONSIDERABLE (Vital para la supervivencia de la banca)"
+                                    color_impacto = "#BE123C" # Rojo oscuro
+                                    bg_impacto = "#FFF1F2"
+                                elif pct_rescate_banca >= 2.0:
+                                    impacto_str = "⚠️ CONSIDERABLE (Protege liquidez operativa importante)"
+                                    color_impacto = "#B45309" # Naranja
+                                    bg_impacto = "#FFFBEB"
+                                else:
+                                    impacto_str = "ℹ️ MARGINAL (Impacto mínimo en la caja general)"
+                                    color_impacto = "#334155" # Gris
+                                    bg_impacto = "#F8FAFC"
+                                    
+                                alerta_patrimonial_html = f"""
+                                <div style="background-color: {bg_impacto}; border-left: 5px solid {color_impacto}; padding: 15px; margin-top: 15px; border-radius: 4px; color: #0F172A;">
+                                    <h5 style="margin-top: 0; color: {color_impacto};">💼 Contexto de Portafolio ({tipo_banca_operacion})</h5>
+                                    <div style="font-size: 0.95rem;">
+                                        • <b>Saldo Total de tu Cuenta:</b> ${saldo_banca_actual:,.0f} COP<br>
+                                        • <b>Exposición de esta operación:</b> {exposicion_pct:.1f}% de tu cuenta.<br>
+                                        • <b>Peso del Capital Rescatado:</b> Si ejecutas el seguro, estás rescatando el <b>{pct_rescate_banca:.2f}%</b> de tu patrimonio total.<br><br>
+                                        <b>Veredicto de Rescate:</b> {impacto_str}
+                                    </div>
+                                </div>
+                                """
                                 
-                                # Renderizado final uniendo el dictamen original y la nueva alerta (si existe)
+                                # Renderizado final uniendo el dictamen original y la auditoría patrimonial
                                 st.markdown(dictamen_html + alerta_patrimonial_html, unsafe_allow_html=True)
                                 
                                 st.markdown("<br>", unsafe_allow_html=True)
