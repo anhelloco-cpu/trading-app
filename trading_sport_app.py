@@ -189,11 +189,11 @@ elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
                 nuevo_codigo = generar_codigo()
                 plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
                 
-                # Para la apuesta libre, el stake_2 y la cuota objetivo van en 0
+                # CORRECCIÓN: Etiqueta única para aislar los saldos y evitar embargos de reserva fantasmas
                 datos = {
                     "codigo": nuevo_codigo,
                     "partido": partido,
-                    "estrategia": "Estrategia 2: Paz Mental", # <--- ¡Nueva línea clave!
+                    "estrategia": "Estrategia Libre Directa", # <--- Cambio contable clave
                     "seleccion_inicial": seleccion,
                     "seleccion_cobertura": "N/A (Apuesta Libre)",
                     "plataforma_inicial": plataforma_final,
@@ -208,6 +208,7 @@ elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
                 try:
                     supabase.table("historial_trading").insert(datos).execute()
                     st.markdown(f'<div class="caja-codigo"><h3>Código ({banca_activa}): {nuevo_codigo}</h3></div>', unsafe_allow_html=True)
+                    st.rerun()
                 except Exception as e:
                     st.error(f"❌ Error de Supabase: {str(e)}")
 # =====================================================================
@@ -721,7 +722,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         df = pd.DataFrame(res_cerradas.data)
         if not df.empty:
             st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
-            
+
 # =====================================================================
 # MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
 # =====================================================================
