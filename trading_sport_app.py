@@ -549,7 +549,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     atkp_vis = st.number_input(f"🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_{op['codigo']}")
 
                                 # =====================================================================
-                                # 🧠 NUEVA INTELIGENCIA: RELOJ, LETALIDAD Y ESCUDOS FINALES
+                                # 🧠 INTELIGENCIA TÁCTICA: RELOJ, LETALIDAD Y MOMENTUM
                                 # =====================================================================
                                 if es_st1_local:
                                     goles_nuestros = g_local
@@ -564,11 +564,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
 
                                 diferencia_goles = goles_nuestros - goles_amenaza
 
-                                # 1. Dinámica de Tiempos
                                 tiempo_restante = max(1, 95 - minuto_actual)
                                 min_divisor = max(1, minuto_actual)
                                 
-                                # 2. Ritmos de Juego (APM)
                                 apm_nuestros = atkp_nuestros / min_divisor
                                 apm_rival = atkp_amenaza / min_divisor
                                 apm_total = apm_nuestros + apm_rival
@@ -576,7 +574,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 atkp_totales = atkp_nuestros + atkp_amenaza
                                 share_nuestro = (atkp_nuestros / atkp_totales * 100) if atkp_totales > 0 else 50.0
                                 
-                                # 3. Proyecciones Estadísticas de Volumen y Letalidad
                                 ataques_futuros_nuestros = tiempo_restante * apm_nuestros
                                 ataques_futuros_rival = tiempo_restante * apm_rival
                                 
@@ -586,44 +583,36 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 exp_goles_nuestros = ataques_futuros_nuestros * letalidad_nuestra
                                 exp_goles_rival = ataques_futuros_rival * letalidad_rival
 
-                                # 4. Configuración del Riesgo Base
                                 if diferencia_goles < 0: ird_base = 100.0
                                 elif diferencia_goles == 0: ird_base = 55.0
                                 elif diferencia_goles == 1: ird_base = 30.0
-                                else: ird_base = 0.0 # Margen de seguridad sólido >=2 goles
+                                else: ird_base = 0.0 
                                 
                                 presion_dominio = apm_rival * 45.0
                                 
-                                # --- CORRECCIÓN MATEMÁTICA DEL RELOJ ---
                                 if diferencia_goles > 0:
-                                    # Si vas ganando, el tiempo deprecia la amenaza porque al rival no le quedan minutos
                                     f_t = tiempo_restante / 95.0
                                 else:
-                                    # Si vas empatando o perdiendo, la escasez de tiempo incrementa la alarma
                                     if minuto_actual <= 60: f_t = 0.8
                                     elif minuto_actual <= 75: f_t = 1.0
                                     else: f_t = 1.0 + ((minuto_actual - 75) * 0.035) 
                                 
-                                # 5. Escudo de Dominio Relativo por Participación
                                 if share_nuestro > 50.0:
                                     escudo_dominio_base = (share_nuestro - 50.0) * 1.5
-                                    # El escudo de dominio decae al final del partido si vas perdiendo, pero no si vas ganando
                                     factor_decaimiento = 1.0 if diferencia_goles > 0 else (tiempo_restante / 95.0)
                                     escudo_dominio = escudo_dominio_base * factor_decaimiento
                                 else:
                                     escudo_dominio = 0.0
 
-                                # 6. Consolidación Final del IRD
                                 ird_crudo = ird_base + (presion_dominio * f_t) - escudo_dominio
                                 ird = max(0.0, min(100.0, ird_crudo))
                                 
-                                # --- RENDERIZADO DEL TERMÓMETRO (IRD) ---
                                 st.markdown("---")
                                 st.markdown("#### 🌡️ Índice de Riesgo Dinámico (IRD)")
                                 if min_base == 0:
-                                    st.info(f"📌 **Fase de Calibración:** Primera foto registrada. Guarda la línea base para iniciar.")
+                                    st.info(f"📌 **Fase de Calibración:** Primera foto registrada.")
                                 else:
-                                    st.info(f"🔎 Auditando ritmo: Rival ataca a **{apm_rival:.2f} APM**. Partido a {apm_total:.2f} APM total. (Tú dominas el **{share_nuestro:.1f}%** de los ataques).")
+                                    st.info(f"🔎 Auditando ritmo: Rival ataca a **{apm_rival:.2f} APM**. Partido a {apm_total:.2f} APM total. (Tú dominas el **{share_nuestro:.1f}%**).")
                                 
                                 if ird < 40:
                                     color = "#10B981"
@@ -638,7 +627,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.progress(int(ird) / 100)
                                 st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
                                 
-                                # --- BOTÓN DE ENTRADA A SUPABASE ---
                                 if st.button("📸 Guardar Foto y Cerrar Ventana", key=f"btn_foto_{op['codigo']}", use_container_width=True):
                                     try:
                                         nueva_foto = {
@@ -651,16 +639,16 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             "ird_calculado": float(round(ird, 2))
                                         }
                                         supabase.table("registro_fotos").insert(nueva_foto).execute()
-                                        st.success(f"✅ Registro completado y respaldado para el minuto {minuto_actual}.")
+                                        st.success(f"✅ Registro completado para el minuto {minuto_actual}.")
                                         st.rerun()
                                     except Exception as e:
-                                        st.error("❌ Error al guardar en Supabase:")
-                                        st.write(f"Detalle del error: {str(e)}")
-                                        st.json(nueva_foto)
+                                        st.error(f"❌ Error al guardar en Supabase: {str(e)}")
                                         
                                 st.markdown("---")
                                 
-                                # --- FINANZAS Y DICTAMEN DE EJECUCIÓN ---
+                                # =====================================================================
+                                # 🔍 MATRIZ FINANCIERA (OPCIÓN A VS OPCIÓN B)
+                                # =====================================================================
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
                                 plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
                                 
@@ -669,7 +657,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 util_inicial_sin_cob = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
                                 util_perdida_sin_cob = -op['stake_1']
                                 
-                                st.markdown("#### 🔍 Matriz Financiera")
+                                st.markdown("#### 🔍 Matriz Financiera de la Operación")
                                 col_sc1, col_sc2 = st.columns(2)
                                 with col_sc1:
                                     st.markdown(f"""
@@ -689,55 +677,97 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     </div>
                                     """, unsafe_allow_html=True)
                                 
-                                costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
-                                mejora_escenario_negativo = util_cobertura_con_cob - util_perdida_sin_cob
-                                va_empatado = (goles_nuestros == goles_amenaza)
-                                
                                 # =====================================================================
-                                # ⚖️ MOTOR DE DICTAMEN UNIFICADO (UN SOLO CONCEPTO PRIORIZADO POR JERARQUÍA)
+                                # ⚖️ NUEVA AUDITORÍA DE COSTO-BENEFICIO (PRECIO DE LA PÓLIZA)
+                                # =====================================================================
+                                costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
+                                capital_rescatado = util_cobertura_con_cob - util_perdida_sin_cob
+                                
+                                # Evitar división por cero en arbitrajes puros
+                                if costo_seguro > 0:
+                                    ratio_eficiencia = capital_rescatado / costo_seguro
+                                else:
+                                    ratio_eficiencia = 999.0 # Ratio perfecto (Arbitraje)
+                                
+                                color_ratio = "#10B981" if ratio_eficiencia >= 1.0 else "#EF4444"
+                                estado_ratio = "SEGURO EFICIENTE" if ratio_eficiencia >= 1.0 else "SEGURO EXTORSIVO (Pagas más de lo que salvas)"
+                                
+                                st.markdown(f"""
+                                <div style="background-color: #F1F5F9; padding: 15px; border-radius: 6px; border-left: 5px solid {color_ratio}; margin-top: 15px;">
+                                    <h5 style="margin-top: 0; color: #334155;">⚖️ Auditoría de Costo-Beneficio (La Póliza)</h5>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                        <span>📉 <b>Costo de la Prima (Sacrificio si ganas):</b></span>
+                                        <span style="color: #EF4444; font-weight: bold;">${costo_seguro:,.0f} COP</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                        <span>🛡️ <b>Capital Rescatado (Salvamento si pierdes):</b></span>
+                                        <span style="color: #10B981; font-weight: bold;">${capital_rescatado:,.0f} COP</span>
+                                    </div>
+                                    <hr style="margin: 10px 0; border-top: 1px solid #CBD5E1;">
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>📊 <b>Veredicto Financiero:</b></span>
+                                        <span style="color: {color_ratio}; font-weight: bold;">{estado_ratio} (Ratio: {ratio_eficiencia:.2f}x)</span>
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                                # =====================================================================
+                                # ⚖️ MOTOR DE DICTAMEN UNIFICADO (DECISIÓN DEL TRADER)
                                 # =====================================================================
                                 dictamen_html = ""
+                                va_empatado = (diferencia_goles == 0)
                                 
-                                # PRIORIDAD 1: EVACUACIÓN CRÍTICA POR COLAPSO
+                                # PRIORIDAD 1: EVACUACIÓN CRÍTICA (CON FILTRO DE EXTORSIÓN)
                                 if ird >= 85.0:
-                                    dictamen_html = f"""
-                                    <div style='background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;'>
-                                        <h5 style='margin-top:0; color:#991B1B;'>🚨 DICTAMEN: ORDEN DE EVACUACIÓN INMEDIATA</h5>
-                                        <p style='margin:0; font-size:0.95rem;'>
-                                            El rival sostiene un bombardeo absoluto (Riesgo Crítico: {ird:.1f}%). La posición pre-partido está al borde del quiebre. 
-                                            No hay margen temporal para negociar valor o esperar variaciones en la cuota. <b>Ejecuta la cobertura de inmediato para salvaguardar el capital residual.</b>
-                                        </p>
-                                    </div>
-                                    """
-                                # PRIORIDAD 2: VENTAJA CONCLUYENTE (TU ESCENARIO DEL MINUTO 90 - 2 a 0)
+                                    if ratio_eficiencia < 1.0:
+                                        dictamen_html = f"""
+                                        <div style='background-color: #FEF2F2; border-left: 6px solid #B91C1C; padding: 15px; margin-top: 15px; border-radius: 4px; color: #7F1D1D;'>
+                                            <h5 style='margin-top:0; color:#991B1B;'>🚨 DICTAMEN: RIESGO CRÍTICO + SEGURO EXTORSIVO</h5>
+                                            <p style='margin:0; font-size:0.95rem;'>
+                                                El análisis táctico confirma un colapso inminente en la cancha (IRD: {ird:.1f}%). <b>SIN EMBARGO</b>, la casa de apuestas te está cobrando una prima usurera que no justifica el rescate (Ratio: {ratio_eficiencia:.2f}x).
+                                                <br><br><b>🎯 DECISIÓN DEL TRADER:</b> Tienes dos opciones extremas: 
+                                                <br>1. Pagar la extorsión del mercado y salvar lo poco que te ofrecen, o 
+                                                <br>2. Soportar la posición, negarte a pagar la cuota inflada y asumir el riesgo de pérdida total.
+                                            </p>
+                                        </div>
+                                        """
+                                    else:
+                                        dictamen_html = f"""
+                                        <div style='background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;'>
+                                            <h5 style='margin-top:0; color:#991B1B;'>🚨 DICTAMEN: ORDEN DE EVACUACIÓN INMEDIATA</h5>
+                                            <p style='margin:0; font-size:0.95rem;'>
+                                                El rival sostiene un bombardeo absoluto (Riesgo Crítico: {ird:.1f}%). El seguro es eficiente y el precio es justo para el capital rescatado. <b>Ejecuta la cobertura de inmediato para salvaguardar el capital residual.</b>
+                                            </p>
+                                        </div>
+                                        """
+                                # PRIORIDAD 2: VENTAJA CONCLUYENTE
                                 elif diferencia_goles >= 2 or (diferencia_goles == 1 and tiempo_restante <= 10 and ird < 60.0):
                                     dictamen_html = f"""
                                     <div style='background-color: #F8FAFC; border-left: 6px solid #8B5CF6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #4C1D95;'>
                                         <h5 style='margin-top:0; color:#5B21B6;'>🔮 DICTAMEN: REVOCAR COBERTURA (VENTAJA CONCLUYENTE)</h5>
                                         <p style='margin:0; font-size:0.95rem;'>
-                                            Tu selección sostiene una ventaja sólida de <b>+{diferencia_goles} goles</b> con el tiempo líquido agotándose ({tiempo_restante} min restantes). Aunque tengas baja participación ofensiva ({share_nuestro:.1f}%), la probabilidad contable de que el rival anote 3 goles en este tramo es insignificante.
-                                            <br><br><b>Recomendación Única:</b> NO ejecutes el seguro. Al retener tu reserva intacta en la caja, eliminas un costo operativo innecesario y maximizas el rendimiento neto de la Opción B al 100%. Deja correr la posición principal libre de cobertura.
+                                            Tu selección sostiene una ventaja sólida de <b>+{diferencia_goles} goles</b> con el tiempo agotándose. La probabilidad contable de remontada es insignificante.
+                                            <br><br><b>Recomendación:</b> NO ejecutes el seguro. Retén tu reserva intacta y maximiza el rendimiento.
                                         </p>
                                     </div>
                                     """
-                                # PRIORIDAD 3: PACIENCIA POR MOMENTUM DE ATAQUE EN DESVENTAJA/EMPATE
+                                # PRIORIDAD 3: PACIENCIA POR MOMENTUM DE ATAQUE
                                 elif (diferencia_goles <= 0) and (share_nuestro > 60.0) and (ird < 85.0):
                                     dictamen_html = f"""
                                     <div style='background-color: #F0FDF4; border-left: 6px solid #059669; padding: 15px; margin-top: 15px; border-radius: 4px; color: #064E3B;'>
-                                        <h5 style='margin-top:0; color:#047857;'>🔍 DICTAMEN: PACIENCIA TÁCTICA (MOMENTUM DE ASALTO)</h5>
+                                        <h5 style='margin-top:0; color:#047857;'>🔍 DICTAMEN: PACIENCIA TÁCTICA (MOMENTUM A FAVOR)</h5>
                                         <p style='margin:0; font-size:0.95rem;'>
-                                            El marcador no acompaña, pero tu bando concentra el <b>{share_nuestro:.1f}%</b> de la participación ofensiva total, proyectando <b>{ataques_futuros_nuestros:.0f} llegadas más</b>.<br><br>
-                                            Esperanza de Goles a favor (E[G]): <b>+{exp_goles_nuestros:.2f}</b> frente a los {exp_goles_rival:.2f} del rival.<br><br>
-                                            <b>Recomendación Única:</b> La tendencia de aproximaciones y volumen ampara la igualdad o remontada. Retén el fondo de cobertura en la caja y espera a que el partido madure o la cuota objetivo ofrezca mejores condiciones.
+                                            Concentras el <b>{share_nuestro:.1f}%</b> de la participación ofensiva total. Esperanza de Goles (E[G]): <b>+{exp_goles_nuestros:.2f}</b>.<br>
+                                            <b>Recomendación:</b> La tendencia estadística ampara la remontada. No quemes la reserva todavía, espera que el partido madure.
                                         </p>
                                     </div>
                                     """
-                                # PRIORIDAD 4: ARBITRAJE PERFECTO FINANCIERO EN ESCENARIOS NORMALES
+                                # PRIORIDAD 4: ARBITRAJE PERFECTO FINANCIERO 
                                 elif util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
                                     dictamen_html = """
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
                                         <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: ARBITRAJE PERFECTO DETECTADO</h5>
-                                        <p style="margin: 0; font-size: 0.95rem;">La cuota en vivo actual garantiza balances en verde bajo cualquier resolución del evento. Asegura utilidades y mitiga todo riesgo registrando la cobertura ahora.</p>
+                                        <p style="margin: 0; font-size: 0.95rem;">La cuota liquida en verde en ambos escenarios. Asegura utilidades registrando la cobertura ahora.</p>
                                     </div>
                                     """
                                 # PRIORIDAD 5: EQUILIBRIO DE DISEÑO ALCANZADO
@@ -745,24 +775,24 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     dictamen_html = """
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
                                         <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: EQUILIBRIO OPERATIVO VIGENTE</h5>
-                                        <p style="margin: 0; font-size: 0.95rem;">La cuota del mercado en vivo se acopla o supera la cuota objetivo calculada en la Fase 1. El plan financiero de cobertura se cumple.</p>
+                                        <p style="margin: 0; font-size: 0.95rem;">La cuota en vivo se acopla a la cuota objetivo calculada. El plan financiero se cumple.</p>
                                     </div>
                                     """
                                 # PRIORIDAD 6: EFICIENCIA DE PROTECCIÓN REGULAR
-                                elif mejora_escenario_negativo > costo_seguro:
+                                elif ratio_eficiencia >= 1.0:
                                     if va_empatado:
                                         if ird > 70:
                                             dictamen_html = f"""
                                             <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
                                                 <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: ALERTA DE QUIEBRE (SALVATAJE DEL EMPATE)</h5>
-                                                <p style="margin: 0; font-size: 0.95rem;">Riesgo alto de ruptura del empate ({ird:.1f}%). Fuerza el seguro para salvaguardar tu patrimonio base.</p>
+                                                <p style="margin: 0; font-size: 0.95rem;">Riesgo alto de ruptura ({ird:.1f}%). Seguro eficiente. Fuerza la cobertura para salvaguardar tu patrimonio base.</p>
                                             </div>
                                             """
                                         else:
                                             dictamen_html = f"""
                                             <div style="background-color: #F8FAFC; border-left: 6px solid #94A3B8; padding: 15px; margin-top: 15px; border-radius: 4px; color: #334155;">
                                                 <h5 style="margin: 0 0 5px 0; color: #334155;">💡 DICTAMEN: PACIENCIA TÁCTICA (EMPATE BAJO CONTROL)</h5>
-                                                <p style="margin: 0; font-size: 0.95rem;">El marcador sostiene el plan y la aceleración del rival es moderada ({ird:.1f}%). Puedes esperar la maduración del precio.</p>
+                                                <p style="margin: 0; font-size: 0.95rem;">El marcador sostiene el plan y la aceleración rival es moderada. Puedes esperar la maduración del precio.</p>
                                             </div>
                                             """
                                     else:
@@ -770,30 +800,33 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             dictamen_html = f"""
                                             <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
                                                 <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: MITIGACIÓN URGENTE</h5>
-                                                <p style="margin: 0; font-size: 0.95rem;">Asedio sostenido del rival (Riesgo: {ird:.1f}%). Ejecuta el seguro para mitigar el impacto y rescatar capital.</p>
+                                                <p style="margin: 0; font-size: 0.95rem;">Asedio sostenido (Riesgo: {ird:.1f}%). Seguro eficiente, ejecuta la cobertura para rescatar capital.</p>
                                             </div>
                                             """
                                         else:
                                             dictamen_html = f"""
                                             <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
-                                                <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖ shrink; DICTAMEN: MANTENER POSICIÓN CON CAUTELA</h5>
-                                                <p style="margin: 0; font-size: 0.95rem;">La cuota actual no es ideal y el riesgo operativo es manejable ({ird:.1f}%). Monitorea antes de usar tu reserva.</p>
+                                                <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: MANTENER POSICIÓN CON CAUTELA</h5>
+                                                <p style="margin: 0; font-size: 0.95rem;">El riesgo operativo es manejable ({ird:.1f}%). Monitorea antes de quemar la reserva.</p>
                                             </div>
                                             """
-                                # PRIORIDAD 7: SEGURO INEFICIENTE POR PRECIO INFLADO
-                                elif mejora_escenario_negativo > 0:
-                                    dictamen_html = """
+                                # PRIORIDAD 7: SEGURO INEFICIENTE / EXTORSIVO EN SITUACIONES NORMALES
+                                elif ratio_eficiencia > 0:
+                                    dictamen_html = f"""
                                     <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
                                         <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: SEGURO INEFICIENTE (INFLACIÓN DE PRECIO)</h5>
-                                        <p style="margin: 0; font-size: 0.95rem;">Comprometes demasiada utilidad del libro diario para blindar una porción ínfima de capital. Es preferible soportar la posición abierta.</p>
+                                        <p style="margin: 0; font-size: 0.95rem;">
+                                            Comprometes demasiada utilidad para blindar una porción ínfima (El mercado te cobra ${costo_seguro:,.0f} para salvar ${capital_rescatado:,.0f}).<br><br>
+                                            <b>🎯 DECISIÓN DEL TRADER:</b> A menos que veas un colapso inminente en la cancha, es financieramente preferible soportar la posición abierta.
+                                        </p>
                                     </div>
                                     """
-                                # PRIORIDAD 8: COMPENSACIÓN COMPLEMENTARIA EN RUTA NEGATIVA
+                                # PRIORIDAD 8: HEDGE NEGATIVO TOTAL
                                 else:
                                     dictamen_html = """
                                     <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
                                         <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: EJECUCIÓN INVIABLE</h5>
-                                        <p style="margin: 0; font-size: 0.95rem;">El cruce actual de coberturas destruye el estado de resultados proyectado. Asumir el cierre directo de la operación pre-partido.</p>
+                                        <p style="margin: 0; font-size: 0.95rem;">El hedge empeora el estado de resultados. Asumir el cierre directo de la operación pre-partido.</p>
                                     </div>
                                     """
                                 
