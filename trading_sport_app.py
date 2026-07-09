@@ -646,7 +646,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             "goles_vis": int(g_vis or 0),
                                             "atkp_local": int(atkp_local or 0),
                                             "atkp_vis": int(atkp_vis or 0),
-                                            "ird_calculado": float(round(ird, 2))
+                                            "ird_calculado": float(round(ird, 2)),
                                             "cuota_ofrecida": float(cuota_ingresada)
                                         }
                                         supabase.table("registro_fotos").insert(nueva_foto).execute()
