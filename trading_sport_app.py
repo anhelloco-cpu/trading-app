@@ -636,7 +636,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     
                                 st.progress(int(ird) / 100)
                                 st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
-                                
+                                cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
                                 if st.button("📸 Guardar Foto y Cerrar Ventana", key=f"btn_foto_{op['codigo']}", use_container_width=True):
                                     try:
                                         nueva_foto = {
@@ -647,9 +647,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             "atkp_local": int(atkp_local or 0),
                                             "atkp_vis": int(atkp_vis or 0),
                                             "ird_calculado": float(round(ird, 2))
+                                            "cuota_ofrecida": float(cuota_ingresada)
                                         }
                                         supabase.table("registro_fotos").insert(nueva_foto).execute()
-                                        st.success(f"✅ Registro completado para el minuto {minuto_actual}.")
+                                        st.success(f"✅ Registro de auditoría (Táctica + Precio) completado para el min {minuto_actual}.")
                                         st.rerun()
                                     except Exception as e:
                                         st.error(f"❌ Error al guardar en Supabase: {str(e)}")
@@ -659,7 +660,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 # =====================================================================
                                 # 🔍 MATRIZ FINANCIERA (OPCIÓN A VS OPCIÓN B)
                                 # =====================================================================
-                                cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
+                                
                                 plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
                                 
                                 util_inicial_con_cob = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
