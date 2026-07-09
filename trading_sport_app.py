@@ -720,8 +720,52 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         st.subheader("📊 Libro Mayor Contable (Cierres Históricos)")
         res_cerradas = supabase.table("historial_trading").select("*").eq("estado", "CERRADA").order("fecha", desc=True).execute()
         df = pd.DataFrame(res_cerradas.data)
+        
         if not df.empty:
+            # 1. Tabla de datos (la que ya tenías)
             st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
+            
+            # 2. Cierre de Caja y Gráfica Diaria
+            st.markdown("### 📈 Estado de Resultados (Banca Real)")
+            
+            # Filtrar solo el dinero real para no mezclar con simulaciones
+            df_real = df[df['tipo_banca'] == 'REAL'].copy()
+            
+            if not df_real.empty:
+                # Limpiar y agrupar fechas
+                df_real['fecha_dt'] = pd.to_datetime(df_real['fecha'])
+                df_real['dia'] = df_real['fecha_dt'].dt.date
+                hoy = datetime.datetime.now().date()
+                
+                # Cálculos contables
+                df_hoy = df_real[df_real['dia'] == hoy]
+                utilidad_hoy = df_hoy['utilidad_neta_real'].sum()
+                operaciones_hoy = len(df_hoy)
+                utilidad_historica = df_real['utilidad_neta_real'].sum()
+                
+                # Mostrar KPIs
+                col_kpi1, col_kpi2 = st.columns(2)
+                with col_kpi1:
+                    st.metric(
+                        label="💵 Cierre de Caja del Día (Hoy)", 
+                        value=f"${utilidad_hoy:,.0f} COP", 
+                        delta=f"{operaciones_hoy} operaciones liquidadas hoy"
+                    )
+                with col_kpi2:
+                    st.metric(
+                        label="💰 Utilidad Neta Acumulada", 
+                        value=f"${utilidad_historica:,.0f} COP"
+                    )
+                
+                # Generar Gráfica de PNL (Profit and Loss)
+                st.markdown("<br><b>Evolución Diaria (PNL)</b>", unsafe_allow_html=True)
+                df_grafica = df_real.groupby('dia')['utilidad_neta_real'].sum().reset_index()
+                df_grafica.set_index('dia', inplace=True)
+                
+                # Streamlit renderiza automáticamente barras hacia arriba (verdes) o hacia abajo (rojas) según el valor
+                st.bar_chart(df_grafica['utilidad_neta_real'])
+            else:
+                st.info("No hay cierres registrados en Dinero Real para graficar.")
 
 # =====================================================================
 # MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
