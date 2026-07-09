@@ -882,11 +882,18 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     
                             else:
                                 with st.form(f"get_dir_{op['codigo']}"):
+                                    st.markdown("#### 🏁 Conciliación Final del Evento")
                                     resultado_directo = st.radio(
-                                        "Resolución Post-Partido:", 
+                                        "Resolución de tu Apuesta:", 
                                         [f"✅ Ganó {sel_ini} (Cobro completo)", f"❌ Perdió {sel_ini} (Pérdida Stake 1)"],
                                         key=f"rad_dir_{op['codigo']}"
                                     )
+                                    
+                                    st.markdown("---")
+                                    st.markdown("🤖 **Datos para Entrenamiento de IA (Obligatorio)**")
+                                    resultado_real_partido = st.selectbox("¿Quién ganó el partido realmente?", ["Gana Local", "Empate", "Gana Visitante"], key=f"res_real_dir_{op['codigo']}")
+                                    goles_totales_reales = st.number_input("Total de goles en el partido (Suma de ambos):", min_value=0, step=1, value=0, key=f"gol_real_dir_{op['codigo']}")
+                                    
                                     if st.form_submit_button("Registrar Liquidación Directa"):
                                         if "Ganó" in resultado_directo:
                                             utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
@@ -899,16 +906,19 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             "estado": "CERRADA",
                                             "resultado_final": texto_cierre,
                                             "utilidad_neta_real": utilidad,
-                                            "roi_real": (utilidad / op['capital_total']) * 100
+                                            "roi_real": (utilidad / op['capital_total']) * 100,
+                                            "resultado_final_partido": resultado_real_partido, # <--- DATO PARA LA IA
+                                            "total_goles_final": goles_totales_reales         # <--- DATO PARA LA IA
                                         }).eq("codigo", op['codigo']).execute()
-                                        st.success(f"Posición liquidada. Utilidad real transferida: ${utilidad:,.0f} COP.")
+                                        st.success(f"Posición liquidada y datos guardados para la IA. Utilidad real transferida: ${utilidad:,.0f} COP.")
                                         st.rerun()
 
                     elif op['estado'] == "CUBIERTA":
                         st.success(f"🛡️ Cobertura asegurada a tasa de {op.get('cuota_cazada_real', 0):.2f} en {op.get('plataforma_cobertura', 'N/A')}.")
                         with st.form(f"liq_{op['codigo']}"):
+                            st.markdown("#### 🏁 Conciliación Final del Evento")
                             resultado_final_ui = st.radio(
-                                "Conciliación Final del Evento:", 
+                                "Resolución de tu Apuesta:", 
                                 [
                                     f"✅ Inicial Acertado: Ganó {sel_ini}", 
                                     f"🛡️ Seguro Acertado: Ganó {sel_cob}", 
@@ -916,6 +926,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 ],
                                 key=f"rad_fin_{op['codigo']}"
                             )
+                            
+                            st.markdown("---")
+                            st.markdown("🤖 **Datos para Entrenamiento de IA (Obligatorio)**")
+                            resultado_real_partido = st.selectbox("¿Quién ganó el partido realmente?", ["Gana Local", "Empate", "Gana Visitante"], key=f"res_real_cob_{op['codigo']}")
+                            goles_totales_reales = st.number_input("Total de goles en el partido (Suma de ambos):", min_value=0, step=1, value=0, key=f"gol_real_cob_{op['codigo']}")
+                            
                             if st.form_submit_button("Cerrar Libro Mayor"):
                                 if "Inicial" in resultado_final_ui:
                                     utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
@@ -931,9 +947,11 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     "estado": "CERRADA",
                                     "resultado_final": texto_db,
                                     "utilidad_neta_real": utilidad,
-                                    "roi_real": (utilidad / op['capital_total']) * 100
+                                    "roi_real": (utilidad / op['capital_total']) * 100,
+                                    "resultado_final_partido": resultado_real_partido, # <--- DATO PARA LA IA
+                                    "total_goles_final": goles_totales_reales         # <--- DATO PARA LA IA
                                 }).eq("codigo", op['codigo']).execute()
-                                st.success(f"Libro cerrado. Balance de la operación: ${utilidad:,.0f} COP.")
+                                st.success(f"Libro cerrado y datos guardados para la IA. Balance de la operación: ${utilidad:,.0f} COP.")
                                 st.rerun()
 
         st.markdown("---")
