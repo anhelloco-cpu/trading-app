@@ -583,7 +583,14 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 exp_goles_nuestros = ataques_futuros_nuestros * letalidad_nuestra
                                 exp_goles_rival = ataques_futuros_rival * letalidad_rival
 
-                                if diferencia_goles < 0: ird_base = 100.0
+                                # --- NUEVA ESCALA DE GRAVEDAD Y TIEMPO (CORRECCIÓN AUDITADA) ---
+                                if diferencia_goles < 0:
+                                    if diferencia_goles == -1: # Perdiendo por 1
+                                        if minuto_actual <= 45: ird_base = 65.0
+                                        elif minuto_actual <= 75: ird_base = 80.0
+                                        else: ird_base = 95.0
+                                    else: # Perdiendo por 2 o más
+                                        ird_base = 100.0
                                 elif diferencia_goles == 0: ird_base = 55.0
                                 elif diferencia_goles == 1: ird_base = 30.0
                                 else: ird_base = 0.0 
@@ -619,7 +626,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     estado = f"BAJO - Escenario controlado por marcador o tiempo."
                                 elif ird < 70:
                                     color = "#F59E0B"
-                                    estado = f"MODERADO - Presión bajo monitoreo."
+                                    estado = f"MODERADO - Riesgo mitigado por posesión/tiempo."
                                 else:
                                     color = "#EF4444"
                                     estado = f"CRÍTICO - ¡Alerta de Siniestro en Posición!"
@@ -751,14 +758,14 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         </p>
                                     </div>
                                     """
-                                # PRIORIDAD 3: PACIENCIA POR MOMENTUM DE ATAQUE
-                                elif (diferencia_goles <= 0) and (share_nuestro > 60.0) and (ird < 85.0):
+                                # PRIORIDAD 3: PACIENCIA POR MOMENTUM DE ATAQUE EN DESVENTAJA/EMPATE
+                                elif (diferencia_goles <= 0) and (share_nuestro > 50.0) and (ird < 85.0):
                                     dictamen_html = f"""
                                     <div style='background-color: #F0FDF4; border-left: 6px solid #059669; padding: 15px; margin-top: 15px; border-radius: 4px; color: #064E3B;'>
                                         <h5 style='margin-top:0; color:#047857;'>🔍 DICTAMEN: PACIENCIA TÁCTICA (MOMENTUM A FAVOR)</h5>
                                         <p style='margin:0; font-size:0.95rem;'>
-                                            Concentras el <b>{share_nuestro:.1f}%</b> de la participación ofensiva total. Esperanza de Goles (E[G]): <b>+{exp_goles_nuestros:.2f}</b>.<br>
-                                            <b>Recomendación:</b> La tendencia estadística ampara la remontada. No quemes la reserva todavía, espera que el partido madure.
+                                            El marcador no acompaña, pero concentras el <b>{share_nuestro:.1f}%</b> de la participación ofensiva total. Esperanza de Goles a favor (E[G]): <b>+{exp_goles_nuestros:.2f}</b>.<br><br>
+                                            <b>Recomendación Única:</b> La tendencia estadística y el volumen ofensivo amparan tu posición. El riesgo está mitigado (IRD: {ird:.1f}%). No quemes la reserva todavía, mantén la posición y espera una mejor condición del mercado.
                                         </p>
                                     </div>
                                     """
