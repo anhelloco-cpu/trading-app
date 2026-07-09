@@ -964,7 +964,7 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     c5.metric("Tiempo Promedio a Cobertura", texto_tiempo)
 
                     # =====================================================================
-                    # 🧠 NUEVO INTERNALLY ADDED: RADAR DE LÍMITES DE MERCADO (FEEDBACK LOOP)
+                    # 🧠 RADAR DE LÍMITES DE MERCADO (CORREGIDO)
                     # =====================================================================
                     st.markdown("---")
                     st.subheader("🎯 Calibración de Cuotas e Inteligencia de Límites")
@@ -973,32 +973,28 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     df_cob_data = df_est[df_est['cuota_objetivo'] > 0].copy()
                     
                     if not df_cob_data.empty:
-                        # Cuotas mapeadas por éxito/fracaso contable
+                        # Separamos las operaciones según el éxito de la captura
                         df_exito_cob = df_cob_data[df_cob_data['cuota_cazada_real'] > 0]
-                        
-                        # FORMULA CORREGIDA: Captura absolutamente todo escenario donde el mercado jamás tocó tu objetivo
                         df_fallo_cob = df_cob_data[(df_cob_data['cuota_cazada_real'] == 0) | (df_cob_data['cuota_cazada_real'].isna())]
                         
-                        # A. Cuotas que MÁS alcanzó (Promedio real capturado)
-                        cuota_mas_alcanzada = df_exito_cob['cuota_cazada_real'].mean() if not df_exito_cob.empty else 0
-                        
-                        # B. Cuotas que NUNCA alcanzó (Promedio de objetivos en operaciones fallidas)
-                        cuota_nunca_alcanzada = df_fallo_cob['cuota_objetivo'].mean() if not df_fallo_cob.empty else 0
+                        # LOGICA CORREGIDA: Evaluamos la cuota que PRETENDÍAS CAZAR en ambos grupos
+                        objetivo_exitoso_prom = df_exito_cob['cuota_objetivo'].mean() if not df_exito_cob.empty else 0
+                        objetivo_fallido_prom = df_fallo_cob['cuota_objetivo'].mean() if not df_fallo_cob.empty else 0
                         
                         col_rad1, col_rad2 = st.columns(2)
                         with col_rad1:
-                            val_mas = f"{cuota_mas_alcanzada:.2f}" if cuota_mas_alcanzada > 0 else "N/A"
-                            st.metric(label="✅ Zona de Captura Más Alcanzada (Real)", value=val_mas, help="La tasa promedio donde el mercado sí te da tiempo de congelar ganancias.")
+                            val_mas = f"{objetivo_exitoso_prom:.2f}" if objetivo_exitoso_prom > 0 else "N/A"
+                            st.metric(label="✅ Objetivos Alcanzados (Cuotas Realistas)", value=val_mas, help="El promedio de las cuotas objetivo que te propusiste y que el mercado sí logró tocar con éxito.")
                         with col_rad2:
-                            val_nunca = f"{cuota_nunca_alcanzada:.2f}" if cuota_nunca_alcanzada > 0 else "N/A"
-                            st.metric(label="❌ Umbral Inalcanzable (Cuotas Fantasma)", value=val_nunca, help="El promedio de las cuotas ambiciosas que fijaste pero que el mercado te cerró con un gol antes de llegar.")
+                            val_nunca = f"{objetivo_fallido_prom:.2f}" if objetivo_fallido_prom > 0 else "N/A"
+                            st.metric(label="❌ Umbral Inalcanzable (Cuotas Fantasma)", value=val_nunca, help="El promedio de las cuotas objetivo que pretendías cazar, pero que resultaron demasiado altas y el partido se cerró antes de alcanzarlas.")
                         
-                        # Dictamen Táctico de Ajuste para el Módulo 1
-                        if cuota_nunca_alcanzada > 0 and cuota_mas_alcanzada > 0:
-                            st.warning(f"💡 **Recomendación Contable:** Estás quemando póliza por ambición. Tus operaciones fallidas apuntaban a un promedio utópico de **{cuota_nunca_alcanzada:.2f}**. El mercado te demuestra que tu zona real de liquidación eficiente está en **{cuota_mas_alcanzada:.2f}**. Configura tus próximas cuotas objetivo en el Módulo 1 basándote en este límite.")
-                        elif cuota_nunca_alcanzada > 0 and cuota_mas_alcanzada == 0:
-                            st.error(f"🚨 **Alerta de Desfase:** No has logrado capturar ninguna cobertura. El objetivo promedio de **{cuota_nunca_alcanzada:.2f}** está completamente fuera de la realidad del ritmo de juego actual. Reduce drásticamente la cuota objetivo pre-partido.")
+                        # Dictamen Táctico de Ajuste basado en tus intenciones reales
+                        if objetivo_fallido_prom > 0 and objetivo_exitoso_prom > 0:
+                            st.warning(f"💡 **Recomendación Contable:** Tu zona de éxito seguro está cuando pretendes cazar una cuota promedio de **{objetivo_exitoso_prom:.2f}**. En contraste, tus 'Cuotas Fantasma' promedian un **{objetivo_fallido_prom:.2f}**, un umbral que el mercado no te da tiempo de alcanzar. Para tus próximas operaciones en el Módulo 1, mantén tus objetivos cerca de **{objetivo_exitoso_prom:.2f}** para asegurar el capital.")
+                        elif objetivo_fallido_prom > 0 and objetivo_exitoso_prom == 0:
+                            st.error(f"🚨 **Alerta de Desfase:** Todos los objetivos que has planteado (promedio de **{objetivo_fallido_prom:.2f}**) han sido inalcanzables. Debes reducir la cuota objetivo en el Módulo 1 de inmediato.")
                         else:
-                            st.success(f"🔥 **Calibración Perfecta:** El 100% de tus coberturas se ejecutan con éxito en una media de **{cuota_mas_alcanzada:.2f}**. Sigue utilizando este patrón en tus aperturas.")
+                            st.success(f"🔥 **Calibración Perfecta:** Todos los objetivos que te propones (promedio de **{objetivo_exitoso_prom:.2f}**) son alcanzados con éxito por el mercado.")
                     else:
                         st.info("Muestra insuficiente de coberturas para realizar el cruce predictivo de límites.")
