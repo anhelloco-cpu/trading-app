@@ -909,8 +909,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             "resultado_final": texto_cierre,
                                             "utilidad_neta_real": utilidad,
                                             "roi_real": (utilidad / op['capital_total']) * 100,
-                                            "resultado_final_partido": resultado_real_partido, # <--- DATO PARA LA IA
-                                            "total_goles_final": goles_totales_reales         # <--- DATO PARA LA IA
+                                            "goles_finales_seleccion": goles_finales_seleccion, # <--- DATO MATEMÁTICO CORREGIDO
+                                            "goles_finales_rival": goles_finales_rival          # <--- DATO MATEMÁTICO CORREGIDO
                                         }).eq("codigo", op['codigo']).execute()
                                         st.success(f"Posición liquidada y datos guardados para la IA. Utilidad real transferida: ${utilidad:,.0f} COP.")
                                         st.rerun()
