@@ -964,37 +964,53 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     c5.metric("Tiempo Promedio a Cobertura", texto_tiempo)
 
                     # =====================================================================
-                    # 🧠 RADAR DE LÍMITES DE MERCADO (CORREGIDO)
+                    # 🧠 NUEVO: MAPA DE CALOR DE CUOTAS (EFECTIVIDAD POR TRAMOS)
                     # =====================================================================
                     st.markdown("---")
-                    st.subheader("🎯 Calibración de Cuotas e Inteligencia de Límites")
+                    st.subheader("🎯 Calibración de Cuotas (Mapa de Efectividad)")
+                    st.write("Muestra la tasa de éxito de tus coberturas agrupadas por niveles de riesgo, eliminando el sesgo de los promedios.")
                     
                     # Filtramos operaciones que usaron esquema de cobertura (cuota_objetivo > 0)
                     df_cob_data = df_est[df_est['cuota_objetivo'] > 0].copy()
                     
                     if not df_cob_data.empty:
-                        # Separamos las operaciones según el éxito de la captura
-                        df_exito_cob = df_cob_data[df_cob_data['cuota_cazada_real'] > 0]
-                        df_fallo_cob = df_cob_data[(df_cob_data['cuota_cazada_real'] == 0) | (df_cob_data['cuota_cazada_real'].isna())]
+                        df_cob_data['seguro_cazado'] = df_cob_data['cuota_cazada_real'] > 0
                         
-                        # LOGICA CORREGIDA: Evaluamos la cuota que PRETENDÍAS CAZAR en ambos grupos
-                        objetivo_exitoso_prom = df_exito_cob['cuota_objetivo'].mean() if not df_exito_cob.empty else 0
-                        objetivo_fallido_prom = df_fallo_cob['cuota_objetivo'].mean() if not df_fallo_cob.empty else 0
+                        # 1. Crear los tramos contables (Bins de Pandas)
+                        bins = [1.0, 1.99, 2.99, 4.99, 100.0]
+                        labels = ['🛡️ Conservador (1.01 a 1.99)', '⚖️ Moderado (2.00 a 2.99)', '🔥 Agresivo (3.00 a 4.99)', '🚀 Extremo (5.00+)']
+                        df_cob_data['tramo'] = pd.cut(df_cob_data['cuota_objetivo'], bins=bins, labels=labels)
                         
-                        col_rad1, col_rad2 = st.columns(2)
-                        with col_rad1:
-                            val_mas = f"{objetivo_exitoso_prom:.2f}" if objetivo_exitoso_prom > 0 else "N/A"
-                            st.metric(label="✅ Objetivos Alcanzados (Cuotas Realistas)", value=val_mas, help="El promedio de las cuotas objetivo que te propusiste y que el mercado sí logró tocar con éxito.")
-                        with col_rad2:
-                            val_nunca = f"{objetivo_fallido_prom:.2f}" if objetivo_fallido_prom > 0 else "N/A"
-                            st.metric(label="❌ Umbral Inalcanzable (Cuotas Fantasma)", value=val_nunca, help="El promedio de las cuotas objetivo que pretendías cazar, pero que resultaron demasiado altas y el partido se cerró antes de alcanzarlas.")
+                        # 2. Agrupar la estadística por cada tramo
+                        resumen = df_cob_data.groupby('tramo', observed=False).agg(
+                            Intentos=('cuota_objetivo', 'count'),
+                            Exitos=('seguro_cazado', 'sum')
+                        ).reset_index()
                         
-                        # Dictamen Táctico de Ajuste basado en tus intenciones reales
-                        if objetivo_fallido_prom > 0 and objetivo_exitoso_prom > 0:
-                            st.warning(f"💡 **Recomendación Contable:** Tu zona de éxito seguro está cuando pretendes cazar una cuota promedio de **{objetivo_exitoso_prom:.2f}**. En contraste, tus 'Cuotas Fantasma' promedian un **{objetivo_fallido_prom:.2f}**, un umbral que el mercado no te da tiempo de alcanzar. Para tus próximas operaciones en el Módulo 1, mantén tus objetivos cerca de **{objetivo_exitoso_prom:.2f}** para asegurar el capital.")
-                        elif objetivo_fallido_prom > 0 and objetivo_exitoso_prom == 0:
-                            st.error(f"🚨 **Alerta de Desfase:** Todos los objetivos que has planteado (promedio de **{objetivo_fallido_prom:.2f}**) han sido inalcanzables. Debes reducir la cuota objetivo en el Módulo 1 de inmediato.")
+                        # 3. Limpiar los tramos donde no has hecho operaciones
+                        resumen = resumen[resumen['Intentos'] > 0].copy()
+                        
+                        # 4. Calcular los porcentajes reales
+                        resumen['Tasa de Éxito'] = (resumen['Exitos'] / resumen['Intentos']) * 100
+                        
+                        # Renombrar columnas para la tabla visual
+                        resumen.columns = ['Nivel de Riesgo (Cuota Objetivo)', 'Total de Intentos', 'Seguros Cazados', '% Efectividad Bruta']
+                        
+                        # Renderizar tabla limpia
+                        resumen_show = resumen.copy()
+                        resumen_show['% Efectividad Bruta'] = resumen_show['% Efectividad Bruta'].apply(lambda x: f"{x:.1f}%")
+                        st.dataframe(resumen_show, use_container_width=True, hide_index=True)
+                        
+                        # 5. El Dictamen Táctico para el Módulo 1
+                        if len(resumen) > 1:
+                            mejor_tramo = resumen.loc[resumen['% Efectividad Bruta'].idxmax()]
+                            peor_tramo = resumen.loc[resumen['% Efectividad Bruta'].idxmin()]
+                            
+                            if mejor_tramo['% Efectividad Bruta'] == peor_tramo['% Efectividad Bruta']:
+                                st.info("Tienes la misma efectividad en todos los tramos intentados. Se requiere más volumen de operaciones para encontrar un patrón.")
+                            else:
+                                st.success(f"💡 **Dictamen del Algoritmo:** Tu zona más sólida de captura es el rango **{mejor_tramo['Nivel de Riesgo (Cuota Objetivo)']}** con una efectividad del **{mejor_tramo['% Efectividad Bruta']:.1f}%**. Trata de configurar tus próximas operaciones en el Módulo 1 apuntando a ese rango y evita el nivel **{peor_tramo['Nivel de Riesgo (Cuota Objetivo)']}**, donde tu acierto cae al **{peor_tramo['% Efectividad Bruta']:.1f}%**.")
                         else:
-                            st.success(f"🔥 **Calibración Perfecta:** Todos los objetivos que te propones (promedio de **{objetivo_exitoso_prom:.2f}**) son alcanzados con éxito por el mercado.")
+                            st.info("💡 Solo has operado en un único rango de riesgo. Intenta variar tus cuotas objetivo en el simulador para que el sistema encuentre tu límite.")
                     else:
-                        st.info("Muestra insuficiente de coberturas para realizar el cruce predictivo de límites.")
+                        st.info("Muestra insuficiente de coberturas para generar el mapa de efectividad.")
