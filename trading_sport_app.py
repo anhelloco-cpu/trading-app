@@ -400,6 +400,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         "cuota_base_audit": cuota_gana,
                         "cuota_empate_audit": cuota_empate,
                         "cuota_dc_audit": cuota_dc_casa,
+                        "cuota_amenaza_audit": cuota_pierde,
                         "es_dutching": usar_dutching,
                         "stake_dutch_base": round(stake_base, 2),
                         "stake_dutch_empate": round(stake_emp_dutch, 2)
