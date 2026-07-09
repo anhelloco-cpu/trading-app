@@ -964,11 +964,11 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     c5.metric("Tiempo Promedio a Cobertura", texto_tiempo)
 
                     # =====================================================================
-                    # 🧠 NUEVO: MAPA DE CALOR DE CUOTAS (EFECTIVIDAD POR TRAMOS)
+                    # 🧠 NUEVO: MAPA DE CALOR DE CUOTAS EXTENDIDO (HASTA 20.00+)
                     # =====================================================================
                     st.markdown("---")
                     st.subheader("🎯 Calibración de Cuotas (Mapa de Efectividad)")
-                    st.write("Muestra la tasa de éxito de tus coberturas agrupadas por niveles de riesgo, eliminando el sesgo de los promedios.")
+                    st.write("Muestra la tasa de éxito de tus coberturas agrupadas por niveles de riesgo. La escala incluye tramos de alta volatilidad.")
                     
                     # Filtramos operaciones que usaron esquema de cobertura (cuota_objetivo > 0)
                     df_cob_data = df_est[df_est['cuota_objetivo'] > 0].copy()
@@ -976,10 +976,20 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     if not df_cob_data.empty:
                         df_cob_data['seguro_cazado'] = df_cob_data['cuota_cazada_real'] > 0
                         
-                        # 1. Crear los tramos contables (Bins de Pandas)
-                        bins = [1.0, 1.99, 2.99, 4.99, 100.0]
-                        labels = ['🛡️ Conservador (1.01 a 1.99)', '⚖️ Moderado (2.00 a 2.99)', '🔥 Agresivo (3.00 a 4.99)', '🚀 Extremo (5.00+)']
-                        df_cob_data['tramo'] = pd.cut(df_cob_data['cuota_objetivo'], bins=bins, labels=labels)
+                        # 1. Crear los tramos contables de largo alcance (Bins de Pandas)
+                        bins = [1.0, 2.0, 3.0, 5.0, 8.0, 12.0, 20.0, 1000.0]
+                        labels = [
+                            '🛡️ Conservador (1.01 a 1.99)', 
+                            '⚖️ Moderado (2.00 a 2.99)', 
+                            '🔥 Agresivo (3.00 a 4.99)', 
+                            '🚀 Extremo (5.00 a 7.99)',
+                            '⚡ Riesgo Alto (8.00 a 11.99)',
+                            '🌪️ Kamikaze (12.00 a 19.99)',
+                            '🌌 Astronómico (20.00+)'
+                        ]
+                        
+                        # El parámetro right=False asegura que un 2.0 exacto caiga en el tramo "2.0 a 2.99"
+                        df_cob_data['tramo'] = pd.cut(df_cob_data['cuota_objetivo'], bins=bins, labels=labels, right=False)
                         
                         # 2. Agrupar la estadística por cada tramo
                         resumen = df_cob_data.groupby('tramo', observed=False).agg(
