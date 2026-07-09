@@ -437,6 +437,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     sel_cob = op.get('seleccion_cobertura', 'Cobertura')
                     tipo_estrategia = op.get('estrategia', 'Estrategia 2: Paz Mental Clásica')
                     
+                    # Identificar de forma transparente el tipo de portafolio para la gestión de riesgo
+                    tipo_banca_operacion = op.get('tipo_banca', 'SIMULACION')
+                    
                     # --- DESGLOSE AUTOMÁTICO DE NOMBRES DE EQUIPOS ---
                     partido_str = op.get('partido', 'Local vs Visitante')
                     if ' vs ' in partido_str:
@@ -459,10 +462,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         contexto_mercado = f"El reloj es enemigo. Necesitas un gol de {sel_ini} o presión temprana para bajar la cuota."
                     
                     if es_apuesta_libre:
-                        st.write(f"**Capital Comprometido (Libre):** ${op['capital_total']:,.0f}")
+                        st.write(f"**Capital Comprometido (Libre) [{tipo_banca_operacion}]:** ${op['capital_total']:,.0f}")
                         st.info(f"🎯 **Selección:** **{sel_ini}** a cuota **{op['cuota_inicial']:.2f}** en **{op.get('plataforma_inicial', 'N/A')}**")
                     else:
-                        st.write(f"**Capital Comprometido:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
+                        st.write(f"**Capital Comprometido [{tipo_banca_operacion}]:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
                         
                         st.markdown(f"""
                         <div style="background-color: #F8FAFC; padding: 15px; border-left: 4px solid #3B82F6; border-radius: 4px; margin-bottom: 15px;">
@@ -654,18 +657,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.markdown("---")
                                 
                                 # =====================================================================
-                                # 💼 NUEVO CONTEXTO DE PORTAFOLIO (GESTIÓN DE BANCA)
-                                # =====================================================================
-                                st.markdown("#### 💼 Contexto de Portafolio")
-                                col_b1, col_b2 = st.columns(2)
-                                with col_b1:
-                                    tipo_banca = st.radio("Modo de Operación:", ["Simulación (Solo eficiencia)", "Banca Real (Supervivencia)"], key=f"tb_{op['codigo']}")
-                                with col_b2:
-                                    saldo_banca = st.number_input("Saldo Total de tu Cuenta (COP):", min_value=1.0, value=float(max(500000.0, op['capital_total'])), step=50000.0, key=f"sb_{op['codigo']}")
-                                
-                                st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
-                                
-                                # =====================================================================
                                 # 🔍 MATRIZ FINANCIERA (OPCIÓN A VS OPCIÓN B)
                                 # =====================================================================
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
@@ -841,19 +832,20 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     """
                                 
                                 # =====================================================================
-                                # 🛡️ ALERTA PATRIMONIAL ADICIONAL (SI APLICA)
+                                # 🛡️ ALERTA PATRIMONIAL ADICIONAL AUTOMÁTICA
                                 # =====================================================================
-                                exposicion_pct = (op['capital_total'] / saldo_banca) * 100 if saldo_banca > 0 else 0
+                                saldo_banca_actual = obtener_saldo_banca(tipo_banca_operacion)
+                                exposicion_pct = (op['capital_total'] / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
                                 alerta_patrimonial_html = ""
                                 
-                                if tipo_banca == "Banca Real (Supervivencia)" and exposicion_pct >= 15.0:
+                                if tipo_banca_operacion == "REAL" and exposicion_pct >= 15.0:
                                     if capital_rescatado > 0 and ratio_eficiencia < 1.0 and ird > 60.0:
                                         alerta_patrimonial_html = f"""
                                         <div style="background-color: #FFF1F2; border-left: 6px solid #E11D48; padding: 15px; margin-top: 10px; border-radius: 4px; color: #881337;">
                                             <h5 style="margin: 0 0 5px 0; color: #BE123C;">🛡️ ALERTA DE SUPERVIVENCIA: EXPOSICIÓN CRÍTICA ({exposicion_pct:.1f}% DE LA BANCA)</h5>
                                             <p style="margin: 0; font-size: 0.95rem;">
-                                                Tienes comprometido el <b>{exposicion_pct:.1f}%</b> de tu patrimonio total. Aunque el sistema dictamina arriba que el seguro es ineficiente, <b>la supervivencia de tu cuenta está en riesgo estructural.</b><br><br>
-                                                Rescatar esos <b>${capital_rescatado:,.0f} COP</b> asegura mantener viva una parte de tu liquidez. En bancas reales con alta exposición bajo asedio, considerar pagar primas ineficientes es vital para evitar la quiebra absoluta.
+                                                Tienes comprometido el <b>{exposicion_pct:.1f}%</b> de tu patrimonio operativo. Aunque el sistema dictamina arriba que el seguro es ineficiente, <b>la supervivencia de tu cuenta está en riesgo estructural.</b><br><br>
+                                                Rescatar esos <b>${capital_rescatado:,.0f} COP</b> asegura mantener viva tu liquidez. En bancas reales con alta exposición, considerar pagar primas ineficientes es un mal necesario para evitar la quiebra absoluta por una racha negativa.
                                             </p>
                                         </div>
                                         """
