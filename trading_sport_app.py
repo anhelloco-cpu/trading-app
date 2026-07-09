@@ -929,8 +929,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             
                             st.markdown("---")
                             st.markdown("🤖 **Datos para Entrenamiento de IA (Obligatorio)**")
-                            resultado_real_partido = st.selectbox("¿Quién ganó el partido realmente?", ["Gana Local", "Empate", "Gana Visitante"], key=f"res_real_cob_{op['codigo']}")
-                            goles_totales_reales = st.number_input("Total de goles en el partido (Suma de ambos):", min_value=0, step=1, value=0, key=f"gol_real_cob_{op['codigo']}")
+                            goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {sel_ini}:", min_value=0, step=1, value=0, key=f"gf_sel_cob_{op['codigo']}")
+                            goles_finales_rival = st.number_input(f"🚀 Goles finales del Rival:", min_value=0, step=1, value=0, key=f"gf_riv_cob_{op['codigo']}")
                             
                             if st.form_submit_button("Cerrar Libro Mayor"):
                                 if "Inicial" in resultado_final_ui:
@@ -948,8 +948,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     "resultado_final": texto_db,
                                     "utilidad_neta_real": utilidad,
                                     "roi_real": (utilidad / op['capital_total']) * 100,
-                                    "resultado_final_partido": resultado_real_partido, # <--- DATO PARA LA IA
-                                    "total_goles_final": goles_totales_reales         # <--- DATO PARA LA IA
+                                    "goles_finales_seleccion": goles_finales_seleccion, # <--- DATO NUMÉRICO PARA LA IA
+                                    "goles_finales_rival": goles_finales_rival          # <--- DATO NUMÉRICO PARA LA IA
                                 }).eq("codigo", op['codigo']).execute()
                                 st.success(f"Libro cerrado y datos guardados para la IA. Balance de la operación: ${utilidad:,.0f} COP.")
                                 st.rerun()
