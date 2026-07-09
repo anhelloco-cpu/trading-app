@@ -891,8 +891,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     
                                     st.markdown("---")
                                     st.markdown("🤖 **Datos para Entrenamiento de IA (Obligatorio)**")
-                                    resultado_real_partido = st.selectbox("¿Quién ganó el partido realmente?", ["Gana Local", "Empate", "Gana Visitante"], key=f"res_real_dir_{op['codigo']}")
-                                    goles_totales_reales = st.number_input("Total de goles en el partido (Suma de ambos):", min_value=0, step=1, value=0, key=f"gol_real_dir_{op['codigo']}")
+                                    goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {sel_ini}:", min_value=0, step=1, value=0, key=f"gf_sel_{op['codigo']}")
+                                    goles_finales_rival = st.number_input(f"🚀 Goles finales del Rival:", min_value=0, step=1, value=0, key=f"gf_riv_{op['codigo']}")
                                     
                                     if st.form_submit_button("Registrar Liquidación Directa"):
                                         if "Ganó" in resultado_directo:
