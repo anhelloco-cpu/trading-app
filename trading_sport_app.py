@@ -722,50 +722,95 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         df = pd.DataFrame(res_cerradas.data)
         
         if not df.empty:
-            # 1. Tabla de datos (la que ya tenías)
+            # 1. Tabla de datos general (Historial de auditoría)
             st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
             
-            # 2. Cierre de Caja y Gráfica Diaria
-            st.markdown("### 📈 Estado de Resultados (Banca Real)")
+            # --- ANCLAJE CRONOLÓGICO DE ZONA HORARIA (Colombia UTC-5) ---
+            hoy = (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).date()
+            df['fecha_dt'] = pd.to_datetime(df['fecha'], utc=True).dt.tz_convert('America/Bogota')
+            df['dia'] = df['fecha_dt'].dt.date
+            # Extraer hora de cierre para ordenar la sesión del día
+            df['hora_cierre'] = df['fecha_dt'].dt.strftime('%H:%M')
             
-            # Filtrar solo el dinero real para no mezclar con simulaciones
-            df_real = df[df['tipo_banca'] == 'REAL'].copy()
+            st.markdown("### 📈 Estado de Resultados Desagregado")
             
-            if not df_real.empty:
-                # Limpiar y agrupar fechas
-                df_real['fecha_dt'] = pd.to_datetime(df_real['fecha'])
-                df_real['dia'] = df_real['fecha_dt'].dt.date
-                hoy = datetime.datetime.now().date()
-                
-                # Cálculos contables
-                df_hoy = df_real[df_real['dia'] == hoy]
-                utilidad_hoy = df_hoy['utilidad_neta_real'].sum()
-                operaciones_hoy = len(df_hoy)
-                utilidad_historica = df_real['utilidad_neta_real'].sum()
-                
-                # Mostrar KPIs
-                col_kpi1, col_kpi2 = st.columns(2)
-                with col_kpi1:
-                    st.metric(
-                        label="💵 Cierre de Caja del Día (Hoy)", 
-                        value=f"${utilidad_hoy:,.0f} COP", 
-                        delta=f"{operaciones_hoy} operaciones liquidadas hoy"
-                    )
-                with col_kpi2:
-                    st.metric(
-                        label="💰 Utilidad Neta Acumulada", 
-                        value=f"${utilidad_historica:,.0f} COP"
-                    )
-                
-                # Generar Gráfica de PNL (Profit and Loss)
-                st.markdown("<br><b>Evolución Diaria (PNL)</b>", unsafe_allow_html=True)
-                df_grafica = df_real.groupby('dia')['utilidad_neta_real'].sum().reset_index()
-                df_grafica.set_index('dia', inplace=True)
-                
-                # Streamlit renderiza automáticamente barras hacia arriba (verdes) o hacia abajo (rojas) según el valor
-                st.bar_chart(df_grafica['utilidad_neta_real'])
-            else:
-                st.info("No hay cierres registrados en Dinero Real para graficar.")
+            # Separación de libros mayores por entorno de ejecución
+            df_real_master = df[df['tipo_banca'] == 'REAL'].copy()
+            df_sim_master = df[df['tipo_banca'] == 'SIMULACION'].copy()
+            
+            # Separación en pestañas principales
+            tab_real, tab_sim = st.tabs(["🟢 Contabilidad Real", "🟡 Contabilidad Simulación (Paper Trading)"])
+            
+            # ==========================================
+            # PESTAÑA 1: BANCA REAL
+            # ==========================================
+            with tab_real:
+                if not df_real_master.empty:
+                    # Selector de alcance temporal
+                    filtro_tiempo_r = st.radio("Alcance Temporal (Real):", ["📅 Hoy", "📈 Consolidación Histórica"], horizontal=True, key="filtro_t_real")
+                    
+                    df_hoy_r = df_real_master[df_real_master['dia'] == hoy]
+                    utilidad_hoy_r = df_hoy_r['utilidad_neta_real'].sum()
+                    ops_hoy_r = len(df_hoy_r)
+                    utilidad_total_r = df_real_master['utilidad_neta_real'].sum()
+                    
+                    # Despliegue de balances según la selección
+                    if filtro_tiempo_r == "📅 Hoy":
+                        st.metric(label="💵 Cierre de Caja (Hoy)", value=f"${utilidad_hoy_r:,.0f} COP", delta=f"{ops_hoy_r} operaciones cerradas")
+                        
+                        if not df_hoy_r.empty:
+                            st.markdown("<br><b>Evolución de la Sesión Actual (Operación por Operación)</b>", unsafe_allow_html=True)
+                            # Ordenar cronológicamente para ver la curva del día
+                            df_hoy_r = df_hoy_r.sort_values(by='fecha_dt')
+                            # Crear un identificador visual único para el eje X del gráfico
+                            df_hoy_r['operacion'] = df_hoy_r['hora_cierre'] + " - " + df_hoy_r['codigo']
+                            df_grafica_hoy_r = df_hoy_r.set_index('operacion')['utilidad_neta_real']
+                            st.bar_chart(df_grafica_hoy_r)
+                        else:
+                            st.info("Sin registros liquidados en la jornada de hoy.")
+                    
+                    else:  # Consolidación Histórica
+                        st.metric(label="💰 Utilidad Neta Acumulada", value=f"${utilidad_total_r:,.0f} COP")
+                        
+                        st.markdown("<br><b>Tendencia de Resultados Diarios (PNL Consolidado)</b>", unsafe_allow_html=True)
+                        df_grafica_cons_r = df_real_master.groupby('dia')['utilidad_neta_real'].sum()
+                        st.bar_chart(df_grafica_cons_r)
+                else:
+                    st.info("No hay transacciones cerradas en Dinero Real.")
+            
+            # ==========================================
+            # PESTAÑA 2: BANCA SIMULADA
+            # ==========================================
+            with tab_sim:
+                if not df_sim_master.empty:
+                    # Selector de alcance temporal simulado
+                    filtro_tiempo_s = st.radio("Alcance Temporal (Simulación):", ["📅 Hoy", "📈 Consolidación Histórica"], horizontal=True, key="filtro_t_sim")
+                    
+                    df_hoy_s = df_sim_master[df_sim_master['dia'] == hoy]
+                    utilidad_hoy_s = df_hoy_s['utilidad_neta_real'].sum()
+                    ops_hoy_s = len(df_hoy_s)
+                    utilidad_total_s = df_sim_master['utilidad_neta_real'].sum()
+                    
+                    if filtro_tiempo_s == "📅 Hoy":
+                        st.metric(label="💵 Cierre Virtual (Hoy)", value=f"${utilidad_hoy_s:,.0f} COP", delta=f"{ops_hoy_s} ops virtuales")
+                        
+                        if not df_hoy_s.empty:
+                            st.markdown("<br><b>Evolución de la Sesión Virtual (Operación por Operación)</b>", unsafe_allow_html=True)
+                            df_hoy_s = df_sim_master[df_sim_master['dia'] == hoy].sort_values(by='fecha_dt')
+                            df_hoy_s['operacion'] = df_hoy_s['hora_cierre'] + " - " + df_hoy_s['codigo']
+                            df_grafica_hoy_s = df_hoy_s.set_index('operacion')['utilidad_neta_real']
+                            st.bar_chart(df_grafica_hoy_s)
+                        else:
+                            st.info("Sin registros simulados el día de hoy.")
+                    
+                    else:  # Consolidación Histórica Simulada
+                        st.metric(label="💰 Utilidad Virtual Acumulada", value=f"${utilidad_total_s:,.0f} COP")
+                        
+                        st.markdown("<br><b>Rendimiento Histórico del Modelo (PNL Consolidado)</b>", unsafe_allow_html=True)
+                        df_grafica_cons_s = df_sim_master.groupby('dia')['utilidad_neta_real'].sum()
+                        st.bar_chart(df_grafica_cons_s)
+                else:
+                    st.info("No hay transacciones cerradas en Paper Trading.")
 
 # =====================================================================
 # MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
