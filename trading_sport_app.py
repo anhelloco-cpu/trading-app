@@ -975,7 +975,9 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     if not df_cob_data.empty:
                         # Cuotas mapeadas por éxito/fracaso contable
                         df_exito_cob = df_cob_data[df_cob_data['cuota_cazada_real'] > 0]
-                        df_fallo_cob = df_cob_data[df_cob_data['cuota_cazada_real'] == 0]
+                        
+                        # CORRECCIÓN: No se cazó la cobertura Y el resultado final destruyó capital (se perdió)
+                        df_fallo_cob = df_cob_data[(df_cob_data['cuota_cazada_real'] == 0) & (df_cob_data['utilidad_neta_real'] < 0)]
                         
                         # A. Cuotas que MÁS alcanzó (Promedio real capturado)
                         cuota_mas_alcanzada = df_exito_cob['cuota_cazada_real'].mean() if not df_exito_cob.empty else 0
