@@ -583,13 +583,13 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 exp_goles_nuestros = ataques_futuros_nuestros * letalidad_nuestra
                                 exp_goles_rival = ataques_futuros_rival * letalidad_rival
 
-                                # --- NUEVA ESCALA DE GRAVEDAD Y TIEMPO (CORRECCIÓN AUDITADA) ---
+                                # --- ESCALA DE GRAVEDAD Y TIEMPO ---
                                 if diferencia_goles < 0:
-                                    if diferencia_goles == -1: # Perdiendo por 1
+                                    if diferencia_goles == -1: 
                                         if minuto_actual <= 45: ird_base = 65.0
                                         elif minuto_actual <= 75: ird_base = 80.0
                                         else: ird_base = 95.0
-                                    else: # Perdiendo por 2 o más
+                                    else: 
                                         ird_base = 100.0
                                 elif diferencia_goles == 0: ird_base = 55.0
                                 elif diferencia_goles == 1: ird_base = 30.0
@@ -654,6 +654,18 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.markdown("---")
                                 
                                 # =====================================================================
+                                # 💼 NUEVO CONTEXTO DE PORTAFOLIO (GESTIÓN DE BANCA)
+                                # =====================================================================
+                                st.markdown("#### 💼 Contexto de Portafolio")
+                                col_b1, col_b2 = st.columns(2)
+                                with col_b1:
+                                    tipo_banca = st.radio("Modo de Operación:", ["Simulación (Solo eficiencia)", "Banca Real (Supervivencia)"], key=f"tb_{op['codigo']}")
+                                with col_b2:
+                                    saldo_banca = st.number_input("Saldo Total de tu Cuenta (COP):", min_value=1.0, value=float(max(500000.0, op['capital_total'])), step=50000.0, key=f"sb_{op['codigo']}")
+                                
+                                st.markdown("<hr style='margin: 15px 0;'>", unsafe_allow_html=True)
+                                
+                                # =====================================================================
                                 # 🔍 MATRIZ FINANCIERA (OPCIÓN A VS OPCIÓN B)
                                 # =====================================================================
                                 cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
@@ -685,16 +697,15 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     """, unsafe_allow_html=True)
                                 
                                 # =====================================================================
-                                # ⚖️ NUEVA AUDITORÍA DE COSTO-BENEFICIO (PRECIO DE LA PÓLIZA)
+                                # ⚖️ AUDITORÍA DE COSTO-BENEFICIO (PRECIO DE LA PÓLIZA)
                                 # =====================================================================
                                 costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
                                 capital_rescatado = util_cobertura_con_cob - util_perdida_sin_cob
                                 
-                                # Evitar división por cero en arbitrajes puros
                                 if costo_seguro > 0:
                                     ratio_eficiencia = capital_rescatado / costo_seguro
                                 else:
-                                    ratio_eficiencia = 999.0 # Ratio perfecto (Arbitraje)
+                                    ratio_eficiencia = 999.0 
                                 
                                 color_ratio = "#10B981" if ratio_eficiencia >= 1.0 else "#EF4444"
                                 estado_ratio = "SEGURO EFICIENTE" if ratio_eficiencia >= 1.0 else "SEGURO EXTORSIVO (Pagas más de lo que salvas)"
@@ -719,12 +730,11 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 """, unsafe_allow_html=True)
 
                                 # =====================================================================
-                                # ⚖️ MOTOR DE DICTAMEN UNIFICADO (DECISIÓN DEL TRADER)
+                                # ⚖️ MOTOR DE DICTAMEN UNIFICADO (ORIGINAL INTACTO)
                                 # =====================================================================
                                 dictamen_html = ""
                                 va_empatado = (diferencia_goles == 0)
                                 
-                                # PRIORIDAD 1: EVACUACIÓN CRÍTICA (CON FILTRO DE EXTORSIÓN)
                                 if ird >= 85.0:
                                     if ratio_eficiencia < 1.0:
                                         dictamen_html = f"""
@@ -747,7 +757,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             </p>
                                         </div>
                                         """
-                                # PRIORIDAD 2: VENTAJA CONCLUYENTE
                                 elif diferencia_goles >= 2 or (diferencia_goles == 1 and tiempo_restante <= 10 and ird < 60.0):
                                     dictamen_html = f"""
                                     <div style='background-color: #F8FAFC; border-left: 6px solid #8B5CF6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #4C1D95;'>
@@ -758,7 +767,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         </p>
                                     </div>
                                     """
-                                # PRIORIDAD 3: PACIENCIA POR MOMENTUM DE ATAQUE EN DESVENTAJA/EMPATE
                                 elif (diferencia_goles <= 0) and (share_nuestro > 50.0) and (ird < 85.0):
                                     dictamen_html = f"""
                                     <div style='background-color: #F0FDF4; border-left: 6px solid #059669; padding: 15px; margin-top: 15px; border-radius: 4px; color: #064E3B;'>
@@ -769,7 +777,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         </p>
                                     </div>
                                     """
-                                # PRIORIDAD 4: ARBITRAJE PERFECTO FINANCIERO 
                                 elif util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
                                     dictamen_html = """
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
@@ -777,7 +784,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         <p style="margin: 0; font-size: 0.95rem;">La cuota liquida en verde en ambos escenarios. Asegura utilidades registrando la cobertura ahora.</p>
                                     </div>
                                     """
-                                # PRIORIDAD 5: EQUILIBRIO DE DISEÑO ALCANZADO
                                 elif cuota_ingresada >= op['cuota_objetivo']:
                                     dictamen_html = """
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
@@ -785,7 +791,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         <p style="margin: 0; font-size: 0.95rem;">La cuota en vivo se acopla a la cuota objetivo calculada. El plan financiero se cumple.</p>
                                     </div>
                                     """
-                                # PRIORIDAD 6: EFICIENCIA DE PROTECCIÓN REGULAR
                                 elif ratio_eficiencia >= 1.0:
                                     if va_empatado:
                                         if ird > 70:
@@ -817,7 +822,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                 <p style="margin: 0; font-size: 0.95rem;">El riesgo operativo es manejable ({ird:.1f}%). Monitorea antes de quemar la reserva.</p>
                                             </div>
                                             """
-                                # PRIORIDAD 7: SEGURO INEFICIENTE / EXTORSIVO EN SITUACIONES NORMALES
                                 elif ratio_eficiencia > 0:
                                     dictamen_html = f"""
                                     <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
@@ -828,7 +832,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         </p>
                                     </div>
                                     """
-                                # PRIORIDAD 8: HEDGE NEGATIVO TOTAL
                                 else:
                                     dictamen_html = """
                                     <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
@@ -837,8 +840,26 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     </div>
                                     """
                                 
-                                # Renderizado único del dictamen en pantalla
-                                st.markdown(dictamen_html, unsafe_allow_html=True)
+                                # =====================================================================
+                                # 🛡️ ALERTA PATRIMONIAL ADICIONAL (SI APLICA)
+                                # =====================================================================
+                                exposicion_pct = (op['capital_total'] / saldo_banca) * 100 if saldo_banca > 0 else 0
+                                alerta_patrimonial_html = ""
+                                
+                                if tipo_banca == "Banca Real (Supervivencia)" and exposicion_pct >= 15.0:
+                                    if capital_rescatado > 0 and ratio_eficiencia < 1.0 and ird > 60.0:
+                                        alerta_patrimonial_html = f"""
+                                        <div style="background-color: #FFF1F2; border-left: 6px solid #E11D48; padding: 15px; margin-top: 10px; border-radius: 4px; color: #881337;">
+                                            <h5 style="margin: 0 0 5px 0; color: #BE123C;">🛡️ ALERTA DE SUPERVIVENCIA: EXPOSICIÓN CRÍTICA ({exposicion_pct:.1f}% DE LA BANCA)</h5>
+                                            <p style="margin: 0; font-size: 0.95rem;">
+                                                Tienes comprometido el <b>{exposicion_pct:.1f}%</b> de tu patrimonio total. Aunque el sistema dictamina arriba que el seguro es ineficiente, <b>la supervivencia de tu cuenta está en riesgo estructural.</b><br><br>
+                                                Rescatar esos <b>${capital_rescatado:,.0f} COP</b> asegura mantener viva una parte de tu liquidez. En bancas reales con alta exposición bajo asedio, considerar pagar primas ineficientes es vital para evitar la quiebra absoluta.
+                                            </p>
+                                        </div>
+                                        """
+                                
+                                # Renderizado final uniendo el dictamen original y la nueva alerta (si existe)
+                                st.markdown(dictamen_html + alerta_patrimonial_html, unsafe_allow_html=True)
                                 
                                 st.markdown("<br>", unsafe_allow_html=True)
                                 if st.button("🔒 Confirmar y Registrar Cobertura en Libro Mayor", key=f"btn_sub_cob_{op['codigo']}"):
