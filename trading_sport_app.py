@@ -221,16 +221,32 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
     saldo_disponible = saldo_real if banca_activa == "REAL" else saldo_simulacion
     
-    # --- SELECTOR DE ENFOQUE (CLÁSICO VS INVERSO) ---
+    # --- SELECTOR DE ENFOQUE (TRES VARIANTES AHORA) ---
     st.markdown("---")
     enfoque_operativo = st.radio(
         "🎯 Enfoque de Mercado (Determina el libro de auditoría):",
-        ["🔵 Clásico (Pre-partido a Favorito/Empate)", "🔴 Inverso (Pre-partido a Sorpresa/Empate)"],
-        horizontal=True
+        [
+            "🔵 Clásico (Pre-partido a Favorito/Empate)", 
+            "🔴 Inverso (Pre-partido a Sorpresa/Empate)",
+            "🔥 Fuego Cruzado (Cualquiera Gana - Cazar Empate)"
+        ],
+        horizontal=False
     )
     
-    nombre_estrategia_bd = "Estrategia 2: Paz Mental Clásica" if "Clásico" in enfoque_operativo else "Estrategia 2: Paz Mental Inversa"
+    nombre_estrategia_bd = "Estrategia 2: Fuego Cruzado" if "Fuego" in enfoque_operativo else ("Estrategia 2: Clásica" if "Clásico" in enfoque_operativo else "Estrategia 2: Inversa")
     
+    # Cambio dinámico de etiquetas según la estrategia
+    if "Fuego" in enfoque_operativo:
+        lab_gana = "1. Gana Local"
+        lab_empate = "2. Gana Visitante"
+        lab_dc = "3. Doble Oportunidad (12)"
+        lab_rival = "4. Empate (Amenaza)"
+    else:
+        lab_gana = "1. Gana Tu Equipo"
+        lab_empate = "2. Empate (X)"
+        lab_dc = "3. Doble Oportunidad"
+        lab_rival = "4. Gana Rival"
+
     # =================================================================
     # ⚖️ MOTOR DE ARBITRAJE (DUTCHING CALCULATOR)
     # =================================================================
@@ -239,15 +255,15 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     
     col_odd1, col_odd2, col_odd3, col_odd4 = st.columns(4)
     with col_odd1:
-        cuota_gana = st.number_input("1. Gana Tu Equipo", min_value=1.01, value=2.00, step=0.05, help="Cuota individual a que gana tu selección.")
+        cuota_gana = st.number_input(lab_gana, min_value=1.01, value=2.00, step=0.05)
     with col_odd2:
-        cuota_empate = st.number_input("2. Empate (X)", min_value=1.01, value=3.65, step=0.05, help="Cuota individual del empate.")
+        cuota_empate = st.number_input(lab_empate, min_value=1.01, value=2.80 if "Fuego" in enfoque_operativo else 3.65, step=0.05)
     with col_odd3:
-        cuota_dc_casa = st.number_input("3. Doble Oportunidad", min_value=1.01, value=1.26, step=0.01, help="Lo que ofrece la casa por Gana/Empata junto.")
+        cuota_dc_casa = st.number_input(lab_dc, min_value=1.01, value=1.35 if "Fuego" in enfoque_operativo else 1.26, step=0.01)
     with col_odd4:
-        cuota_rival = st.number_input("4. Gana Rival", min_value=1.01, value=4.00, step=0.05, help="Cuota del rival (La que vamos a cazar después).")
+        cuota_rival = st.number_input(lab_rival, min_value=1.01, value=3.20 if "Fuego" in enfoque_operativo else 4.00, step=0.05)
 
-    # Cálculos Matemáticos Propios
+    # Cálculos Matemáticos Base (La fórmula de Dutching es universal)
     prob_gana = 1.0 / cuota_gana
     prob_empate = 1.0 / cuota_empate
     prob_total = prob_gana + prob_empate
@@ -269,7 +285,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
             st.info(f"⚖️ **MERCADO BALANCEADO:** No hay ventaja matemática en separar la apuesta. **Ve directo al botón de Doble Oportunidad.**")
 
     # =================================================================
-    # 💰 CONFIGURACIÓN DE CAPITAL (AHORA USA LA CUOTA EFECTIVA AUTOMÁTICA)
+    # 💰 CONFIGURACIÓN DE CAPITAL 
     # =================================================================
     st.markdown("---")
     st.markdown("### 💰 2. Asignación de Capital")
@@ -284,8 +300,8 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
 
     if saldo_disponible > 0:
         porcentaje_exposicion = (capital_total / saldo_disponible) * 100
-        if porcentaje_exposicion > max_riesgo_permitido:
-            st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca. Superas el umbral de {max_riesgo_permitido}%.")
+        if porcentaje_exposicion > 10: # Suponiendo un máximo de 10%
+            st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca.")
 
     # Matemática Financiera Base
     retorno_objetivo_1 = capital_total * (1 + (utilidad_esperada / 100.0))
@@ -293,7 +309,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     stake_1 = retorno_objetivo_1 / cuota_efectiva
     stake_2 = capital_total - stake_1
 
-    # Cálculos específicos de partición (Dutching)
+    # Cálculos de partición (Dutching)
     if usar_dutching:
         stake_base = stake_1 * (cuota_empate / (cuota_gana + cuota_empate))
         stake_emp_dutch = stake_1 * (cuota_gana / (cuota_gana + cuota_empate))
@@ -311,6 +327,12 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
         retorno_exigido_cobertura = capital_total + (utilidad_neta_plata * (riesgo / 100.0))
         cuota_a_cazar = retorno_exigido_cobertura / stake_2
         
+        # Textos dinámicos para los recuadros
+        str_selec_1 = "Gana Local" if "Fuego" in enfoque_operativo else "Gana tu Equipo"
+        str_selec_2 = "Gana Visitante" if "Fuego" in enfoque_operativo else "Empate"
+        str_amenaza = "Empate" if "Fuego" in enfoque_operativo else "Rival"
+        str_dc = "12 (Local/Visita)" if "Fuego" in enfoque_operativo else "Gana/Empata"
+
         col_plan1, col_plan2 = st.columns(2)
         with col_plan1:
             if usar_dutching:
@@ -319,8 +341,8 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                     <h4 style="margin-top:0;">Fase 1: Pre-partido (Dutching)</h4>
                     <p style="margin:0;">Divide tu Stake 1 de <b>${stake_1:,.0f} COP</b> así:</p>
                     <ul style="margin-top: 5px; margin-bottom: 5px;">
-                        <li><b>${stake_base:,.0f}</b> ➔ Gana tu Equipo (Cuota {cuota_gana:.2f})</li>
-                        <li><b>${stake_emp_dutch:,.0f}</b> ➔ Empate (Cuota {cuota_empate:.2f})</li>
+                        <li><b>${stake_base:,.0f}</b> ➔ {str_selec_1} (Cuota {cuota_gana:.2f})</li>
+                        <li><b>${stake_emp_dutch:,.0f}</b> ➔ {str_selec_2} (Cuota {cuota_empate:.2f})</li>
                     </ul>
                     <hr style="margin: 10px 0;">
                     <p style="margin:0; color:#475569;">Fondo de Reserva: <b>${stake_2:,.0f} COP</b></p>
@@ -332,7 +354,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                     <h4 style="margin-top:0;">Fase 1: Pre-partido (Directo)</h4>
                     <p style="margin:0;">Ejecuta un ticket único:</p>
                     <ul style="margin-top: 5px; margin-bottom: 5px;">
-                        <li><b>${stake_1:,.0f}</b> ➔ Gana/Empata (Cuota {cuota_efectiva:.2f})</li>
+                        <li><b>${stake_1:,.0f}</b> ➔ D.O. {str_dc} (Cuota {cuota_efectiva:.2f})</li>
                     </ul>
                     <hr style="margin: 10px 0;">
                     <p style="margin:0; color:#475569;">Fondo de Reserva: <b>${stake_2:,.0f} COP</b></p>
@@ -343,44 +365,54 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
             st.markdown(f"""
             <div style="background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 15px; border-radius: 4px; text-align: center;">
                 <h4 style="margin-top:0;">Fase 2: En Vivo</h4>
-                <p style="margin:0;">Caza el Seguro Mínimo a:</p>
+                <p style="margin:0;">Caza el Seguro ({str_amenaza}) a:</p>
                 <h1 style="color:#15803D; font-size:3rem; margin:10px 0;">{cuota_a_cazar:.2f}</h1>
-                <p style="margin:0; font-size: 0.85rem; color:#475569;">(Cuota actual del rival: {cuota_rival:.2f})</p>
+                <p style="margin:0; font-size: 0.85rem; color:#475569;">(Cuota actual: {cuota_rival:.2f})</p>
             </div>
             """, unsafe_allow_html=True)
 
         # =================================================================
-        # 💾 REGISTRO CONTABLE (CORREGIDO)
+        # 💾 REGISTRO CONTABLE 
         # =================================================================
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("### 💾 3. Detalles y Registro de la Operación")
         with st.form("guardar_operacion"):
             
-            st.info("💡 **Regla Fija:** Escribe en la Caja 1 tu selección base. Escribe en la Caja 2 el equipo rival (la amenaza).")
+            if "Fuego" in enfoque_operativo:
+                st.info("💡 **Fuego Cruzado:** Escribe en la Caja 1 el Local y en la Caja 2 el Visitante.")
+            else:
+                st.info("💡 **Regla Fija:** Escribe en la Caja 1 tu selección base. Escribe en la Caja 2 el equipo rival (la amenaza).")
             
             c_eq1, c_eq2 = st.columns(2)
             with c_eq1:
-                eq_apuesta_inicial = st.text_input("⚽ Equipo Apuesta Inicial (Tu equipo)")
+                eq_apuesta_inicial = st.text_input("⚽ Equipo Local" if "Fuego" in enfoque_operativo else "⚽ Equipo Apuesta Inicial")
             with c_eq2:
-                eq_cobertura = st.text_input("🎯 Equipo Amenaza (A Cazar en Vivo)")
+                eq_cobertura = st.text_input("🚀 Equipo Visitante" if "Fuego" in enfoque_operativo else "🎯 Equipo Amenaza")
             
             hora_inicio = st.time_input("⏱️ Hora de inicio del partido:")
-            
-            plataforma_ini = st.selectbox("Plataforma de la Apuesta Inicial:", todas_las_plataformas)
-            plataforma_otra = ""
-            if plataforma_ini == "Otra":
-                plataforma_otra = st.text_input("Especifica la otra plataforma:")
+            plataforma_ini = st.selectbox("Plataforma de la Apuesta Inicial:", ["BetPlay", "Wplay", "Rushbet", "Otra"])
+            plataforma_otra = st.text_input("Especifica la otra plataforma:") if plataforma_ini == "Otra" else ""
 
             if st.form_submit_button("Generar Código e Iniciar Auditoría"):
                 if not eq_apuesta_inicial or not eq_cobertura:
                     st.error("Debes ingresar los nombres de los equipos en ambas cajas.")
                 else:
-                    nuevo_codigo = generar_codigo()
+                    import random, string
+                    nuevo_codigo = f"{''.join(random.choices(string.ascii_uppercase, k=3))}-{random.randint(100, 999)}"
                     plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
                     
-                    seleccion_ini = f"Dutching: {eq_apuesta_inicial} + Empate" if usar_dutching else f"Doble Oportunidad: {eq_apuesta_inicial}"
-                    seleccion_cob = f"Gana {eq_cobertura}"
+                    # Textos para la Base de Datos según la estrategia
+                    if "Fuego" in enfoque_operativo:
+                        seleccion_ini = f"Dutching: Gana {eq_apuesta_inicial} + Gana {eq_cobertura}" if usar_dutching else f"Doble Oportunidad (12): {eq_apuesta_inicial}/{eq_cobertura}"
+                        seleccion_cob = "Empate (X)"
+                    else:
+                        seleccion_ini = f"Dutching: {eq_apuesta_inicial} + Empate" if usar_dutching else f"Doble Oportunidad: {eq_apuesta_inicial}"
+                        seleccion_cob = f"Gana {eq_cobertura}"
                     
+                    # CRUCE DE CUOTAS PARA LA IA: Mantenemos las columnas consistentes
+                    audit_empate = cuota_rival if "Fuego" in enfoque_operativo else cuota_empate
+                    audit_amenaza = cuota_empate if "Fuego" in enfoque_operativo else cuota_rival
+
                     datos = {
                         "codigo": nuevo_codigo,
                         "partido": f"{eq_apuesta_inicial} vs {eq_cobertura}",
@@ -396,11 +428,10 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         "estado": "EN VIVO",
                         "tipo_banca": banca_activa,
                         "hora_inicio_partido": hora_inicio.strftime("%H:%M"),
-                        # Variables de auditoría sincronizadas
                         "cuota_base_audit": cuota_gana,
-                        "cuota_empate_audit": cuota_empate,
+                        "cuota_empate_audit": audit_empate, # ➔ La IA siempre verá el empate real aquí
                         "cuota_dc_audit": cuota_dc_casa,
-                        "cuota_amenaza_audit": cuota_rival, # ➔ ¡CONEXIÓN CORREGIDA AQUÍ!
+                        "cuota_amenaza_audit": audit_amenaza, # ➔ La IA siempre verá al equipo contrario aquí
                         "es_dutching": usar_dutching,
                         "stake_dutch_base": round(stake_base, 2),
                         "stake_dutch_empate": round(stake_emp_dutch, 2)
