@@ -461,7 +461,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
 # MÓDULO 1: ESPORTS SCALPING (PLANEACIÓN Y AUDITORÍA PREVIA)
 # =====================================================================
 elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
-    st.info("**Lógica:** Construcción de entrada pre-partido. La velocidad se aplica en el cierre dinámico.")
+    st.info("**Lógica:** Inversión inicial definida. La inyección de cobertura se calculará dinámicamente en vivo.")
     
     tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
@@ -475,14 +475,14 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
             "🔵 Gana Favorito (Pre-partido a Favorito/Empate)", 
             "🔴 Gana No Favorito (Pre-partido a Sorpresa/Empate)",
             "🔥 Ninguno Gana (Fuego Cruzado - Cazar Empate)",
-            "⚽ Mercado de Goles (Menos de X vs Más de X)" # <--- ACTUALIZADO
+            "⚽ Mercado de Goles (Menos de X vs Más de X)"
         ],
         horizontal=False
     )
     
     nombre_estrategia_bd = "Estrategia 1: eSports Scalping"
     
-    # Cambio dinámico de etiquetas y nuevo selector de periodo
+    # Cambio dinámico de etiquetas
     if "Goles" in enfoque_operativo:
         periodo_goles = st.radio("⏱️ Periodo del Mercado:", ["Primer Tiempo (PT)", "Partido Completo (FT)"], horizontal=True)
         linea_goles = st.number_input(f"Línea de Goles (X) para {periodo_goles}:", value=1.5, step=0.5)
@@ -499,7 +499,7 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
         lab_rival = "3. Gana Rival (Amenaza)"
 
     # =================================================================
-    # ⚖️ MOTOR DE ARBITRAJE
+    # ⚖️ 1. CONSTRUCCIÓN DE CUOTA
     # =================================================================
     st.markdown("---")
     st.markdown("### ⚖️ 1. Construcción de Cuota")
@@ -514,7 +514,6 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
         cuota_efectiva = cuota_gana
         cuota_empate = 0.0
         usar_dutching = False
-        
         st.success(f"⚙️ **CUOTA DIRECTA:** Tu cuota de entrada es **{cuota_efectiva:.3f}**. Mercado de 2 vías sin Dutching.")
     else:
         col_odd1, col_odd2, col_odd3 = st.columns(3)
@@ -528,59 +527,75 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
         prob_gana = 1.0 / cuota_gana
         prob_empate = 1.0 / cuota_empate
         prob_total = prob_gana + prob_empate
-        cuota_sintetica = 1.0 / prob_total
-        
-        cuota_efectiva = cuota_sintetica
+        cuota_efectiva = 1.0 / prob_total
         usar_dutching = True
-        
-        st.success(f"⚙️ **CUOTA SINTÉTICA CREADA:** Tu cuota efectiva de entrada es **{cuota_sintetica:.3f}**. El sistema dividirá el capital automáticamente.")
+        st.success(f"⚙️ **CUOTA SINTÉTICA:** Tu cuota efectiva de entrada es **{cuota_efectiva:.3f}**. El sistema dividirá el capital automáticamente.")
 
     # =================================================================
-    # 💰 CONFIGURACIÓN DE CAPITAL Y GESTIÓN DE RIESGO
+    # 💰 2. ASIGNACIÓN DE CAPITAL Y CÁLCULO DE LÍMITES
     # =================================================================
     st.markdown("---")
     st.markdown("### 💰 2. Asignación de Capital y Riesgo")
     
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        capital_total = st.number_input("Capital Total (COP)", min_value=10000, value=min(50000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
-    with col2:
-        utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=5.0, step=0.5)
-    with col3:
-        porcentaje_perdida = st.slider("Stop Loss Máximo (% de pérdida):", min_value=1.0, max_value=50.0, value=20.0, step=1.0)
+    capital_inicial = st.number_input("Capital Inicial a Invertir (Stake 1)", min_value=5000, value=min(20000, int(saldo_disponible)) if saldo_disponible > 5000 else 10000, step=5000)
 
+    # 🧮 MATEMÁTICA DE LÍMITES DINÁMICOS
+    retorno_bruto_esperado = capital_inicial * cuota_efectiva
+    utilidad_max_posible = retorno_bruto_esperado - capital_inicial
+    max_roi_pct = (utilidad_max_posible / capital_inicial) * 100 if capital_inicial > 0 else 0
+    
+    if max_roi_pct <= 0:
+        st.error("⚠️ La cuota es demasiado baja para generar utilidad. Imposible cubrir.")
+        st.stop()
+        
+    st.markdown(f"<p style='font-size:0.9rem; color:#475569;'><i>(Nota: Tu utilidad máxima posible si no usas cobertura es de <b>${utilidad_max_posible:,.0f}</b> o <b>{max_roi_pct:.1f}%</b>)</i></p>", unsafe_allow_html=True)
+        
+    col1, col2 = st.columns(2)
+    with col1:
+        # El slider se adapta al ROI máximo posible para que JAMÁS dé valores negativos
+        utilidad_esperada = st.slider(
+            "Utilidad Deseada con Seguro (Take Profit):", 
+            min_value=1.0, 
+            max_value=max(1.0, float(max_roi_pct - 0.5)), 
+            value=min(5.0, max(1.0, float(max_roi_pct / 2))), 
+            step=0.5,
+            format="%.1f%%"
+        )
+    with col2:
+        porcentaje_perdida = st.slider(
+            "Stop Loss Máximo (% de pérdida permitida):", 
+            min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%"
+        )
+
+    # 🧮 CÁLCULO EXACTO DE CUOTAS A CAZAR
+    utilidad_objetivo_dinero = capital_inicial * (utilidad_esperada / 100.0)
+    inyeccion_necesaria_tp = utilidad_max_posible - utilidad_objetivo_dinero
+    cuota_a_cazar = retorno_bruto_esperado / inyeccion_necesaria_tp if inyeccion_necesaria_tp > 0 else 0
+    
+    perdida_maxima = capital_inicial * (porcentaje_perdida / 100.0)
+    inyeccion_necesaria_sl = utilidad_max_posible + perdida_maxima
+    cuota_stop_loss = retorno_bruto_esperado / inyeccion_necesaria_sl
+
+    # Auditoría de Riesgo Pre-Partido
     umbral_riesgo_actual = max_riesgo_real if banca_activa == "REAL" else max_riesgo_simulacion
     if saldo_disponible > 0:
-        porcentaje_exposicion = (capital_total / saldo_disponible) * 100
+        porcentaje_exposicion = (capital_inicial / saldo_disponible) * 100
         if porcentaje_exposicion > umbral_riesgo_actual: 
             st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca. Superas el umbral de {umbral_riesgo_actual}%.")
-            
-    # Matemática Financiera Base
-    retorno_objetivo_1 = capital_total * (1 + (utilidad_esperada / 100.0))
-    utilidad_neta_plata = retorno_objetivo_1 - capital_total
-    stake_1 = retorno_objetivo_1 / cuota_efectiva
-    stake_2 = capital_total - stake_1
 
     # Cálculos de partición obligatoria (Dutching vs Directa)
     if usar_dutching:
-        stake_base = stake_1 * (cuota_empate / (cuota_gana + cuota_empate))
-        stake_emp_dutch = stake_1 * (cuota_gana / (cuota_gana + cuota_empate))
+        stake_base = capital_inicial * (cuota_empate / (cuota_gana + cuota_empate))
+        stake_emp_dutch = capital_inicial * (cuota_gana / (cuota_gana + cuota_empate))
     else:
-        stake_base = stake_1
+        stake_base = capital_inicial
         stake_emp_dutch = 0.0
 
     st.markdown("---")
 
-    if capital_total > saldo_disponible:
-        st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera el saldo disponible.</div>', unsafe_allow_html=True)
+    if capital_inicial > saldo_disponible:
+        st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital inicial supera el saldo disponible.</div>', unsafe_allow_html=True)
     else:
-        # En eSports siempre apuntamos a IGUALAR la ganancia en el Take Profit
-        retorno_exigido_cobertura = capital_total + utilidad_neta_plata
-        cuota_a_cazar = retorno_exigido_cobertura / stake_2
-        
-        salvavidas_requerido = capital_total * (1 - (porcentaje_perdida / 100.0))
-        cuota_stop_loss = salvavidas_requerido / stake_2
-        
         if "Goles" in enfoque_operativo:
             sufijo_ui = "PT" if "Primer" in periodo_goles else "FT"
             str_selec_1 = f"Menos de {linea_goles} {sufijo_ui}"
@@ -597,12 +612,10 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
             st.markdown(f"""
             <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
                 <h4 style="margin-top:0;">Fase 1: Pre-partido</h4>
-                <p style="margin:0;">Stake 1 (<b>${stake_1:,.0f} COP</b>):</p>
+                <p style="margin:0;">Stake 1 (<b>${capital_inicial:,.0f} COP</b>):</p>
                 <ul style="margin-top: 5px; margin-bottom: 5px; font-size:0.9rem;">
                     {items_html}
                 </ul>
-                <hr style="margin: 10px 0;">
-                <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva Estimada: <b>${stake_2:,.0f} COP</b></p>
             </div>
             """, unsafe_allow_html=True)
                 
@@ -622,12 +635,12 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
                 <h4 style="margin-top:0; color:#B91C1C;">Stop Loss (Pánico)</h4>
                 <p style="margin:0; font-size:0.85rem;">Si la cuota de {str_amenaza} <b>BAJA</b> a:</p>
                 <h1 style="color:#B91C1C; font-size:2.2rem; margin:10px 0;">{cuota_stop_loss:.2f}</h1>
-                <p style="margin:0; font-size: 0.75rem; color:#475569;">Salvas el {100-porcentaje_perdida:.0f}% de tu caja</p>
+                <p style="margin:0; font-size: 0.75rem; color:#475569;">Salvas el {100-porcentaje_perdida:.0f}% de tu inversión</p>
             </div>
             """, unsafe_allow_html=True)
 
         # =================================================================
-        # 💾 REGISTRO CONTABLE 
+        # 💾 3. REGISTRO CONTABLE 
         # =================================================================
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("### 💾 3. Detalles y Registro de la Operación")
@@ -697,10 +710,10 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
                         "seleccion_inicial": seleccion_ini,
                         "seleccion_cobertura": seleccion_cob,
                         "plataforma_inicial": plataforma_final,
-                        "capital_total": capital_total,
+                        "capital_total": capital_inicial, # Adaptado al dinamismo
                         "cuota_inicial": round(cuota_efectiva, 3),
-                        "stake_1": stake_1,
-                        "reserva_stake_2": stake_2,
+                        "stake_1": capital_inicial, # Stake 1 es el capital inicial completo
+                        "reserva_stake_2": 0, # Ya no se usa reserva estática
                         "cuota_objetivo": cuota_a_cazar,
                         "cuota_stop_loss": cuota_stop_loss,
                         "estado": "EN VIVO",
