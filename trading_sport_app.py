@@ -722,52 +722,84 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                 tipo_banca_operacion = op.get('tipo_banca', 'SIMULACION')
                 
                 # =====================================================================
-                # ⚡ COCKPIT DE ESPORTS (INTERFAZ ULTRARRÁPIDA)
+                # ⚡ COCKPIT DE ESPORTS (INTERFAZ ULTRARRÁPIDA EN PESTAÑA)
                 # =====================================================================
-                if op.get('estrategia') == "Estrategia 1: eSports Scalping": # <--- ACTUALIZADO
-                    st.markdown(f"""
-                    <div style="background:#1E293B; padding:15px; border-radius:8px; border-left:6px solid #F59E0B; color:white; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
-                        <h4 style="margin:0; color:white;">🎮 {op['partido']} (Ref: {op['codigo']})</h4>
-                        <span style="background:#3B82F6; padding:5px 10px; border-radius:4px; font-size:0.8rem; font-weight:bold;">{tipo_banca_operacion}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    c_info1, c_info2, c_info3 = st.columns(3)
-                    c_info1.metric("Punto de Entrada", f"{op['cuota_inicial']:.2f}")
-                    c_info2.metric("🟢 Take Profit Objetivo", f"{op['cuota_objetivo']:.2f}")
-                    c_info3.metric("🔴 Stop Loss de Pánico", f"{op.get('cuota_stop_loss', 0.0):.2f}")
-                    
-                    # Panel reactivo de liquidación (Sin scroll, directo a la acción)
-                    st.markdown("**⚡ Terminal de Salida Rápida**")
-                    with st.form(f"exit_esports_{op['codigo']}"):
-                        cuota_salida = st.number_input("Digite la Cuota Actual (En vivo):", min_value=1.01, step=0.01, value=float(op['cuota_inicial']))
+                if op.get('estrategia') == "Estrategia 1: eSports Scalping":
+                    # 1. Corrección: Ahora está dentro de una pestaña desplegable
+                    with st.expander(f"🎮 {op['partido']} | Ref: {op['codigo']} | Estado: {op['estado']}"):
+                        st.markdown(f"""
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <span style="background:#3B82F6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold;">{tipo_banca_operacion}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
                         
-                        col_b1, col_b2 = st.columns(2)
-                        btn_verde = col_b1.form_submit_button("🟢 CERRAR CON PROFIT (Seguro Cazado)")
-                        btn_rojo = col_b2.form_submit_button("🔴 EJECUTAR STOP LOSS (Pérdida Asumida)")
+                        c_info1, c_info2, c_info3 = st.columns(3)
+                        c_info1.metric("Punto de Entrada", f"{op['cuota_inicial']:.2f}")
+                        c_info2.metric("🟢 Take Profit Objetivo", f"{op['cuota_objetivo']:.2f}")
+                        c_info3.metric("🔴 Stop Loss de Pánico", f"{op.get('cuota_stop_loss', 0.0):.2f}")
                         
-                        if btn_verde or btn_rojo:
-                            # Matemática de Cobertura Universal (Aplica para ganancia o pérdida)
-                            retorno_bruto = op['stake_1'] * op['cuota_inicial']
-                            stake_usado = retorno_bruto / cuota_salida
-                            
-                            utilidad = retorno_bruto - op['stake_1'] - stake_usado
-                            
-                            texto_cierre = "Cierre eSports: Profit" if btn_verde else "Cierre eSports: Stop Loss Ejecutado"
+                        st.markdown("---")
+                        
+                        if op['estado'] == "EN VIVO":
+                            st.markdown("**⚡ Terminal de Salida Rápida**")
+                            with st.form(f"exit_esports_{op['codigo']}"):
+                                # 2. Corrección: Puedes ingresar cualquier cuota intermedia
+                                cuota_salida = st.number_input("Digite la Cuota Actual (En vivo):", min_value=1.01, step=0.01, value=float(op['cuota_inicial']))
                                 
-                            supabase.table("historial_trading").update({
-                                "estado": "CERRADA",
-                                "resultado_final": texto_cierre,
-                                "cuota_cazada_real": cuota_salida,
-                                "utilidad_neta_real": utilidad,
-                                "roi_real": (utilidad / op['capital_total']) * 100,
-                                "goles_finales_seleccion": 0, # IA no necesita goles aquí
-                                "goles_finales_rival": 0
-                            }).eq("codigo", op['codigo']).execute()
-                            
-                            st.success(f"Operación eSports liquidada en milisegundos. Balance: ${utilidad:,.0f} COP")
-                            st.rerun()
-                    st.markdown("<hr style='margin: 15px 0 30px 0;'>", unsafe_allow_html=True)
+                                # 3. Corrección: Botones lógicos y universales
+                                col_b1, col_b2, col_b3 = st.columns(3)
+                                btn_cobertura = col_b1.form_submit_button("⚡ REGISTRAR COBERTURA (Cazar Cuota)")
+                                btn_loss = col_b2.form_submit_button("❌ PÉRDIDA DIRECTA (Sin Cobertura)")
+                                btn_win = col_b3.form_submit_button("✅ VICTORIA DIRECTA (Sin Cobertura)")
+                                
+                                if btn_cobertura:
+                                    # Matemática de Cobertura Universal (Aplica para CUALQUIER cuota ingresada)
+                                    retorno_bruto = op['stake_1'] * op['cuota_inicial']
+                                    stake_usado = retorno_bruto / cuota_salida
+                                    
+                                    utilidad = retorno_bruto - op['stake_1'] - stake_usado
+                                    
+                                    # El sistema audita matemáticamente si fue profit o pérdida
+                                    texto_cierre = "Cierre eSports: Profit" if utilidad > 0 else "Cierre eSports: Pérdida por Cobertura"
+                                        
+                                    supabase.table("historial_trading").update({
+                                        "estado": "CERRADA",
+                                        "resultado_final": texto_cierre,
+                                        "cuota_cazada_real": cuota_salida,
+                                        "utilidad_neta_real": utilidad,
+                                        "roi_real": (utilidad / op['capital_total']) * 100,
+                                        "goles_finales_seleccion": 0,
+                                        "goles_finales_rival": 0
+                                    }).eq("codigo", op['codigo']).execute()
+                                    
+                                    st.success(f"Cobertura eSports liquidada. Balance: ${utilidad:,.0f} COP")
+                                    st.rerun()
+                                    
+                                elif btn_loss:
+                                    utilidad = -op['stake_1']
+                                    supabase.table("historial_trading").update({
+                                        "estado": "CERRADA",
+                                        "resultado_final": "Cierre eSports: Pérdida Directa",
+                                        "utilidad_neta_real": utilidad,
+                                        "roi_real": (utilidad / op['capital_total']) * 100,
+                                        "goles_finales_seleccion": 0, 
+                                        "goles_finales_rival": 0
+                                    }).eq("codigo", op['codigo']).execute()
+                                    st.success(f"Pérdida directa registrada. Balance: ${utilidad:,.0f} COP")
+                                    st.rerun()
+                                    
+                                elif btn_win:
+                                    utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
+                                    supabase.table("historial_trading").update({
+                                        "estado": "CERRADA",
+                                        "resultado_final": "Cierre eSports: Victoria Directa",
+                                        "utilidad_neta_real": utilidad,
+                                        "roi_real": (utilidad / op['capital_total']) * 100,
+                                        "goles_finales_seleccion": 0, 
+                                        "goles_finales_rival": 0
+                                    }).eq("codigo", op['codigo']).execute()
+                                    st.success(f"Victoria directa registrada. Balance: ${utilidad:,.0f} COP")
+                                    st.rerun()
                 
                 # =====================================================================
                 # ⚽ INTERFAZ TÁCTICA PARA FÚTBOL (PAZ MENTAL Y LIBRE)
