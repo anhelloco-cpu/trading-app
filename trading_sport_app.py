@@ -548,9 +548,7 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
 
     st.markdown("---")
 
-    if stake_2 < 5000:
-        st.markdown(f'<div class="error-caja"><b>🚨 RESTRICCIÓN:</b> Reserva menor a $5,000. Ajusta el capital o utilidad.</div>', unsafe_allow_html=True)
-    elif capital_total > saldo_disponible:
+    if capital_total > saldo_disponible:
         st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera el saldo disponible.</div>', unsafe_allow_html=True)
     else:
         # En eSports siempre apuntamos a IGUALAR la ganancia en el Take Profit
@@ -575,7 +573,7 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
                     <li><b>${stake_emp_dutch:,.0f}</b> ➔ {str_selec_2}</li>
                 </ul>
                 <hr style="margin: 10px 0;">
-                <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva: <b>${stake_2:,.0f} COP</b></p>
+                <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva Estimada: <b>${stake_2:,.0f} COP</b></p>
             </div>
             """, unsafe_allow_html=True)
                 
