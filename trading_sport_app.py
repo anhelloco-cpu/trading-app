@@ -725,53 +725,94 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         st.markdown("---")
                         
                         # -------------------------------------------------------------
-                        # FASE 1: EN VIVO (CAPTURA REACTIVA DE COBERTURA)
+                        # FASE 1: EN VIVO (CAPTURA REACTIVA O LIQUIDACIÓN DIRECTA)
                         # -------------------------------------------------------------
                         if op['estado'] == "EN VIVO":
-                            st.markdown("**⚡ Terminal de Salida Rápida y Auditoría**")
+                            accion_esports = st.radio(
+                                "Acción Operativa eSports:", 
+                                ["⚡ Cazar Cuota (Cobertura Dinámica)", "🏁 Liquidar Posición Directa (Sin Cobertura)"],
+                                key=f"acc_es_{op['codigo']}",
+                                horizontal=True
+                            )
                             
-                            cuota_salida = st.number_input("Tasa Actual (En vivo):", min_value=1.01, step=0.01, value=float(op['cuota_inicial']), key=f"c_live_es_{op['codigo']}")
-                            
-                            # Matemática de Hedging Dinámico (Calcula el dinero exacto para garantizar verde)
-                            retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
-                            monto_a_inyectar = retorno_bruto_esperado / cuota_salida
-                            utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
-                            
-                            # Auditoría de Umbral de Riesgo Patrimonial (Stake 1 + Inyección)
-                            total_en_juego = op['stake_1'] + monto_a_inyectar
-                            exposicion_actual_pct = (total_en_juego / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
-                            
-                            if exposicion_actual_pct > umbral_permitido:
-                                st.error(f"⚠️ ALERTA DE UMBRAL: Esta inyección requiere elevar tu exposición al **{exposicion_actual_pct:.1f}%** de la banca. Tu límite permitido es **{umbral_permitido}%**.")
-                            
-                            # Semáforo Visual de la Operación
-                            if utilidad_proyectada >= 0:
-                                color_box, border_box, text_color = "#F0FDF4", "#16A34A", "#15803D"
-                                veredicto = "✅ ESTADO ÓPTIMO: La matemática garantiza recuperación total + utilidad."
-                            else:
-                                color_box, border_box, text_color = "#FFFBEB", "#F59E0B", "#B45309"
-                                veredicto = "⚠️ ALERTA AMARILLA: Cuota en pérdida parcial controlada (No ha tocado Stop Loss)."
+                            if accion_esports == "⚡ Cazar Cuota (Cobertura Dinámica)":
+                                st.markdown("**⚡ Terminal de Salida Rápida y Auditoría**")
+                                
+                                cuota_salida = st.number_input("Tasa Actual (En vivo):", min_value=1.01, step=0.01, value=float(op['cuota_inicial']), key=f"c_live_es_{op['codigo']}")
+                                
+                                # Matemática de Hedging Dinámico (Calcula el dinero exacto para garantizar verde)
+                                retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
+                                monto_a_inyectar = retorno_bruto_esperado / cuota_salida
+                                utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
+                                
+                                # Auditoría de Umbral de Riesgo Patrimonial (Stake 1 + Inyección)
+                                total_en_juego = op['stake_1'] + monto_a_inyectar
+                                exposicion_actual_pct = (total_en_juego / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
+                                
+                                if exposicion_actual_pct > umbral_permitido:
+                                    st.error(f"⚠️ ALERTA DE UMBRAL: Esta inyección requiere elevar tu exposición al **{exposicion_actual_pct:.1f}%** de la banca. Tu límite permitido es **{umbral_permitido}%**.")
+                                
+                                # Semáforo Visual de la Operación
+                                if utilidad_proyectada >= 0:
+                                    color_box, border_box, text_color = "#F0FDF4", "#16A34A", "#15803D"
+                                    veredicto = "✅ ESTADO ÓPTIMO: La matemática garantiza recuperación total + utilidad."
+                                else:
+                                    color_box, border_box, text_color = "#FFFBEB", "#F59E0B", "#B45309"
+                                    veredicto = "⚠️ ALERTA AMARILLA: Cuota en pérdida parcial controlada (No ha tocado Stop Loss)."
 
-                            st.markdown(f"""
-                            <div style="background-color: {color_box}; padding: 15px; border-left: 5px solid {border_box}; border-radius: 4px; margin-bottom: 20px;">
-                                <p style="margin:0; font-size:1.05rem; color:#1E293B;">💵 Inversión dinámica exigida en <b>{sel_cob}</b>: <span style="font-weight:bold; color:#1E3A8A;">${monto_a_inyectar:,.0f} COP</span></p>
-                                <p style="margin:5px 0; font-size:1.05rem; color:#1E293B;">📈 Proyección Balance: <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></p>
-                                <p style="margin:0; font-size:0.9rem; color:#475569;">💼 Exposición total estimada: <b>{exposicion_actual_pct:.1f}%</b></p>
-                                <hr style="margin: 10px 0; border-color: {border_box}; opacity: 0.3;">
-                                <p style="margin:0; font-weight:bold; color:{text_color};">{veredicto}</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            if st.button("⚡ REGISTRAR COBERTURA", key=f"btn_cob_es_{op['codigo']}", use_container_width=True):
-                                hora_actual = datetime.datetime.now().strftime("%H:%M")
-                                supabase.table("historial_trading").update({
-                                    "estado": "CUBIERTA",
-                                    "cuota_cazada_real": cuota_salida,
-                                    "hora_cobertura": hora_actual,
-                                    "plataforma_cobertura": "eSports Live"
-                                }).eq("codigo", op['codigo']).execute()
-                                st.success(f"¡Cobertura fijada con éxito a cuota {cuota_salida}! Operación protegida.")
-                                st.rerun()
+                                st.markdown(f"""
+                                <div style="background-color: {color_box}; padding: 15px; border-left: 5px solid {border_box}; border-radius: 4px; margin-bottom: 20px;">
+                                    <p style="margin:0; font-size:1.05rem; color:#1E293B;">💵 Inversión dinámica exigida en <b>{sel_cob}</b>: <span style="font-weight:bold; color:#1E3A8A;">${monto_a_inyectar:,.0f} COP</span></p>
+                                    <p style="margin:5px 0; font-size:1.05rem; color:#1E293B;">📈 Proyección Balance: <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></p>
+                                    <p style="margin:0; font-size:0.9rem; color:#475569;">💼 Exposición total estimada: <b>{exposicion_actual_pct:.1f}%</b></p>
+                                    <hr style="margin: 10px 0; border-color: {border_box}; opacity: 0.3;">
+                                    <p style="margin:0; font-weight:bold; color:{text_color};">{veredicto}</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                if st.button("⚡ REGISTRAR COBERTURA", key=f"btn_cob_es_{op['codigo']}", use_container_width=True):
+                                    hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                    supabase.table("historial_trading").update({
+                                        "estado": "CUBIERTA",
+                                        "cuota_cazada_real": cuota_salida,
+                                        "hora_cobertura": hora_actual,
+                                        "plataforma_cobertura": "eSports Live"
+                                    }).eq("codigo", op['codigo']).execute()
+                                    st.success(f"¡Cobertura fijada con éxito a cuota {cuota_salida}! Operación protegida.")
+                                    st.rerun()
+                                    
+                            else:
+                                with st.form(f"get_dir_es_{op['codigo']}"):
+                                    st.markdown("#### 🏁 Conciliación Directa (Sin Cobertura)")
+                                    resultado_directo = st.radio(
+                                        "Resolución de tu Apuesta:", 
+                                        [f"✅ Ganó {sel_ini} (Cobro completo)", f"❌ Perdió {sel_ini} (Pérdida Stake 1)"],
+                                        key=f"rad_dir_es_{op['codigo']}"
+                                    )
+                                    
+                                    st.markdown("---")
+                                    st.markdown("🤖 **Datos para Entrenamiento de IA (Obligatorio)**")
+                                    goles_finales_seleccion = st.number_input(f"🎮 Puntos/Goles finales de {sel_ini}:", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
+                                    goles_finales_rival = st.number_input(f"🎮 Puntos/Goles finales de {sel_cob}:", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
+                                    
+                                    if st.form_submit_button("Registrar Liquidación Directa"):
+                                        if "Ganó" in resultado_directo:
+                                            utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
+                                            texto_cierre = "Cierre Directo eSports: Ganó Inicial"
+                                        else:
+                                            utilidad = -op['stake_1']
+                                            texto_cierre = "Cierre Directo eSports: Perdió Inicial"
+                                            
+                                        supabase.table("historial_trading").update({
+                                            "estado": "CERRADA",
+                                            "resultado_final": texto_cierre,
+                                            "utilidad_neta_real": utilidad,
+                                            "roi_real": (utilidad / op['capital_total']) * 100,
+                                            "goles_finales_seleccion": goles_finales_seleccion, 
+                                            "goles_finales_rival": goles_finales_rival         
+                                        }).eq("codigo", op['codigo']).execute()
+                                        st.success(f"Posición liquidada y datos guardados para la IA. Utilidad real: ${utilidad:,.0f} COP.")
+                                        st.rerun()
                                 
                         # -------------------------------------------------------------
                         # FASE 2: CUBIERTA (CONCILIACIÓN FINAL E IA CON GOLES)
@@ -822,6 +863,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     
                                     st.success(f"Libro cerrado y datos transferidos a la base de datos de la IA. Balance neto: ${utilidad:,.0f} COP.")
                                     st.rerun()
+                                    
                 # =====================================================================
                 # ⚽ INTERFAZ TÁCTICA PARA FÚTBOL (PAZ MENTAL Y LIBRE)
                 # =====================================================================
