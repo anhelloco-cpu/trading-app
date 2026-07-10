@@ -221,19 +221,28 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
     saldo_disponible = saldo_real if banca_activa == "REAL" else saldo_simulacion
     
-    # --- SELECTOR DE ENFOQUE (TRES VARIANTES AHORA) ---
+    # --- SELECTOR DE ENFOQUE (CUATRO VARIANTES) ---
     st.markdown("---")
     enfoque_operativo = st.radio(
         "🎯 Enfoque de Mercado (Determina el libro de auditoría):",
         [
             "🔵 Clásico (Pre-partido a Favorito/Empate)", 
             "🔴 Inverso (Pre-partido a Sorpresa/Empate)",
-            "🔥 Fuego Cruzado (Cualquiera Gana - Cazar Empate)"
+            "🔥 Fuego Cruzado (Cualquiera Gana - Cazar Empate)",
+            "🎮 eSports (Scalping + Stop Loss)"
         ],
         horizontal=False
     )
     
-    nombre_estrategia_bd = "Estrategia 2: Fuego Cruzado" if "Fuego" in enfoque_operativo else ("Estrategia 2: Clásica" if "Clásico" in enfoque_operativo else "Estrategia 2: Inversa")
+    # Asignación del nombre para la base de datos
+    if "Fuego" in enfoque_operativo:
+        nombre_estrategia_bd = "Estrategia 2: Fuego Cruzado"
+    elif "eSports" in enfoque_operativo:
+        nombre_estrategia_bd = "Estrategia 3: eSports Scalping"
+    elif "Clásico" in enfoque_operativo:
+        nombre_estrategia_bd = "Estrategia 2: Clásica"
+    else:
+        nombre_estrategia_bd = "Estrategia 2: Inversa"
     
     # Cambio dinámico de etiquetas según la estrategia
     if "Fuego" in enfoque_operativo:
@@ -245,7 +254,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
         lab_gana = "1. Gana Tu Equipo"
         lab_empate = "2. Empate (X)"
         lab_dc = "3. Doble Oportunidad"
-        lab_rival = "4. Gana Rival"
+        lab_rival = "4. Gana Rival (Amenaza)"
 
     # =================================================================
     # ⚖️ MOTOR DE ARBITRAJE (DUTCHING CALCULATOR)
@@ -263,7 +272,6 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     with col_odd4:
         cuota_rival = st.number_input(lab_rival, min_value=1.01, value=3.20 if "Fuego" in enfoque_operativo else 4.00, step=0.05)
 
-    # Cálculos Matemáticos Base (La fórmula de Dutching es universal)
     prob_gana = 1.0 / cuota_gana
     prob_empate = 1.0 / cuota_empate
     prob_total = prob_gana + prob_empate
@@ -271,7 +279,6 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
 
     diferencia_cuotas = cuota_sintetica - cuota_dc_casa
 
-    # Veredicto de Inversión
     if diferencia_cuotas > 0.01:
         usar_dutching = True
         cuota_efectiva = cuota_sintetica
@@ -285,22 +292,28 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
             st.info(f"⚖️ **MERCADO BALANCEADO:** No hay ventaja matemática en separar la apuesta. **Ve directo al botón de Doble Oportunidad.**")
 
     # =================================================================
-    # 💰 CONFIGURACIÓN DE CAPITAL 
+    # 💰 CONFIGURACIÓN DE CAPITAL Y GESTIÓN DE RIESGO
     # =================================================================
     st.markdown("---")
-    st.markdown("### 💰 2. Asignación de Capital")
+    st.markdown("### 💰 2. Asignación de Capital y Riesgo")
     
     col1, col2 = st.columns(2)
     with col1:
         capital_total = st.number_input("Capital Total (COP)", min_value=10000, value=min(50000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
     with col2:
-        utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=10.0, step=0.5)
+        utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=10.0 if "eSports" not in enfoque_operativo else 5.0, step=0.5)
 
-    riesgo = st.slider("Exigencia en Cobertura (0% = Librar, 100% = Ganancia Igualada):", min_value=0, max_value=100, value=50, step=10)
+    if "eSports" in enfoque_operativo:
+        # Selector de pérdida máxima exclusivo para eSports
+        porcentaje_perdida = st.slider("Tolerancia Máxima de Pérdida (Stop Loss %):", min_value=1.0, max_value=50.0, value=20.0, step=1.0)
+        riesgo = 100  # En eSports solemos buscar igualar la utilidad en el cierre
+    else:
+        riesgo = st.slider("Exigencia en Cobertura (0% = Librar, 100% = Ganancia Igualada):", min_value=0, max_value=100, value=50, step=10)
+        porcentaje_perdida = 0
 
     if saldo_disponible > 0:
         porcentaje_exposicion = (capital_total / saldo_disponible) * 100
-        if porcentaje_exposicion > 10: # Suponiendo un máximo de 10%
+        if porcentaje_exposicion > 10: 
             st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca.")
 
     # Matemática Financiera Base
@@ -324,52 +337,71 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
     elif capital_total > saldo_disponible:
         st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera el saldo disponible.</div>', unsafe_allow_html=True)
     else:
+        # Cálculo del Take Profit (Cuota a Cazar)
         retorno_exigido_cobertura = capital_total + (utilidad_neta_plata * (riesgo / 100.0))
         cuota_a_cazar = retorno_exigido_cobertura / stake_2
         
-        # Textos dinámicos para los recuadros
+        # Cálculo del Stop Loss (Solo para eSports)
+        cuota_stop_loss = 0
+        if "eSports" in enfoque_operativo:
+            salvavidas_requerido = capital_total * (1 - (porcentaje_perdida / 100.0))
+            cuota_stop_loss = salvavidas_requerido / stake_2
+        
         str_selec_1 = "Gana Local" if "Fuego" in enfoque_operativo else "Gana tu Equipo"
         str_selec_2 = "Gana Visitante" if "Fuego" in enfoque_operativo else "Empate"
         str_amenaza = "Empate" if "Fuego" in enfoque_operativo else "Rival"
         str_dc = "12 (Local/Visita)" if "Fuego" in enfoque_operativo else "Gana/Empata"
 
-        col_plan1, col_plan2 = st.columns(2)
-        with col_plan1:
+        # Ajuste dinámico de columnas según si hay Stop Loss o no
+        cols_plan = st.columns(3) if "eSports" in enfoque_operativo else st.columns(2)
+        
+        with cols_plan[0]:
             if usar_dutching:
                 st.markdown(f"""
                 <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
-                    <h4 style="margin-top:0;">Fase 1: Pre-partido (Dutching)</h4>
-                    <p style="margin:0;">Divide tu Stake 1 de <b>${stake_1:,.0f} COP</b> así:</p>
-                    <ul style="margin-top: 5px; margin-bottom: 5px;">
-                        <li><b>${stake_base:,.0f}</b> ➔ {str_selec_1} (Cuota {cuota_gana:.2f})</li>
-                        <li><b>${stake_emp_dutch:,.0f}</b> ➔ {str_selec_2} (Cuota {cuota_empate:.2f})</li>
+                    <h4 style="margin-top:0;">Fase 1: Pre-partido</h4>
+                    <p style="margin:0;">Stake 1 (<b>${stake_1:,.0f} COP</b>):</p>
+                    <ul style="margin-top: 5px; margin-bottom: 5px; font-size:0.9rem;">
+                        <li><b>${stake_base:,.0f}</b> ➔ {str_selec_1}</li>
+                        <li><b>${stake_emp_dutch:,.0f}</b> ➔ {str_selec_2}</li>
                     </ul>
                     <hr style="margin: 10px 0;">
-                    <p style="margin:0; color:#475569;">Fondo de Reserva: <b>${stake_2:,.0f} COP</b></p>
+                    <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva: <b>${stake_2:,.0f} COP</b></p>
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown(f"""
                 <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
-                    <h4 style="margin-top:0;">Fase 1: Pre-partido (Directo)</h4>
-                    <p style="margin:0;">Ejecuta un ticket único:</p>
-                    <ul style="margin-top: 5px; margin-bottom: 5px;">
-                        <li><b>${stake_1:,.0f}</b> ➔ D.O. {str_dc} (Cuota {cuota_efectiva:.2f})</li>
+                    <h4 style="margin-top:0;">Fase 1: Pre-partido</h4>
+                    <p style="margin:0;">Ticket Directo:</p>
+                    <ul style="margin-top: 5px; margin-bottom: 5px; font-size:0.9rem;">
+                        <li><b>${stake_1:,.0f}</b> ➔ {str_dc} (Cuota {cuota_efectiva:.2f})</li>
                     </ul>
                     <hr style="margin: 10px 0;">
-                    <p style="margin:0; color:#475569;">Fondo de Reserva: <b>${stake_2:,.0f} COP</b></p>
+                    <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva: <b>${stake_2:,.0f} COP</b></p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-        with col_plan2:
+        with cols_plan[1]:
             st.markdown(f"""
             <div style="background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 15px; border-radius: 4px; text-align: center;">
-                <h4 style="margin-top:0;">Fase 2: En Vivo</h4>
-                <p style="margin:0;">Caza el Seguro ({str_amenaza}) a:</p>
-                <h1 style="color:#15803D; font-size:3rem; margin:10px 0;">{cuota_a_cazar:.2f}</h1>
-                <p style="margin:0; font-size: 0.85rem; color:#475569;">(Cuota actual: {cuota_rival:.2f})</p>
+                <h4 style="margin-top:0; color:#15803D;">Take Profit (Ganancia)</h4>
+                <p style="margin:0; font-size:0.85rem;">Si la cuota de {str_amenaza} <b>SUBE</b> a:</p>
+                <h1 style="color:#15803D; font-size:2.2rem; margin:10px 0;">{cuota_a_cazar:.2f}</h1>
+                <p style="margin:0; font-size: 0.75rem; color:#475569;">Cazas con tu Reserva Completa</p>
             </div>
             """, unsafe_allow_html=True)
+            
+        if "eSports" in enfoque_operativo:
+            with cols_plan[2]:
+                st.markdown(f"""
+                <div style="background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 15px; border-radius: 4px; text-align: center;">
+                    <h4 style="margin-top:0; color:#B91C1C;">Stop Loss (Pánico)</h4>
+                    <p style="margin:0; font-size:0.85rem;">Si la cuota de {str_amenaza} <b>BAJA</b> a:</p>
+                    <h1 style="color:#B91C1C; font-size:2.2rem; margin:10px 0;">{cuota_stop_loss:.2f}</h1>
+                    <p style="margin:0; font-size: 0.75rem; color:#475569;">Liquida y salva tu {100-porcentaje_perdida:.0f}%</p>
+                </div>
+                """, unsafe_allow_html=True)
 
         # =================================================================
         # 💾 REGISTRO CONTABLE 
