@@ -458,10 +458,10 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         st.error(f"❌ Error de Supabase: {str(e)}")
 
 # =====================================================================
-# MÓDULO 1.1: ESPORTS SCALPING (PLANEACIÓN Y AUDITORÍA PREVIA)
+# MÓDULO 1: ESPORTS SCALPING (PLANEACIÓN Y AUDITORÍA PREVIA)
 # =====================================================================
 elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
-    st.info("**Lógica:** Auditoría financiera rigurosa pre-partido. La velocidad se aplica en el cierre (Módulo de Seguimiento).")
+    st.info("**Lógica:** Construcción obligatoria de cuota sintética pre-partido. La velocidad se aplica en el cierre.")
     
     tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
@@ -481,51 +481,40 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
     
     nombre_estrategia_bd = "Estrategia 1: eSports Scalping"
     
-    # Cambio dinámico de etiquetas según la estrategia
+    # Cambio dinámico de etiquetas (Eliminado Doble Oportunidad)
     if "Ninguno" in enfoque_operativo:
         lab_gana = "1. Gana Local"
         lab_empate = "2. Gana Visitante"
-        lab_dc = "3. Doble Oportunidad (12)"
-        lab_rival = "4. Empate (Amenaza)"
+        lab_rival = "3. Empate (Amenaza)"
     else:
         lab_gana = "1. Gana Tu Equipo"
         lab_empate = "2. Empate (X)"
-        lab_dc = "3. Doble Oportunidad"
-        lab_rival = "4. Gana Rival (Amenaza)"
+        lab_rival = "3. Gana Rival (Amenaza)"
 
     # =================================================================
-    # ⚖️ MOTOR DE ARBITRAJE (DUTCHING CALCULATOR)
+    # ⚖️ MOTOR DE ARBITRAJE (SINTÉTICO OBLIGATORIO)
     # =================================================================
     st.markdown("---")
-    st.markdown("### ⚖️ 1. Motor de Arbitraje (Auditoría de Cuotas)")
+    st.markdown("### ⚖️ 1. Construcción de Cuota Sintética")
     
-    col_odd1, col_odd2, col_odd3, col_odd4 = st.columns(4)
+    col_odd1, col_odd2, col_odd3 = st.columns(3)
     with col_odd1:
         cuota_gana = st.number_input(lab_gana, min_value=1.01, value=2.00, step=0.05)
     with col_odd2:
         cuota_empate = st.number_input(lab_empate, min_value=1.01, value=2.80 if "Ninguno" in enfoque_operativo else 3.65, step=0.05)
     with col_odd3:
-        cuota_dc_casa = st.number_input(lab_dc, min_value=1.01, value=1.35 if "Ninguno" in enfoque_operativo else 1.26, step=0.01)
-    with col_odd4:
         cuota_rival = st.number_input(lab_rival, min_value=1.01, value=3.20 if "Ninguno" in enfoque_operativo else 4.00, step=0.05)
 
     prob_gana = 1.0 / cuota_gana
     prob_empate = 1.0 / cuota_empate
     prob_total = prob_gana + prob_empate
     cuota_sintetica = 1.0 / prob_total
-    diferencia_cuotas = cuota_sintetica - cuota_dc_casa
-
-    if diferencia_cuotas > 0.01:
-        usar_dutching = True
-        cuota_efectiva = cuota_sintetica
-        st.success(f"🚨 **INEFICIENCIA DETECTADA:** La cuota sintética es **{cuota_sintetica:.3f}**. Le ganas {diferencia_cuotas:.3f} a la casa.")
-    else:
-        usar_dutching = False
-        cuota_efectiva = cuota_dc_casa
-        if diferencia_cuotas < -0.01:
-            st.info(f"✅ **CUOTA JUSTA:** La casa te paga mejor (**{cuota_dc_casa:.2f}**) que el sintético. Usa la Doble Oportunidad.")
-        else:
-            st.info(f"⚖️ **MERCADO BALANCEADO:** Ve directo al botón de Doble Oportunidad.")
+    
+    # En eSports siempre operamos con el Dutching activo
+    usar_dutching = True
+    cuota_efectiva = cuota_sintetica
+    
+    st.success(f"⚙️ **CUOTA SINTÉTICA CREADA:** Tu cuota efectiva de entrada es **{cuota_sintetica:.3f}**. El sistema dividirá el capital automáticamente.")
 
     # =================================================================
     # 💰 CONFIGURACIÓN DE CAPITAL Y GESTIÓN DE RIESGO
@@ -553,13 +542,9 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
     stake_1 = retorno_objetivo_1 / cuota_efectiva
     stake_2 = capital_total - stake_1
 
-    # Cálculos de partición (Dutching)
-    if usar_dutching:
-        stake_base = stake_1 * (cuota_empate / (cuota_gana + cuota_empate))
-        stake_emp_dutch = stake_1 * (cuota_gana / (cuota_gana + cuota_empate))
-    else:
-        stake_base = stake_1
-        stake_emp_dutch = 0
+    # Cálculos de partición obligatoria (Dutching)
+    stake_base = stake_1 * (cuota_empate / (cuota_gana + cuota_empate))
+    stake_emp_dutch = stake_1 * (cuota_gana / (cuota_gana + cuota_empate))
 
     st.markdown("---")
 
@@ -568,7 +553,7 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
     elif capital_total > saldo_disponible:
         st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera el saldo disponible.</div>', unsafe_allow_html=True)
     else:
-        # En eSports siempre apuntamos a IGUALAR la ganancia (riesgo 100%) en el Take Profit
+        # En eSports siempre apuntamos a IGUALAR la ganancia en el Take Profit
         retorno_exigido_cobertura = capital_total + utilidad_neta_plata
         cuota_a_cazar = retorno_exigido_cobertura / stake_2
         
@@ -578,35 +563,21 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
         str_selec_1 = "Gana Local" if "Ninguno" in enfoque_operativo else "Gana tu Equipo"
         str_selec_2 = "Gana Visitante" if "Ninguno" in enfoque_operativo else "Empate"
         str_amenaza = "Empate" if "Ninguno" in enfoque_operativo else "Rival"
-        str_dc = "12 (Local/Visita)" if "Ninguno" in enfoque_operativo else "Gana/Empata"
 
         cols_plan = st.columns(3)
         with cols_plan[0]:
-            if usar_dutching:
-                st.markdown(f"""
-                <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
-                    <h4 style="margin-top:0;">Fase 1: Pre-partido</h4>
-                    <p style="margin:0;">Stake 1 (<b>${stake_1:,.0f} COP</b>):</p>
-                    <ul style="margin-top: 5px; margin-bottom: 5px; font-size:0.9rem;">
-                        <li><b>${stake_base:,.0f}</b> ➔ {str_selec_1}</li>
-                        <li><b>${stake_emp_dutch:,.0f}</b> ➔ {str_selec_2}</li>
-                    </ul>
-                    <hr style="margin: 10px 0;">
-                    <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva: <b>${stake_2:,.0f} COP</b></p>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
-                    <h4 style="margin-top:0;">Fase 1: Pre-partido</h4>
-                    <p style="margin:0;">Ticket Directo:</p>
-                    <ul style="margin-top: 5px; margin-bottom: 5px; font-size:0.9rem;">
-                        <li><b>${stake_1:,.0f}</b> ➔ {str_dc} (Cuota {cuota_efectiva:.2f})</li>
-                    </ul>
-                    <hr style="margin: 10px 0;">
-                    <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva: <b>${stake_2:,.0f} COP</b></p>
-                </div>
-                """, unsafe_allow_html=True)
+            st.markdown(f"""
+            <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
+                <h4 style="margin-top:0;">Fase 1: Pre-partido</h4>
+                <p style="margin:0;">Stake 1 (<b>${stake_1:,.0f} COP</b>):</p>
+                <ul style="margin-top: 5px; margin-bottom: 5px; font-size:0.9rem;">
+                    <li><b>${stake_base:,.0f}</b> ➔ {str_selec_1}</li>
+                    <li><b>${stake_emp_dutch:,.0f}</b> ➔ {str_selec_2}</li>
+                </ul>
+                <hr style="margin: 10px 0;">
+                <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva: <b>${stake_2:,.0f} COP</b></p>
+            </div>
+            """, unsafe_allow_html=True)
                 
         with cols_plan[1]:
             st.markdown(f"""
@@ -659,10 +630,10 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
                     plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
                     
                     if "Ninguno" in enfoque_operativo:
-                        seleccion_ini = f"Dutching: Gana {eq_apuesta_inicial} + Gana {eq_cobertura}" if usar_dutching else f"Doble Oportunidad (12): {eq_apuesta_inicial}/{eq_cobertura}"
+                        seleccion_ini = f"Dutching: Gana {eq_apuesta_inicial} + Gana {eq_cobertura}"
                         seleccion_cob = "Empate (X)"
                     else:
-                        seleccion_ini = f"Dutching: {eq_apuesta_inicial} + Empate" if usar_dutching else f"Doble Oportunidad: {eq_apuesta_inicial}"
+                        seleccion_ini = f"Dutching: {eq_apuesta_inicial} + Empate"
                         seleccion_cob = f"Gana {eq_cobertura}"
                     
                     audit_empate = cuota_rival if "Ninguno" in enfoque_operativo else cuota_empate
@@ -680,13 +651,13 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
                         "stake_1": stake_1,
                         "reserva_stake_2": stake_2,
                         "cuota_objetivo": cuota_a_cazar,
-                        "cuota_stop_loss": cuota_stop_loss, # DATO VITAL DE ESPORTS
+                        "cuota_stop_loss": cuota_stop_loss,
                         "estado": "EN VIVO",
                         "tipo_banca": banca_activa,
                         "hora_inicio_partido": hora_inicio.strftime("%H:%M"),
                         "cuota_base_audit": cuota_gana,
                         "cuota_empate_audit": audit_empate, 
-                        "cuota_dc_audit": cuota_dc_casa,
+                        "cuota_dc_audit": 0.0, # Se manda en cero ya que no aplica para eSports
                         "cuota_amenaza_audit": audit_amenaza, 
                         "es_dutching": usar_dutching,
                         "stake_dutch_base": round(stake_base, 2),
