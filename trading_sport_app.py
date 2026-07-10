@@ -313,8 +313,10 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
 
     if saldo_disponible > 0:
         porcentaje_exposicion = (capital_total / saldo_disponible) * 100
-        if porcentaje_exposicion > 10: 
-            st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca.")
+        
+        # Restauramos tu variable original que evalúa el entorno correcto
+        if porcentaje_exposicion > max_riesgo_permitido: 
+            st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca. Superas el umbral de {max_riesgo_permitido}%.")
 
     # Matemática Financiera Base
     retorno_objetivo_1 = capital_total * (1 + (utilidad_esperada / 100.0))
