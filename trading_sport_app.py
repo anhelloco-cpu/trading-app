@@ -475,16 +475,17 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
             "🔵 Gana Favorito (Pre-partido a Favorito/Empate)", 
             "🔴 Gana No Favorito (Pre-partido a Sorpresa/Empate)",
             "🔥 Ninguno Gana (Fuego Cruzado - Cazar Empate)",
-            "⚽ Goles Primer Tiempo (Menos de X vs Más de X)" # <--- NUEVA ESTRATEGIA
+            "⚽ Mercado de Goles (Menos de X vs Más de X)" # <--- ACTUALIZADO
         ],
         horizontal=False
     )
     
     nombre_estrategia_bd = "Estrategia 1: eSports Scalping"
     
-    # Cambio dinámico de etiquetas
+    # Cambio dinámico de etiquetas y nuevo selector de periodo
     if "Goles" in enfoque_operativo:
-        linea_goles = st.number_input("Línea de Goles (X) para el Primer Tiempo:", value=1.5, step=0.5)
+        periodo_goles = st.radio("⏱️ Periodo del Mercado:", ["Primer Tiempo (PT)", "Partido Completo (FT)"], horizontal=True)
+        linea_goles = st.number_input(f"Línea de Goles (X) para {periodo_goles}:", value=1.5, step=0.5)
         lab_gana = f"1. Menos de {linea_goles} Goles (Inicial)"
         lab_rival = f"2. Más de {linea_goles} Goles (Amenaza)"
         lab_empate = "" # No aplica
@@ -581,8 +582,9 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
         cuota_stop_loss = salvavidas_requerido / stake_2
         
         if "Goles" in enfoque_operativo:
-            str_selec_1 = f"Menos de {linea_goles} Goles"
-            str_amenaza = f"Más de {linea_goles} Goles"
+            sufijo_ui = "PT" if "Primer" in periodo_goles else "FT"
+            str_selec_1 = f"Menos de {linea_goles} {sufijo_ui}"
+            str_amenaza = f"Más de {linea_goles} {sufijo_ui}"
             items_html = f"<li><b>${stake_base:,.0f}</b> ➔ {str_selec_1}</li>"
         else:
             str_selec_1 = "Gana Local" if "Ninguno" in enfoque_operativo else "Gana tu Equipo"
@@ -645,7 +647,7 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
                     
             with c_eq2:
                 if "Goles" in enfoque_operativo:
-                    st.info(f"💡 **Línea Actual:** {linea_goles} Goles")
+                    st.info(f"💡 **Línea Actual:** {linea_goles} Goles ({periodo_goles})")
                     eq_cobertura = st.text_input("Línea seleccionada", value=f"Under/Over {linea_goles}", disabled=True)
                 elif "Ninguno" in enfoque_operativo:
                     st.info("💡 **El Empate es tu amenaza.**")
@@ -670,8 +672,9 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
                     
                     if "Goles" in enfoque_operativo:
                         partido_str = eq_apuesta_inicial
-                        seleccion_ini = f"Menos de {linea_goles} Goles PT"
-                        seleccion_cob = f"Más de {linea_goles} Goles PT"
+                        sufijo_bd = "PT" if "Primer" in periodo_goles else "FT"
+                        seleccion_ini = f"Menos de {linea_goles} Goles {sufijo_bd}"
+                        seleccion_cob = f"Más de {linea_goles} Goles {sufijo_bd}"
                         audit_empate = 0.0
                         audit_amenaza = cuota_rival
                     elif "Ninguno" in enfoque_operativo:
