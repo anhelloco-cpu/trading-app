@@ -219,7 +219,7 @@ elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
 # =====================================================================
 # MÓDULO 1.0: PAZ MENTAL + GUARDADO (MOTOR DE ARBITRAJE INTEGRADO)
 # =====================================================================
-elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
+elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
     st.info("**Lógica:** Auditoría financiera previa, configuración de capital y trazabilidad operativa.")
     
     tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
