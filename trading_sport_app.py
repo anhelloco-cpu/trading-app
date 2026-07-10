@@ -729,7 +729,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         # -------------------------------------------------------------
                         if op['estado'] == "EN VIVO":
                             
-                            # CÁLCULO DE BREAK-EVEN
+                            # CÁLCULO DE BREAK-EVEN Y UTILIDAD MÁXIMA
                             retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
                             utilidad_original_maxima = retorno_bruto_esperado - op['stake_1']
                             inyeccion_maxima_breakeven = utilidad_original_maxima
@@ -737,7 +737,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             
                             st.markdown(f"""
                             <div style="background-color: #EFF6FF; padding: 15px; border-left: 4px solid #3B82F6; border-radius: 4px; margin-bottom: 20px;">
-                                <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">📈 <b>Si no cubres y ganas:</b> Obtienes <b>${utilidad_original_maxima:,.0f} COP</b> (Utilidad Máxima Potencial)</p>
+                                <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">📈 <b>Escenario SIN COBERTURA:</b> Si dejas correr y gana {sel_ini}, tu utilidad máxima será <b>${utilidad_original_maxima:,.0f} COP</b>.</p>
                                 <hr style="margin: 8px 0; border-color: #3B82F6; opacity: 0.2;">
                                 <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Punto de Equilibrio:</b> Para ganar con seguro, necesitas cazar a <b>cuota mínima de {cuota_minima_rentable:.2f}</b> (Inyectando máx ${inyeccion_maxima_breakeven:,.0f}).</p>
                             </div>
@@ -766,15 +766,20 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 if utilidad_proyectada > 0:
                                     color_box, border_box, text_color = "#F0FDF4", "#16A34A", "#15803D"
-                                    veredicto = "✅ ESTADO ÓPTIMO: La matemática garantiza recuperación total + utilidad."
+                                    veredicto = "✅ ESTADO ÓPTIMO: La matemática garantiza rentabilidad en cualquier escenario."
                                 else:
                                     color_box, border_box, text_color = "#FEF2F2", "#DC2626", "#B91C1C"
-                                    veredicto = "🚨 ESTADO NEGATIVO: Estás por debajo del punto de equilibrio (Pérdida Neta)."
+                                    veredicto = "🚨 ESTADO NEGATIVO: Estás por debajo del punto de equilibrio (Pérdida Neta asegurada)."
 
                                 st.markdown(f"""
                                 <div style="background-color: {color_box}; padding: 15px; border-left: 5px solid {border_box}; border-radius: 4px; margin-bottom: 20px;">
                                     <p style="margin:0; font-size:1.05rem; color:#1E293B;">💵 Inversión dinámica exigida en <b>{sel_cob}</b>: <span style="font-weight:bold; color:#1E3A8A;">${monto_a_inyectar:,.0f} COP</span></p>
-                                    <p style="margin:5px 0; font-size:1.05rem; color:#1E293B;">📉 Utilidad Sin Seguro vs <span style="color:{border_box};">🛡️ Con Seguro:</span> <s style="color:#64748B;">${utilidad_original_maxima:,.0f}</s> ➔ <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></p>
+                                    <hr style="margin: 8px 0; border-color: {border_box}; opacity: 0.2;">
+                                    <p style="margin:0; font-size:0.95rem; color:#1E293B;"><b>📊 Escenarios Finales (Ya pagado el seguro):</b></p>
+                                    <ul style="margin: 5px 0 10px 0; font-size: 0.95rem; color:#334155;">
+                                        <li>✅ Si gana <b>{sel_ini}</b> (Inicial): <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></li>
+                                        <li>🛡️ Si gana <b>{sel_cob}</b> (Seguro): <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></li>
+                                    </ul>
                                     <p style="margin:0; font-size:0.9rem; color:#475569;">💼 Exposición total: <b>{exposicion_actual_pct:.1f}%</b> (Stake 1 + Inyección)</p>
                                     <hr style="margin: 10px 0; border-color: {border_box}; opacity: 0.3;">
                                     <p style="margin:0; font-weight:bold; color:{text_color};">{veredicto}</p>
