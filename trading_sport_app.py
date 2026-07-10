@@ -74,8 +74,8 @@ estrategia_activa = st.sidebar.radio(
     [
         "💰 Gestión de Capital (Caja)",
         "🎯 Estrategia Libre (Apuesta Directa)",
+        "⚡ Estrategia 1: eSports (Scalping)", # <--- EL NUEVO MÓDULO CON SU NOMBRE CORRECTO
         "2️⃣ Estrategia 2: Paz Mental (Fútbol)", 
-        "⚡ Estrategia 3: eSports (Scalping)", # ➔ NUEVO MÓDULO INDEPENDIENTE
         "🔒 Seguimiento y Liquidación de Posiciones",
         "🔬 Auditoría Cuantitativa (Reporte)"
     ]
@@ -458,62 +458,246 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
                         st.error(f"❌ Error de Supabase: {str(e)}")
 
 # =====================================================================
-# MÓDULO 1.2: ESPORTS SCALPING (ALTA FRECUENCIA)
+# MÓDULO 1.1: ESPORTS SCALPING (PLANEACIÓN Y AUDITORÍA PREVIA)
 # =====================================================================
-elif estrategia_activa == "⚡ Estrategia 3: eSports (Scalping)":
-    st.info("**Lógica:** Trading de alta volatilidad. Puntos de entrada y salida calculados al milímetro.")
+elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
+    st.info("**Lógica:** Auditoría financiera rigurosa pre-partido. La velocidad se aplica en el cierre (Módulo de Seguimiento).")
     
-    tipo_banca_op = st.radio("Entorno de ejecución eSports:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
+    tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
     saldo_disponible = saldo_real if banca_activa == "REAL" else saldo_simulacion
     
-    st.markdown("### 📊 1. Diseño de la Operación")
-    c1, c2, c3, c4 = st.columns(4)
-    with c1: capital_total = st.number_input("Inversión Total (COP)", min_value=5000, value=min(20000, int(saldo_disponible)) if saldo_disponible > 5000 else 5000, step=5000)
-    with c2: cuota_entrada = st.number_input("Cuota de Entrada", min_value=1.01, value=1.80, step=0.05)
-    with c3: utilidad_esperada = st.number_input("Utilidad a Cazar (%)", min_value=1.0, max_value=30.0, value=5.0, step=0.5)
-    with c4: tolerancia_perdida = st.number_input("Stop Loss Máximo (%)", min_value=1.0, max_value=50.0, value=20.0, step=1.0)
+    # --- SELECTOR DE ENFOQUE (LAS 3 CAUSALES DE eSPORTS) ---
+    st.markdown("---")
+    enfoque_operativo = st.radio(
+        "🎯 Enfoque de Mercado (Determina el libro de auditoría):",
+        [
+            "🔵 Gana Favorito (Pre-partido a Favorito/Empate)", 
+            "🔴 Gana No Favorito (Pre-partido a Sorpresa/Empate)",
+            "🔥 Ninguno Gana (Fuego Cruzado - Cazar Empate)"
+        ],
+        horizontal=False
+    )
     
-    umbral_riesgo_actual = max_riesgo_real if banca_activa == "REAL" else max_riesgo_simulacion
-    if saldo_disponible > 0 and (capital_total / saldo_disponible) * 100 > umbral_riesgo_actual: 
-        st.warning(f"⚠️ Superas tu umbral permitido de {umbral_riesgo_actual}%.")
+    nombre_estrategia_bd = "Estrategia 1: eSports Scalping"
     
-    # Matemática de Scalping
-    retorno_esperado = capital_total * (1 + (utilidad_esperada / 100.0))
-    stake_1 = retorno_esperado / cuota_entrada
-    stake_2 = capital_total - stake_1
-    
-    if stake_2 < 1000:
-        st.error("Riesgo desproporcionado. Necesitas margen de reserva para hacer scalping.")
+    # Cambio dinámico de etiquetas según la estrategia
+    if "Ninguno" in enfoque_operativo:
+        lab_gana = "1. Gana Local"
+        lab_empate = "2. Gana Visitante"
+        lab_dc = "3. Doble Oportunidad (12)"
+        lab_rival = "4. Empate (Amenaza)"
     else:
-        # Puntos de salida
-        utilidad_dinero = retorno_esperado - capital_total
-        cuota_take_profit = (capital_total + utilidad_dinero) / stake_2
-        cuota_stop_loss = (capital_total * (1 - (tolerancia_perdida / 100.0))) / stake_2
-        
-        c_tp, c_sl = st.columns(2)
-        c_tp.markdown(f'<div class="caja-objetivo"><h3 style="color:#15803D; margin:0;">🟢 Take Profit: {cuota_take_profit:.2f}</h3><p>Aseguras ${utilidad_dinero:,.0f} COP</p></div>', unsafe_allow_html=True)
-        c_sl.markdown(f'<div class="error-caja"><h3 style="color:#B91C1C; margin:0;">🔴 Stop Loss: {cuota_stop_loss:.2f}</h3><p>Salvas el {100-tolerancia_perdida:.0f}% del capital</p></div>', unsafe_allow_html=True)
+        lab_gana = "1. Gana Tu Equipo"
+        lab_empate = "2. Empate (X)"
+        lab_dc = "3. Doble Oportunidad"
+        lab_rival = "4. Gana Rival (Amenaza)"
 
-        st.markdown("### 💾 2. Disparador Rápido")
-        with st.form("guardar_esports"):
-            c_eq1, c_eq2 = st.columns(2)
-            partido = c_eq1.text_input("Evento (Ej. FIFA GT)", placeholder="Jugador A vs Jugador B")
-            seleccion = c_eq2.text_input("Selección a favor", placeholder="Ej: Gana Jugador A")
+    # =================================================================
+    # ⚖️ MOTOR DE ARBITRAJE (DUTCHING CALCULATOR)
+    # =================================================================
+    st.markdown("---")
+    st.markdown("### ⚖️ 1. Motor de Arbitraje (Auditoría de Cuotas)")
+    
+    col_odd1, col_odd2, col_odd3, col_odd4 = st.columns(4)
+    with col_odd1:
+        cuota_gana = st.number_input(lab_gana, min_value=1.01, value=2.00, step=0.05)
+    with col_odd2:
+        cuota_empate = st.number_input(lab_empate, min_value=1.01, value=2.80 if "Ninguno" in enfoque_operativo else 3.65, step=0.05)
+    with col_odd3:
+        cuota_dc_casa = st.number_input(lab_dc, min_value=1.01, value=1.35 if "Ninguno" in enfoque_operativo else 1.26, step=0.01)
+    with col_odd4:
+        cuota_rival = st.number_input(lab_rival, min_value=1.01, value=3.20 if "Ninguno" in enfoque_operativo else 4.00, step=0.05)
+
+    prob_gana = 1.0 / cuota_gana
+    prob_empate = 1.0 / cuota_empate
+    prob_total = prob_gana + prob_empate
+    cuota_sintetica = 1.0 / prob_total
+    diferencia_cuotas = cuota_sintetica - cuota_dc_casa
+
+    if diferencia_cuotas > 0.01:
+        usar_dutching = True
+        cuota_efectiva = cuota_sintetica
+        st.success(f"🚨 **INEFICIENCIA DETECTADA:** La cuota sintética es **{cuota_sintetica:.3f}**. Le ganas {diferencia_cuotas:.3f} a la casa.")
+    else:
+        usar_dutching = False
+        cuota_efectiva = cuota_dc_casa
+        if diferencia_cuotas < -0.01:
+            st.info(f"✅ **CUOTA JUSTA:** La casa te paga mejor (**{cuota_dc_casa:.2f}**) que el sintético. Usa la Doble Oportunidad.")
+        else:
+            st.info(f"⚖️ **MERCADO BALANCEADO:** Ve directo al botón de Doble Oportunidad.")
+
+    # =================================================================
+    # 💰 CONFIGURACIÓN DE CAPITAL Y GESTIÓN DE RIESGO
+    # =================================================================
+    st.markdown("---")
+    st.markdown("### 💰 2. Asignación de Capital y Riesgo")
+    
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        capital_total = st.number_input("Capital Total (COP)", min_value=10000, value=min(50000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
+    with col2:
+        utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=5.0, step=0.5)
+    with col3:
+        porcentaje_perdida = st.slider("Stop Loss Máximo (% de pérdida):", min_value=1.0, max_value=50.0, value=20.0, step=1.0)
+
+    umbral_riesgo_actual = max_riesgo_real if banca_activa == "REAL" else max_riesgo_simulacion
+    if saldo_disponible > 0:
+        porcentaje_exposicion = (capital_total / saldo_disponible) * 100
+        if porcentaje_exposicion > umbral_riesgo_actual: 
+            st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca. Superas el umbral de {umbral_riesgo_actual}%.")
             
-            if st.form_submit_button("⚡ ENTRAR AL MERCADO"):
-                if partido and seleccion:
-                    nuevo_codigo = generar_codigo()
+    # Matemática Financiera Base
+    retorno_objetivo_1 = capital_total * (1 + (utilidad_esperada / 100.0))
+    utilidad_neta_plata = retorno_objetivo_1 - capital_total
+    stake_1 = retorno_objetivo_1 / cuota_efectiva
+    stake_2 = capital_total - stake_1
+
+    # Cálculos de partición (Dutching)
+    if usar_dutching:
+        stake_base = stake_1 * (cuota_empate / (cuota_gana + cuota_empate))
+        stake_emp_dutch = stake_1 * (cuota_gana / (cuota_gana + cuota_empate))
+    else:
+        stake_base = stake_1
+        stake_emp_dutch = 0
+
+    st.markdown("---")
+
+    if stake_2 < 5000:
+        st.markdown(f'<div class="error-caja"><b>🚨 RESTRICCIÓN:</b> Reserva menor a $5,000. Ajusta el capital o utilidad.</div>', unsafe_allow_html=True)
+    elif capital_total > saldo_disponible:
+        st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera el saldo disponible.</div>', unsafe_allow_html=True)
+    else:
+        # En eSports siempre apuntamos a IGUALAR la ganancia (riesgo 100%) en el Take Profit
+        retorno_exigido_cobertura = capital_total + utilidad_neta_plata
+        cuota_a_cazar = retorno_exigido_cobertura / stake_2
+        
+        salvavidas_requerido = capital_total * (1 - (porcentaje_perdida / 100.0))
+        cuota_stop_loss = salvavidas_requerido / stake_2
+        
+        str_selec_1 = "Gana Local" if "Ninguno" in enfoque_operativo else "Gana tu Equipo"
+        str_selec_2 = "Gana Visitante" if "Ninguno" in enfoque_operativo else "Empate"
+        str_amenaza = "Empate" if "Ninguno" in enfoque_operativo else "Rival"
+        str_dc = "12 (Local/Visita)" if "Ninguno" in enfoque_operativo else "Gana/Empata"
+
+        cols_plan = st.columns(3)
+        with cols_plan[0]:
+            if usar_dutching:
+                st.markdown(f"""
+                <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
+                    <h4 style="margin-top:0;">Fase 1: Pre-partido</h4>
+                    <p style="margin:0;">Stake 1 (<b>${stake_1:,.0f} COP</b>):</p>
+                    <ul style="margin-top: 5px; margin-bottom: 5px; font-size:0.9rem;">
+                        <li><b>${stake_base:,.0f}</b> ➔ {str_selec_1}</li>
+                        <li><b>${stake_emp_dutch:,.0f}</b> ➔ {str_selec_2}</li>
+                    </ul>
+                    <hr style="margin: 10px 0;">
+                    <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva: <b>${stake_2:,.0f} COP</b></p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
+                    <h4 style="margin-top:0;">Fase 1: Pre-partido</h4>
+                    <p style="margin:0;">Ticket Directo:</p>
+                    <ul style="margin-top: 5px; margin-bottom: 5px; font-size:0.9rem;">
+                        <li><b>${stake_1:,.0f}</b> ➔ {str_dc} (Cuota {cuota_efectiva:.2f})</li>
+                    </ul>
+                    <hr style="margin: 10px 0;">
+                    <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva: <b>${stake_2:,.0f} COP</b></p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+        with cols_plan[1]:
+            st.markdown(f"""
+            <div style="background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 15px; border-radius: 4px; text-align: center;">
+                <h4 style="margin-top:0; color:#15803D;">Take Profit (Ganancia)</h4>
+                <p style="margin:0; font-size:0.85rem;">Si la cuota de {str_amenaza} <b>SUBE</b> a:</p>
+                <h1 style="color:#15803D; font-size:2.2rem; margin:10px 0;">{cuota_a_cazar:.2f}</h1>
+                <p style="margin:0; font-size: 0.75rem; color:#475569;">Aseguras {utilidad_esperada}% de utilidad</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with cols_plan[2]:
+            st.markdown(f"""
+            <div style="background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 15px; border-radius: 4px; text-align: center;">
+                <h4 style="margin-top:0; color:#B91C1C;">Stop Loss (Pánico)</h4>
+                <p style="margin:0; font-size:0.85rem;">Si la cuota de {str_amenaza} <b>BAJA</b> a:</p>
+                <h1 style="color:#B91C1C; font-size:2.2rem; margin:10px 0;">{cuota_stop_loss:.2f}</h1>
+                <p style="margin:0; font-size: 0.75rem; color:#475569;">Salvas el {100-porcentaje_perdida:.0f}% de tu caja</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # =================================================================
+        # 💾 REGISTRO CONTABLE 
+        # =================================================================
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("### 💾 3. Detalles y Registro de la Operación")
+        with st.form("guardar_operacion_esports"):
+            
+            if "Ninguno" in enfoque_operativo:
+                st.info("💡 **Fuego Cruzado:** Escribe en la Caja 1 el Local y en la Caja 2 el Visitante.")
+            else:
+                st.info("💡 **Regla Fija:** Escribe en la Caja 1 tu selección base. Escribe en la Caja 2 el equipo rival (la amenaza).")
+            
+            c_eq1, c_eq2 = st.columns(2)
+            with c_eq1:
+                eq_apuesta_inicial = st.text_input("🎮 Jugador/Equipo Local" if "Ninguno" in enfoque_operativo else "🎮 Jugador Apuesta Inicial")
+            with c_eq2:
+                eq_cobertura = st.text_input("🚀 Jugador/Equipo Visitante" if "Ninguno" in enfoque_operativo else "🎯 Jugador Amenaza")
+            
+            hora_inicio = st.time_input("⏱️ Hora de inicio del evento:")
+            plataforma_ini = st.selectbox("Plataforma de la Apuesta Inicial:", todas_las_plataformas)
+            plataforma_otra = st.text_input("Especifica la otra plataforma:") if plataforma_ini == "Otra" else ""
+
+            if st.form_submit_button("Generar Código e Iniciar Auditoría Scalping"):
+                if not eq_apuesta_inicial or not eq_cobertura:
+                    st.error("Debes ingresar los nombres de los jugadores en ambas cajas.")
+                else:
+                    import random, string
+                    nuevo_codigo = f"{''.join(random.choices(string.ascii_uppercase, k=3))}-{random.randint(100, 999)}"
+                    plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
+                    
+                    if "Ninguno" in enfoque_operativo:
+                        seleccion_ini = f"Dutching: Gana {eq_apuesta_inicial} + Gana {eq_cobertura}" if usar_dutching else f"Doble Oportunidad (12): {eq_apuesta_inicial}/{eq_cobertura}"
+                        seleccion_cob = "Empate (X)"
+                    else:
+                        seleccion_ini = f"Dutching: {eq_apuesta_inicial} + Empate" if usar_dutching else f"Doble Oportunidad: {eq_apuesta_inicial}"
+                        seleccion_cob = f"Gana {eq_cobertura}"
+                    
+                    audit_empate = cuota_rival if "Ninguno" in enfoque_operativo else cuota_empate
+                    audit_amenaza = cuota_empate if "Ninguno" in enfoque_operativo else cuota_rival
+
                     datos = {
-                        "codigo": nuevo_codigo, "partido": partido, "estrategia": "Estrategia 3: eSports Scalping", 
-                        "seleccion_inicial": seleccion, "seleccion_cobertura": "Amenaza Inversa", "plataforma_inicial": "eSports Platform",
-                        "capital_total": capital_total, "cuota_inicial": cuota_entrada, "stake_1": stake_1, 
-                        "reserva_stake_2": stake_2, "cuota_objetivo": cuota_take_profit, "cuota_stop_loss": cuota_stop_loss,
-                        "estado": "EN VIVO", "tipo_banca": banca_activa
+                        "codigo": nuevo_codigo,
+                        "partido": f"{eq_apuesta_inicial} vs {eq_cobertura}",
+                        "estrategia": nombre_estrategia_bd,
+                        "seleccion_inicial": seleccion_ini,
+                        "seleccion_cobertura": seleccion_cob,
+                        "plataforma_inicial": plataforma_final,
+                        "capital_total": capital_total,
+                        "cuota_inicial": round(cuota_efectiva, 3),
+                        "stake_1": stake_1,
+                        "reserva_stake_2": stake_2,
+                        "cuota_objetivo": cuota_a_cazar,
+                        "cuota_stop_loss": cuota_stop_loss, # DATO VITAL DE ESPORTS
+                        "estado": "EN VIVO",
+                        "tipo_banca": banca_activa,
+                        "hora_inicio_partido": hora_inicio.strftime("%H:%M"),
+                        "cuota_base_audit": cuota_gana,
+                        "cuota_empate_audit": audit_empate, 
+                        "cuota_dc_audit": cuota_dc_casa,
+                        "cuota_amenaza_audit": audit_amenaza, 
+                        "es_dutching": usar_dutching,
+                        "stake_dutch_base": round(stake_base, 2),
+                        "stake_dutch_empate": round(stake_emp_dutch, 2)
                     }
-                    supabase.table("historial_trading").insert(datos).execute()
-                    st.success(f"Posición abierta. Código: {nuevo_codigo}")
-                    st.rerun()
+                    try:
+                        supabase.table("historial_trading").insert(datos).execute()
+                        st.markdown(f'<div class="caja-codigo"><h3>Código ({banca_activa}): {nuevo_codigo}</h3></div>', unsafe_allow_html=True)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error de Supabase: {str(e)}")
 
 # =====================================================================
 # MÓDULO 2: SEGUIMIENTO Y LIQUIDACIÓN DE POSICIONES
@@ -540,7 +724,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                 # =====================================================================
                 # ⚡ COCKPIT DE ESPORTS (INTERFAZ ULTRARRÁPIDA)
                 # =====================================================================
-                if op.get('estrategia') == "Estrategia 3: eSports Scalping":
+                if op.get('estrategia') == "Estrategia 1: eSports Scalping": # <--- ACTUALIZADO
                     st.markdown(f"""
                     <div style="background:#1E293B; padding:15px; border-radius:8px; border-left:6px solid #F59E0B; color:white; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
                         <h4 style="margin:0; color:white;">🎮 {op['partido']} (Ref: {op['codigo']})</h4>
