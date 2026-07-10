@@ -85,10 +85,11 @@ st.sidebar.markdown("---")
 st.sidebar.markdown(f"**Banca Real:** ${saldo_real:,.0f} COP")
 st.sidebar.markdown(f"**Banca Simulación:** ${saldo_simulacion:,.0f} COP")
 
-# Configuración de Riesgo Personalizado
+# Configuración de Riesgo Personalizado Independiente
 st.sidebar.markdown("---")
-st.sidebar.subheader("🛡️ Umbral de Riesgo")
-max_riesgo_permitido = st.sidebar.slider("Alerta de exposición máxima por operación (%):", min_value=5, max_value=100, value=30, step=5)
+st.sidebar.subheader("🛡️ Umbrales de Riesgo")
+max_riesgo_real = st.sidebar.slider("Exposición máxima Dinero Real (%):", min_value=5, max_value=100, value=10, step=5)
+max_riesgo_simulacion = st.sidebar.slider("Exposición máxima Simulación (%):", min_value=5, max_value=100, value=30, step=5)
 
 st.title("⚖️ Sistema de Trading Automático")
 
@@ -162,10 +163,13 @@ elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
     with col2:
         cuota_1 = st.number_input("Cuota Fijada", min_value=1.01, value=1.50, step=0.05)
 
+    # Definir cuál umbral respetar según la banca
+    umbral_riesgo_actual = max_riesgo_real if banca_activa == "REAL" else max_riesgo_simulacion
+
     if saldo_disponible > 0:
         porcentaje_exposicion = (capital_total / saldo_disponible) * 100
-        if porcentaje_exposicion > max_riesgo_permitido:
-            st.warning(f"⚠️ Alerta de Exposición: Esta operación compromete el {porcentaje_exposicion:.1f}% de la banca disponible, superando el umbral establecido.")
+        if porcentaje_exposicion > umbral_riesgo_actual:
+            st.warning(f"⚠️ Alerta de Exposición: Esta operación compromete el {porcentaje_exposicion:.1f}% de la banca disponible, superando el umbral de {umbral_riesgo_actual}%.")
 
     st.markdown("### 💾 Detalles de la Posición")
     with st.form("guardar_libre"):
@@ -311,13 +315,15 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Crear Operación)":
         riesgo = st.slider("Exigencia en Cobertura (0% = Librar, 100% = Ganancia Igualada):", min_value=0, max_value=100, value=50, step=10)
         porcentaje_perdida = 0
 
+    # Definir cuál umbral respetar según la banca
+    umbral_riesgo_actual = max_riesgo_real if banca_activa == "REAL" else max_riesgo_simulacion
+
     if saldo_disponible > 0:
         porcentaje_exposicion = (capital_total / saldo_disponible) * 100
         
-        # Restauramos tu variable original que evalúa el entorno correcto
-        if porcentaje_exposicion > max_riesgo_permitido: 
-            st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca. Superas el umbral de {max_riesgo_permitido}%.")
-
+        if porcentaje_exposicion > umbral_riesgo_actual: 
+            st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca. Superas el umbral de {umbral_riesgo_actual}%.")
+            
     # Matemática Financiera Base
     retorno_objetivo_1 = capital_total * (1 + (utilidad_esperada / 100.0))
     utilidad_neta_plata = retorno_objetivo_1 - capital_total
