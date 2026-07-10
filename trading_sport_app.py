@@ -461,28 +461,34 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
 # MÓDULO 1: ESPORTS SCALPING (PLANEACIÓN Y AUDITORÍA PREVIA)
 # =====================================================================
 elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
-    st.info("**Lógica:** Construcción obligatoria de cuota sintética pre-partido. La velocidad se aplica en el cierre.")
+    st.info("**Lógica:** Construcción de entrada pre-partido. La velocidad se aplica en el cierre dinámico.")
     
     tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
     saldo_disponible = saldo_real if banca_activa == "REAL" else saldo_simulacion
     
-    # --- SELECTOR DE ENFOQUE (LAS 3 CAUSALES DE eSPORTS) ---
+    # --- SELECTOR DE ENFOQUE (LAS 4 CAUSALES) ---
     st.markdown("---")
     enfoque_operativo = st.radio(
         "🎯 Enfoque de Mercado (Determina el libro de auditoría):",
         [
             "🔵 Gana Favorito (Pre-partido a Favorito/Empate)", 
             "🔴 Gana No Favorito (Pre-partido a Sorpresa/Empate)",
-            "🔥 Ninguno Gana (Fuego Cruzado - Cazar Empate)"
+            "🔥 Ninguno Gana (Fuego Cruzado - Cazar Empate)",
+            "⚽ Goles Primer Tiempo (Menos de X vs Más de X)" # <--- NUEVA ESTRATEGIA
         ],
         horizontal=False
     )
     
     nombre_estrategia_bd = "Estrategia 1: eSports Scalping"
     
-    # Cambio dinámico de etiquetas (Eliminado Doble Oportunidad)
-    if "Ninguno" in enfoque_operativo:
+    # Cambio dinámico de etiquetas
+    if "Goles" in enfoque_operativo:
+        linea_goles = st.number_input("Línea de Goles (X) para el Primer Tiempo:", value=1.5, step=0.5)
+        lab_gana = f"1. Menos de {linea_goles} Goles (Inicial)"
+        lab_rival = f"2. Más de {linea_goles} Goles (Amenaza)"
+        lab_empate = "" # No aplica
+    elif "Ninguno" in enfoque_operativo:
         lab_gana = "1. Gana Local"
         lab_empate = "2. Gana Visitante"
         lab_rival = "3. Empate (Amenaza)"
@@ -492,29 +498,41 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
         lab_rival = "3. Gana Rival (Amenaza)"
 
     # =================================================================
-    # ⚖️ MOTOR DE ARBITRAJE (SINTÉTICO OBLIGATORIO)
+    # ⚖️ MOTOR DE ARBITRAJE
     # =================================================================
     st.markdown("---")
-    st.markdown("### ⚖️ 1. Construcción de Cuota Sintética")
+    st.markdown("### ⚖️ 1. Construcción de Cuota")
     
-    col_odd1, col_odd2, col_odd3 = st.columns(3)
-    with col_odd1:
-        cuota_gana = st.number_input(lab_gana, min_value=1.01, value=2.00, step=0.05)
-    with col_odd2:
-        cuota_empate = st.number_input(lab_empate, min_value=1.01, value=2.80 if "Ninguno" in enfoque_operativo else 3.65, step=0.05)
-    with col_odd3:
-        cuota_rival = st.number_input(lab_rival, min_value=1.01, value=3.20 if "Ninguno" in enfoque_operativo else 4.00, step=0.05)
+    if "Goles" in enfoque_operativo:
+        col_odd1, col_odd2 = st.columns(2)
+        with col_odd1:
+            cuota_gana = st.number_input(lab_gana, min_value=1.01, value=1.85, step=0.05)
+        with col_odd2:
+            cuota_rival = st.number_input(lab_rival, min_value=1.01, value=2.10, step=0.05)
+            
+        cuota_efectiva = cuota_gana
+        cuota_empate = 0.0
+        usar_dutching = False
+        
+        st.success(f"⚙️ **CUOTA DIRECTA:** Tu cuota de entrada es **{cuota_efectiva:.3f}**. Mercado de 2 vías sin Dutching.")
+    else:
+        col_odd1, col_odd2, col_odd3 = st.columns(3)
+        with col_odd1:
+            cuota_gana = st.number_input(lab_gana, min_value=1.01, value=2.00, step=0.05)
+        with col_odd2:
+            cuota_empate = st.number_input(lab_empate, min_value=1.01, value=2.80 if "Ninguno" in enfoque_operativo else 3.65, step=0.05)
+        with col_odd3:
+            cuota_rival = st.number_input(lab_rival, min_value=1.01, value=3.20 if "Ninguno" in enfoque_operativo else 4.00, step=0.05)
 
-    prob_gana = 1.0 / cuota_gana
-    prob_empate = 1.0 / cuota_empate
-    prob_total = prob_gana + prob_empate
-    cuota_sintetica = 1.0 / prob_total
-    
-    # En eSports siempre operamos con el Dutching activo
-    usar_dutching = True
-    cuota_efectiva = cuota_sintetica
-    
-    st.success(f"⚙️ **CUOTA SINTÉTICA CREADA:** Tu cuota efectiva de entrada es **{cuota_sintetica:.3f}**. El sistema dividirá el capital automáticamente.")
+        prob_gana = 1.0 / cuota_gana
+        prob_empate = 1.0 / cuota_empate
+        prob_total = prob_gana + prob_empate
+        cuota_sintetica = 1.0 / prob_total
+        
+        cuota_efectiva = cuota_sintetica
+        usar_dutching = True
+        
+        st.success(f"⚙️ **CUOTA SINTÉTICA CREADA:** Tu cuota efectiva de entrada es **{cuota_sintetica:.3f}**. El sistema dividirá el capital automáticamente.")
 
     # =================================================================
     # 💰 CONFIGURACIÓN DE CAPITAL Y GESTIÓN DE RIESGO
@@ -542,9 +560,13 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
     stake_1 = retorno_objetivo_1 / cuota_efectiva
     stake_2 = capital_total - stake_1
 
-    # Cálculos de partición obligatoria (Dutching)
-    stake_base = stake_1 * (cuota_empate / (cuota_gana + cuota_empate))
-    stake_emp_dutch = stake_1 * (cuota_gana / (cuota_gana + cuota_empate))
+    # Cálculos de partición obligatoria (Dutching vs Directa)
+    if usar_dutching:
+        stake_base = stake_1 * (cuota_empate / (cuota_gana + cuota_empate))
+        stake_emp_dutch = stake_1 * (cuota_gana / (cuota_gana + cuota_empate))
+    else:
+        stake_base = stake_1
+        stake_emp_dutch = 0.0
 
     st.markdown("---")
 
@@ -558,9 +580,15 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
         salvavidas_requerido = capital_total * (1 - (porcentaje_perdida / 100.0))
         cuota_stop_loss = salvavidas_requerido / stake_2
         
-        str_selec_1 = "Gana Local" if "Ninguno" in enfoque_operativo else "Gana tu Equipo"
-        str_selec_2 = "Gana Visitante" if "Ninguno" in enfoque_operativo else "Empate"
-        str_amenaza = "Empate" if "Ninguno" in enfoque_operativo else "Rival"
+        if "Goles" in enfoque_operativo:
+            str_selec_1 = f"Menos de {linea_goles} Goles"
+            str_amenaza = f"Más de {linea_goles} Goles"
+            items_html = f"<li><b>${stake_base:,.0f}</b> ➔ {str_selec_1}</li>"
+        else:
+            str_selec_1 = "Gana Local" if "Ninguno" in enfoque_operativo else "Gana tu Equipo"
+            str_selec_2 = "Gana Visitante" if "Ninguno" in enfoque_operativo else "Empate"
+            str_amenaza = "Empate" if "Ninguno" in enfoque_operativo else "Rival"
+            items_html = f"<li><b>${stake_base:,.0f}</b> ➔ {str_selec_1}</li><li><b>${stake_emp_dutch:,.0f}</b> ➔ {str_selec_2}</li>"
 
         cols_plan = st.columns(3)
         with cols_plan[0]:
@@ -569,8 +597,7 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
                 <h4 style="margin-top:0;">Fase 1: Pre-partido</h4>
                 <p style="margin:0;">Stake 1 (<b>${stake_1:,.0f} COP</b>):</p>
                 <ul style="margin-top: 5px; margin-bottom: 5px; font-size:0.9rem;">
-                    <li><b>${stake_base:,.0f}</b> ➔ {str_selec_1}</li>
-                    <li><b>${stake_emp_dutch:,.0f}</b> ➔ {str_selec_2}</li>
+                    {items_html}
                 </ul>
                 <hr style="margin: 10px 0;">
                 <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva Estimada: <b>${stake_2:,.0f} COP</b></p>
@@ -604,42 +631,65 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
         st.markdown("### 💾 3. Detalles y Registro de la Operación")
         with st.form("guardar_operacion_esports"):
             
-            if "Ninguno" in enfoque_operativo:
-                st.info("💡 **Fuego Cruzado:** Escribe en la Caja 1 el Local y en la Caja 2 el Visitante.")
-            else:
-                st.info("💡 **Regla Fija:** Escribe en la Caja 1 tu selección base. Escribe en la Caja 2 el equipo rival (la amenaza).")
-            
             c_eq1, c_eq2 = st.columns(2)
             with c_eq1:
-                eq_apuesta_inicial = st.text_input("🎮 Jugador/Equipo Local" if "Ninguno" in enfoque_operativo else "🎮 Jugador Apuesta Inicial")
+                if "Goles" in enfoque_operativo:
+                    st.info("💡 **Mercado de Goles:** Escribe el nombre del partido.")
+                    eq_apuesta_inicial = st.text_input("⚽ Partido (Ej: Equipo A vs Equipo B)")
+                elif "Ninguno" in enfoque_operativo:
+                    st.info("💡 **Fuego Cruzado:** Escribe en la Caja 1 el Local y en la Caja 2 el Visitante.")
+                    eq_apuesta_inicial = st.text_input("🎮 Jugador/Equipo Local")
+                else:
+                    st.info("💡 **Regla Fija:** Escribe en la Caja 1 tu selección base. Escribe en la Caja 2 el equipo rival (la amenaza).")
+                    eq_apuesta_inicial = st.text_input("🎮 Jugador Apuesta Inicial")
+                    
             with c_eq2:
-                eq_cobertura = st.text_input("🚀 Jugador/Equipo Visitante" if "Ninguno" in enfoque_operativo else "🎯 Jugador Amenaza")
+                if "Goles" in enfoque_operativo:
+                    st.info(f"💡 **Línea Actual:** {linea_goles} Goles")
+                    eq_cobertura = st.text_input("Línea seleccionada", value=f"Under/Over {linea_goles}", disabled=True)
+                elif "Ninguno" in enfoque_operativo:
+                    st.info("💡 **El Empate es tu amenaza.**")
+                    eq_cobertura = st.text_input("🚀 Jugador/Equipo Visitante")
+                else:
+                    st.info("💡 **Este es tu seguro/amenaza.**")
+                    eq_cobertura = st.text_input("🎯 Jugador Amenaza")
             
             hora_inicio = st.time_input("⏱️ Hora de inicio del evento:")
             plataforma_ini = st.selectbox("Plataforma de la Apuesta Inicial:", todas_las_plataformas)
             plataforma_otra = st.text_input("Especifica la otra plataforma:") if plataforma_ini == "Otra" else ""
 
             if st.form_submit_button("Generar Código e Iniciar Auditoría Scalping"):
-                if not eq_apuesta_inicial or not eq_cobertura:
+                if not eq_apuesta_inicial:
+                    st.error("Debes ingresar el nombre de los jugadores o el partido.")
+                elif not "Goles" in enfoque_operativo and not eq_cobertura:
                     st.error("Debes ingresar los nombres de los jugadores en ambas cajas.")
                 else:
                     import random, string
                     nuevo_codigo = f"{''.join(random.choices(string.ascii_uppercase, k=3))}-{random.randint(100, 999)}"
                     plataforma_final = plataforma_otra if plataforma_ini == "Otra" else plataforma_ini
                     
-                    if "Ninguno" in enfoque_operativo:
+                    if "Goles" in enfoque_operativo:
+                        partido_str = eq_apuesta_inicial
+                        seleccion_ini = f"Menos de {linea_goles} Goles PT"
+                        seleccion_cob = f"Más de {linea_goles} Goles PT"
+                        audit_empate = 0.0
+                        audit_amenaza = cuota_rival
+                    elif "Ninguno" in enfoque_operativo:
+                        partido_str = f"{eq_apuesta_inicial} vs {eq_cobertura}"
                         seleccion_ini = f"Dutching: Gana {eq_apuesta_inicial} + Gana {eq_cobertura}"
                         seleccion_cob = "Empate (X)"
+                        audit_empate = cuota_rival
+                        audit_amenaza = cuota_empate
                     else:
+                        partido_str = f"{eq_apuesta_inicial} vs {eq_cobertura}"
                         seleccion_ini = f"Dutching: {eq_apuesta_inicial} + Empate"
                         seleccion_cob = f"Gana {eq_cobertura}"
-                    
-                    audit_empate = cuota_rival if "Ninguno" in enfoque_operativo else cuota_empate
-                    audit_amenaza = cuota_empate if "Ninguno" in enfoque_operativo else cuota_rival
+                        audit_empate = cuota_empate
+                        audit_amenaza = cuota_rival
 
                     datos = {
                         "codigo": nuevo_codigo,
-                        "partido": f"{eq_apuesta_inicial} vs {eq_cobertura}",
+                        "partido": partido_str,
                         "estrategia": nombre_estrategia_bd,
                         "seleccion_inicial": seleccion_ini,
                         "seleccion_cobertura": seleccion_cob,
@@ -655,7 +705,7 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
                         "hora_inicio_partido": hora_inicio.strftime("%H:%M"),
                         "cuota_base_audit": cuota_gana,
                         "cuota_empate_audit": audit_empate, 
-                        "cuota_dc_audit": 0.0, # Se manda en cero ya que no aplica para eSports
+                        "cuota_dc_audit": 0.0, 
                         "cuota_amenaza_audit": audit_amenaza, 
                         "es_dutching": usar_dutching,
                         "stake_dutch_base": round(stake_base, 2),
