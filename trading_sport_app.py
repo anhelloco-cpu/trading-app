@@ -220,7 +220,7 @@ elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
 # MÓDULO 1.0: PAZ MENTAL + GUARDADO (MOTOR DE ARBITRAJE INTEGRADO)
 # =====================================================================
 elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
-    st.info("**Lógica:** Auditoría financiera previa, configuración de capital y trazabilidad operativa.")
+    st.info("**Lógica:** Auditoría financiera previa, configuración de capital y trazabilidad operativa con control de Stop Loss.")
     
     tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
@@ -299,11 +299,13 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
     st.markdown("---")
     st.markdown("### 💰 2. Asignación de Capital y Riesgo")
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         capital_total = st.number_input("Capital Total (COP)", min_value=10000, value=min(50000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
     with col2:
         utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=10.0, step=0.5)
+    with col3:
+        porcentaje_perdida = st.slider("Stop Loss Máximo (% de pérdida):", min_value=1.0, max_value=50.0, value=20.0, step=1.0)
 
     riesgo = st.slider("Exigencia en Cobertura (0% = Librar, 100% = Ganancia Igualada):", min_value=0, max_value=100, value=50, step=10)
 
@@ -337,18 +339,29 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
     elif capital_total > saldo_disponible:
         st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera el saldo disponible.</div>', unsafe_allow_html=True)
     else:
-        # Cálculo del Take Profit (Cuota a Cazar)
+        # CÁLCULOS TÁCTICOS: Take Profit, Break-Even y Stop Loss
         retorno_exigido_cobertura = capital_total + (utilidad_neta_plata * (riesgo / 100.0))
         cuota_a_cazar = retorno_exigido_cobertura / stake_2
+        
+        cuota_break_even = capital_total / stake_2
+        
+        salvavidas_requerido = capital_total * (1 - (porcentaje_perdida / 100.0))
+        cuota_stop_loss = salvavidas_requerido / stake_2
         
         str_selec_1 = "Gana Local" if "Fuego" in enfoque_operativo else "Gana tu Equipo"
         str_selec_2 = "Gana Visitante" if "Fuego" in enfoque_operativo else "Empate"
         str_amenaza = "Empate" if "Fuego" in enfoque_operativo else "Rival"
         str_dc = "12 (Local/Visita)" if "Fuego" in enfoque_operativo else "Gana/Empata"
 
-        col_plan1, col_plan2 = st.columns(2)
+        st.markdown(f"""
+        <div style="background-color: #EFF6FF; border-left: 4px solid #3B82F6; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+            <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Punto de Equilibrio (Break-Even):</b> Si cazas a {str_amenaza} a una cuota exacta de <b>{cuota_break_even:.2f}</b>, recuperas el 100% de tu capital (${capital_total:,.0f} COP) saliendo sin ganancias ni pérdidas.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        cols_plan = st.columns(3)
         
-        with col_plan1:
+        with cols_plan[0]:
             if usar_dutching:
                 st.markdown(f"""
                 <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
@@ -359,7 +372,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
                         <li><b>${stake_emp_dutch:,.0f}</b> ➔ {str_selec_2}</li>
                     </ul>
                     <hr style="margin: 10px 0;">
-                    <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva: <b>${stake_2:,.0f} COP</b></p>
+                    <p style="margin:0; font-size:0.85rem; color:#475569;">Cajón Reserva: <b>${stake_2:,.0f} COP</b></p>
                 </div>
                 """, unsafe_allow_html=True)
             else:
@@ -371,17 +384,27 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
                         <li><b>${stake_1:,.0f}</b> ➔ {str_dc} (Cuota {cuota_efectiva:.2f})</li>
                     </ul>
                     <hr style="margin: 10px 0;">
-                    <p style="margin:0; font-size:0.85rem; color:#475569;">Reserva: <b>${stake_2:,.0f} COP</b></p>
+                    <p style="margin:0; font-size:0.85rem; color:#475569;">Cajón Reserva: <b>${stake_2:,.0f} COP</b></p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-        with col_plan2:
+        with cols_plan[1]:
             st.markdown(f"""
             <div style="background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 15px; border-radius: 4px; text-align: center;">
                 <h4 style="margin-top:0; color:#15803D;">Take Profit (Ganancia)</h4>
                 <p style="margin:0; font-size:0.85rem;">Si la cuota de {str_amenaza} <b>SUBE</b> a:</p>
                 <h1 style="color:#15803D; font-size:2.2rem; margin:10px 0;">{cuota_a_cazar:.2f}</h1>
                 <p style="margin:0; font-size: 0.75rem; color:#475569;">Cazas con tu Reserva Completa</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        with cols_plan[2]:
+            st.markdown(f"""
+            <div style="background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 15px; border-radius: 4px; text-align: center;">
+                <h4 style="margin-top:0; color:#B91C1C;">Stop Loss (Pánico)</h4>
+                <p style="margin:0; font-size:0.85rem;">Si la cuota de {str_amenaza} <b>BAJA</b> a:</p>
+                <h1 style="color:#B91C1C; font-size:2.2rem; margin:10px 0;">{cuota_stop_loss:.2f}</h1>
+                <p style="margin:0; font-size: 0.75rem; color:#475569;">Salvas el {100-porcentaje_perdida:.0f}% de tu caja</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -439,6 +462,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
                         "stake_1": stake_1,
                         "reserva_stake_2": stake_2,
                         "cuota_objetivo": cuota_a_cazar,
+                        "cuota_stop_loss": cuota_stop_loss,
                         "estado": "EN VIVO",
                         "tipo_banca": banca_activa,
                         "hora_inicio_partido": hora_inicio.strftime("%H:%M"),
@@ -946,6 +970,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         sel_cob = op.get('seleccion_cobertura', 'Cobertura')
                         tipo_estrategia = op.get('estrategia', 'Estrategia 2: Paz Mental Clásica')
                         
+                        # --- CÁLCULO DE LÍMITES FINANCIEROS (NUEVO) ---
+                        cuota_sl = float(op.get('cuota_stop_loss', 0.0))
+                        cuota_be = float(op['capital_total'] / op['reserva_stake_2']) if float(op.get('reserva_stake_2', 0)) > 0 else 0.0
+                        
                         # --- DESGLOSE AUTOMÁTICO DE NOMBRES DE EQUIPOS ---
                         partido_str = op.get('partido', 'Local vs Visitante')
                         if ' vs ' in partido_str:
@@ -976,7 +1004,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             st.markdown(f"""
                             <div style="background-color: #F8FAFC; padding: 15px; border-left: 4px solid #3B82F6; border-radius: 4px; margin-bottom: 15px;">
                                 <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Stake 1:</b> A favor de <b>{sel_ini}</b></p>
-                                <p style="margin: 8px 0 8px 0; font-size: 0.95rem;">🛡️ <b>Misión en Vivo:</b> Cazar a <b>{sel_cob}</b> a cuota mínima de <b>{op['cuota_objetivo']:.2f}</b></p>
+                                <p style="margin: 8px 0 0 0; font-size: 0.95rem; color: #15803D;">🟢 <b>Take Profit:</b> Cazar a <b>{sel_cob}</b> a cuota <b>{op['cuota_objetivo']:.2f}</b> o más.</p>
+                                <p style="margin: 8px 0 0 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Break-Even:</b> Cuota <b>{cuota_be:.2f}</b> (Recuperas todo el capital).</p>
+                                <p style="margin: 8px 0 8px 0; font-size: 0.95rem; color: #B91C1C;">🔴 <b>Stop Loss:</b> Cuota <b>{cuota_sl:.2f}</b> (Paracaídas de emergencia).</p>
+                                <hr style="margin: 10px 0; border-color: #CBD5E1;">
                                 <p style="margin: 0; font-size: 0.85rem; color: #64748B;"><i>💡 {contexto_mercado}</i></p>
                             </div>
                             """, unsafe_allow_html=True)
@@ -1143,6 +1174,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.progress(int(ird) / 100)
                                     st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
                                     cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
+                                    
                                     if st.button("📸 Guardar Foto y Cerrar Ventana", key=f"btn_foto_{op['codigo']}", use_container_width=True):
                                         try:
                                             nueva_foto = {
@@ -1175,6 +1207,14 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     util_perdida_sin_cob = -op['stake_1']
                                     
                                     st.markdown("#### 🔍 Matriz Financiera de la Operación")
+                                    
+                                    # --- ALERTA DE BREAK-EVEN EN VIVO ---
+                                    if cuota_be > 0:
+                                        if cuota_ingresada >= cuota_be:
+                                            st.markdown(f"<div style='background-color: #F0FDF4; padding: 10px; border-left: 4px solid #16A34A; border-radius: 4px; margin-bottom: 10px; color: #166534; font-size: 0.9rem;'>⚖️ <b>Estado Break-Even:</b> La cuota actual ({cuota_ingresada:.2f}) ya superó tu Punto de Equilibrio ({cuota_be:.2f}). Estás operando en zona libre de pérdida de capital.</div>", unsafe_allow_html=True)
+                                        else:
+                                            st.markdown(f"<div style='background-color: #FEF2F2; padding: 10px; border-left: 4px solid #EF4444; border-radius: 4px; margin-bottom: 10px; color: #991B1B; font-size: 0.9rem;'>⚖️ <b>Estado Break-Even:</b> La cuota actual ({cuota_ingresada:.2f}) está por debajo del Punto de Equilibrio ({cuota_be:.2f}). Cubrir ahora consolidará una pérdida matemática.</div>", unsafe_allow_html=True)
+                                    
                                     col_sc1, col_sc2 = st.columns(2)
                                     with col_sc1:
                                         st.markdown(f"""
@@ -1228,12 +1268,24 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     """, unsafe_allow_html=True)
 
                                     # =====================================================================
-                                    # ⚖️ MOTOR DE DICTAMEN UNIFICADO 
+                                    # ⚖️ MOTOR DE DICTAMEN UNIFICADO (AHORA CON STOP LOSS PRIORITARIO)
                                     # =====================================================================
                                     dictamen_html = ""
                                     va_empatado = (diferencia_goles == 0)
                                     
-                                    if ird >= 85.0:
+                                    # 1. EVALUACIÓN PRIORITARIA: STOP LOSS ESTRUCTURAL
+                                    if cuota_sl > 0.0 and cuota_ingresada <= cuota_sl:
+                                        dictamen_html = f"""
+                                        <div style='background-color: #FEF2F2; border-left: 6px solid #B91C1C; padding: 15px; margin-top: 15px; border-radius: 4px; color: #7F1D1D;'>
+                                            <h5 style='margin-top:0; color:#991B1B;'>🛑 DICTAMEN: STOP LOSS ESTRUCTURAL ALCANZADO</h5>
+                                            <p style='margin:0; font-size:0.95rem;'>
+                                                La cuota del mercado (<b>{cuota_ingresada:.2f}</b>) ha perforado tu límite de pérdida máxima permitida (<b>{cuota_sl:.2f}</b>). 
+                                                <br><br><b>EJECUCIÓN INMEDIATA:</b> Ignora el IRD. Quema la reserva ahora mismo para activar el paracaídas y salvar el capital residual garantizado.
+                                            </p>
+                                        </div>
+                                        """
+                                    # 2. INTELIGENCIA TÁCTICA NORMAL (IRD)
+                                    elif ird >= 85.0:
                                         if ratio_eficiencia < 1.0:
                                             dictamen_html = f"""
                                             <div style='background-color: #FEF2F2; border-left: 6px solid #B91C1C; padding: 15px; margin-top: 15px; border-radius: 4px; color: #7F1D1D;'>
