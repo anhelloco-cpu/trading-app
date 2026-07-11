@@ -970,9 +970,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         sel_cob = op.get('seleccion_cobertura', 'Cobertura')
                         tipo_estrategia = op.get('estrategia', 'Estrategia 2: Paz Mental Clásica')
                         
-                        # --- CÁLCULO DE LÍMITES FINANCIEROS (NUEVO) ---
-                        cuota_sl = float(op.get('cuota_stop_loss', 0.0))
-                        cuota_be = float(op['capital_total'] / op['reserva_stake_2']) if float(op.get('reserva_stake_2', 0)) > 0 else 0.0
+                        # --- CÁLCULO DE LÍMITES FINANCIEROS (CORREGIDO PARA DB VIEJA) ---
+                        # Usamos "or 0.0" para evitar que los valores NULL de operaciones pasadas rompan el sistema
+                        cuota_sl = float(op.get('cuota_stop_loss') or 0.0)
+                        reserva_actual = float(op.get('reserva_stake_2') or 0.0)
+                        capital_actual = float(op.get('capital_total') or 0.0)
+                        cuota_be = float(capital_actual / reserva_actual) if reserva_actual > 0 else 0.0
                         
                         # --- DESGLOSE AUTOMÁTICO DE NOMBRES DE EQUIPOS ---
                         partido_str = op.get('partido', 'Local vs Visitante')
