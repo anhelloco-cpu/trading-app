@@ -76,9 +76,9 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
             if p_cob not in saldos and p_cob != 'Sin Especificar': saldos[p_cob] = 0.0
             if p_dutch not in saldos and p_dutch != 'Sin Especificar': saldos[p_dutch] = 0.0
             
-            estado = op.get('estado', '')
-            res_fin = op.get('resultado_final', '')
-            estrategia = op.get('estrategia', '')
+            eestado = str(op.get('estado') or '')
+            res_fin = str(op.get('resultado_final') or '')
+            estrategia = str(op.get('estrategia') or '')
             es_dutching = op.get('es_dutching', False)
             
             # Asegurar montos de capital invertidos
