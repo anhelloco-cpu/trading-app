@@ -1540,8 +1540,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
 # MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
 # =====================================================================
 elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
-    st.markdown("### 🔬 Laboratorio Cuantitativo de Estrategias")
-    st.write("Análisis estadístico basado exclusivamente en la data empírica recopilada durante el período de prueba (Banca Simulación).")
+    st.markdown("### 🔬 Auditoría por Frecuencia y Utilidad Neta")
+    st.write("Evalúa la viabilidad del modelo midiendo **cuántas veces aciertas** (Frecuencia) y la **plata real que queda** (Utilidad), aislando el ruido del tamaño de la apuesta.")
     
     if supabase is None:
         st.error("Conecta Supabase para acceder al motor estadístico.")
@@ -1553,59 +1553,103 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
         if df_sim.empty:
             st.info("Aún no hay operaciones de simulación finalizadas para auditar.")
         else:
-            # 1. Filtro por Estrategia
-            if 'estrategia' not in df_sim.columns:
-                df_sim['estrategia'] = "Estrategia 2: Paz Mental Clásica"
+            # ---------------------------------------------------------
+            # 1. CLASIFICADOR DINÁMICO DE SUB-ESTRATEGIAS (EL SEPARADOR)
+            # ---------------------------------------------------------
+            def clasificar_estrategia(row):
+                est_original = str(row.get('estrategia', ''))
+                sel_ini = str(row.get('seleccion_inicial', ''))
                 
-            estrategias_disponibles = df_sim['estrategia'].dropna().unique().tolist()
-            estrategia_seleccionada = st.selectbox("📌 Selecciona la estrategia a auditar:", estrategias_disponibles)
+                # Si es eSports, el algoritmo entra a desglosarla según lo que operaste
+                if "eSports" in est_original:
+                    if "Menos de" in sel_ini or "Más de" in sel_ini or "Goles" in sel_ini:
+                        return "⚡ eSports: Mercado de Goles"
+                    elif "+ Gana" in sel_ini:
+                        return "⚡ eSports: Fuego Cruzado (Empate es Amenaza)"
+                    else:
+                        # Deducimos si es favorito evaluando quién tenía la cuota más baja
+                        try:
+                            c_base = float(row.get('cuota_base_audit', 0))
+                            c_amenaza = float(row.get('cuota_amenaza_audit', 0))
+                            if c_base > 0 and c_amenaza > 0:
+                                if c_base < c_amenaza:
+                                    return "⚡ eSports: Gana Favorito"
+                                else:
+                                    return "⚡ eSports: Gana No Favorito (Sorpresa)"
+                            else:
+                                return "⚡ eSports: Histórico (Sin datos de cuota)"
+                        except:
+                            return "⚡ eSports: Histórico (Sin datos de cuota)"
+                elif not est_original or str(est_original) == 'nan':
+                    return "⚽ Estrategia 2: Paz Mental Clásica"
+                else:
+                    return est_original
+
+            # Aplicamos el clasificador al DataFrame
+            df_sim['estrategia_desglosada'] = df_sim.apply(clasificar_estrategia, axis=1)
             
-            df_est = df_sim[df_sim['estrategia'] == estrategia_seleccionada].copy()
+            # Llenamos el menú desplegable con las sub-estrategias encontradas
+            estrategias_disponibles = sorted(df_sim['estrategia_desglosada'].dropna().unique().tolist())
+            estrategia_seleccionada = st.selectbox("📌 Selecciona la rama específica a auditar:", estrategias_disponibles)
+            
+            df_est = df_sim[df_sim['estrategia_desglosada'] == estrategia_seleccionada].copy()
             total_ops = len(df_est)
             
             if total_ops == 0:
                 st.info(f"No hay registros cerrados para la estrategia: {estrategia_seleccionada}")
             else:
-                if st.button(f"📈 Generar Dictamen Cuantitativo ({total_ops} Simulaciones)"):
+                if st.button(f"📈 Generar Dictamen Cuantitativo ({total_ops} Operaciones)"):
                     
                     st.markdown("---")
                     
-                    # 3. SELLO DE AUDITORÍA DINÁMICO
+                    # 2. SELLO DE AUDITORÍA DINÁMICO
                     if total_ops < 5:
                         st.markdown(f"""
                         <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; border-radius: 5px; margin-bottom: 20px; color: #991B1B;">
-                            <h4 style="margin-top: 0; color: #991B1B;">🚨 DICTAMEN: MUESTRA CRÍTICA (ESTRATEGIA NO PROBADA)</h4>
+                            <h4 style="margin-top: 0; color: #991B1B;">🚨 DICTAMEN: MUESTRA CRÍTICA (POCO VOLUMEN)</h4>
                             <p style="margin-bottom: 0; font-size: 0.95rem;">
-                                Este informe cuenta con una muestra de solo <b>{total_ops} operaciones</b>. Financieramente, este volumen es insignificante. 
-                                Los indicadores expuestos abajo están distorsionados por la varianza de corto plazo (suerte). 
-                                <b>El modelo matemático carece de sustento probabilístico hasta acumular un volumen mayor.</b>
+                                Tienes solo <b>{total_ops} operaciones</b> en esta rama. Es imposible saber si la estrategia es buena o mala porque el azar (suerte) influye demasiado en tan pocos intentos.
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
                     elif total_ops < 100:
                         st.markdown(f"""
                         <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 5px; margin-bottom: 20px; color: #92400E;">
-                            <h4 style="margin-top: 0; color: #B45309;">⚠️ DICTAMEN PRELIMINAR: MUESTRA EN DESARROLLO (NO PROBADA AÚN)</h4>
+                            <h4 style="margin-top: 0; color: #B45309;">⚠️ DICTAMEN PRELIMINAR (EN DESARROLLO)</h4>
                             <p style="margin-bottom: 0; font-size: 0.95rem;">
-                                Este dictamen preliminar cuenta con <b>{total_ops} operaciones</b>. Aunque el motor matemático ya proyecta tendencias operativas, 
-                                el estándar exige un mínimo de <b>100 eventos continuos</b> para mitigar por completo el factor azar y dar por 'probada' o certificada la viabilidad de la estrategia. Los datos actuales son estrictamente orientativos para control de gestión parcial.
+                                Con <b>{total_ops} operaciones</b> ya se nota una tendencia, pero para que un modelo se declare "probado" a nivel contable requieres mínimo 100 eventos continuos.
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
                     else:
-                        st.success(f"✅ CERTIFICACIÓN OFICIAL: ESTRATEGIA ESTADÍSTICAMENTE PROBADA. El volumen de {total_ops} operaciones mitiga la desviación estándar. Las métricas describen la ventaja matemática real del modelo.")
+                        st.success(f"✅ CERTIFICACIÓN OFICIAL: ESTRATEGIA ESTADÍSTICAMENTE PROBADA ({total_ops} ops).")
 
-                    # 4. Cálculos de Eficiencia Operativa
-                    victorias_pre_partido = df_est['resultado_final'].str.contains("Pre-Partido|Ganó Inicial", case=False, na=False).sum()
-                    victorias_cobertura = df_est['resultado_final'].str.contains("Cobertura", case=False, na=False).sum()
-                    derrotas_totales = df_est['resultado_final'].str.contains("Déficit|Perdid", case=False, na=False).sum()
+                    # ---------------------------------------------------------
+                    # 3. CÁLCULOS POR FRECUENCIA Y VECES (NO POR PLATA)
+                    # ---------------------------------------------------------
+                    # Buscamos coincidencias exactas en la base de datos de cómo se guardó el resultado
+                    victorias_pre_partido = df_est['resultado_final'].str.contains("Pre-Partido|Ganó Inicial|Apuesta Inicial", case=False, na=False).sum()
+                    victorias_cobertura = df_est['resultado_final'].str.contains("Cobertura|Profit", case=False, na=False).sum()
+                    derrotas_totales = df_est['resultado_final'].str.contains("Déficit|Perdió|Pérdida|Loss", case=False, na=False).sum()
+                    
+                    total_ganadas = victorias_pre_partido + victorias_cobertura
+                    efectividad_global = (total_ganadas / total_ops) * 100 if total_ops > 0 else 0
                     
                     win_rate = (victorias_pre_partido / total_ops) * 100
-                    frecuencia_rescate = (victorias_cobertura / total_ops) * 100
                     loss_rate = (derrotas_totales / total_ops) * 100
-                    cuota_promedio = df_est['cuota_inicial'].mean()
                     
-                    # --- NUEVO: CÁLCULO DE TIEMPO PROMEDIO DE COBERTURA (TIME-TO-HEDGE) ---
+                    try:
+                        cuota_promedio = df_est['cuota_inicial'].astype(float).mean()
+                    except:
+                        cuota_promedio = 1.0
+                    
+                    # Cálculo exclusivo de la utilidad (plata real acumulada)
+                    try:
+                        utilidad_neta_total = df_est['utilidad_neta_real'].astype(float).sum()
+                    except:
+                        utilidad_neta_total = 0
+
+                    # CÁLCULO DE TIEMPO PROMEDIO DE COBERTURA
                     tiempo_promedio_cob = 0
                     if 'hora_inicio_partido' in df_est.columns and 'hora_cobertura' in df_est.columns:
                         df_tiempos = df_est.dropna(subset=['hora_inicio_partido', 'hora_cobertura']).copy()
@@ -1619,38 +1663,28 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                             except Exception:
                                 tiempo_promedio_cob = 0
 
-                    # 5. Cálculos de Riesgo Institucional
-                    roi_promedio = df_est['roi_real'].mean()
-                    volatilidad_roi = df_est['roi_real'].std() if total_ops > 1 else 0
+                    # Esperanza Matemática Básica
+                    ev = ((efectividad_global / 100) * (cuota_promedio - 1)) - (loss_rate / 100)
                     
-                    ev = ((win_rate / 100) * (cuota_promedio - 1)) - (loss_rate / 100)
-                    sharpe_ratio = (roi_promedio / volatilidad_roi) if volatilidad_roi > 0 else 0
-                    
-                    df_est = df_est.sort_values(by='fecha')
-                    df_est['acumulado_utilidad'] = df_est['utilidad_neta_real'].cumsum()
-                    df_est['pico_historico'] = df_est['acumulado_utilidad'].cummax()
-                    df_est['drawdown'] = df_est['pico_historico'] - df_est['acumulado_utilidad']
-                    max_drawdown_cop = df_est['drawdown'].max() if not df_est['drawdown'].empty else 0
-                    
-                    # 6. Motor de Decisión (Veredicto)
-                    if ev <= 0:
-                        veredicto = "🚨 ESTRATEGIA NO VIABLE (EV Negativo)"
+                    # Motor de Decisión
+                    if efectividad_global < 50:
+                        veredicto = "🚨 MODELO DEFICIENTE (Acierto < 50%)"
                         color_v = "#EF4444"
-                        desc_v = "La matemática demuestra que, a largo plazo, esta configuración quemará el capital."
-                    elif sharpe_ratio < 0.8:
-                        veredicto = "⚠️ ESTRATEGIA DE ALTO RIESGO"
+                        desc_v = "La estrategia falla más veces de las que acierta. Debes revisar tu análisis previo."
+                    elif ev <= 0:
+                        veredicto = "⚠️ RIESGO MATEMÁTICO (EV Negativo)"
                         color_v = "#F59E0B"
-                        desc_v = "Rendimientos erráticos. La volatilidad no justifica el estrés operativo."
-                    elif 0.8 <= sharpe_ratio <= 1.5:
-                        veredicto = "✅ ESTRATEGIA MODERADA (Viable)"
-                        color_v = "#10B981"
-                        desc_v = "Configuración sólida. Se recomienda mantener una exposición máxima del 8% al 12% por operación."
-                    else:
-                        veredicto = "💎 ESTRATEGIA INSTITUCIONAL (Óptima)"
+                        desc_v = "Aunque ganes varias veces, las cuotas promedio no son suficientes para cubrir las veces que pierdes."
+                    elif efectividad_global >= 70:
+                        veredicto = "💎 SISTEMA DE ALTO RENDIMIENTO (>70% Acierto)"
                         color_v = "#3B82F6"
-                        desc_v = "Excelente gestión de riesgo y baja volatilidad. Lista para escalado de capital."
+                        desc_v = "La frecuencia de éxito es altísima. Modelo altamente consistente."
+                    else:
+                        veredicto = "✅ ESTRATEGIA ESTABLE Y RENTABLE"
+                        color_v = "#10B981"
+                        desc_v = "Frecuencia de aciertos saludable y utilidad en positivo."
 
-                    # --- RENDERIZADO DEL DASHBOARD ---
+                    # --- RENDERIZADO DEL DASHBOARD (NUEVO DISEÑO) ---
                     st.markdown(f"""
                         <div style="background-color: {color_v}; padding: 20px; border-radius: 8px; color: white; text-align: center; margin-bottom: 25px;">
                             <h2 style="margin: 0; color: white;">{veredicto}</h2>
@@ -1662,45 +1696,45 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     <style>
                     .metric-card { background-color: #F8FAFC; border: 1px solid #E2E8F0; padding: 15px; border-radius: 8px; text-align: center; }
                     .metric-card h4 { margin-top: 0; color: #475569; font-size: 1rem; }
-                    .metric-card h2 { margin: 10px 0; font-size: 2rem; }
-                    .metric-card p { margin-bottom: 0; color: #64748B; font-size: 0.85rem; }
+                    .metric-card h2 { margin: 10px 0; font-size: 2.2rem; font-weight: bold; }
+                    .metric-card p { margin-bottom: 0; color: #64748B; font-size: 0.9rem; font-weight: 500; }
                     </style>
                     """, unsafe_allow_html=True)
 
                     col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
                     with col_kpi1:
-                        st.markdown(f'<div class="metric-card"><h4>Esperanza Matemática (EV)</h4><h2 style="color: {"#10B981" if ev > 0 else "#EF4444"}">{ev:,.3f}</h2><p>Rendimiento estadístico x unidad</p></div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="metric-card"><h4>🎯 Tasa de Éxito (Hit Rate)</h4><h2 style="color: {"#10B981" if efectividad_global >= 50 else "#EF4444"}">{efectividad_global:.1f}%</h2><p>{total_ganadas} operaciones terminaron en verde</p></div>', unsafe_allow_html=True)
                     with col_kpi2:
-                        st.markdown(f'<div class="metric-card"><h4>Ratio Sharpe</h4><h2 style="color: {"#3B82F6" if sharpe_ratio >= 1.5 else "#F59E0B"}">{sharpe_ratio:,.2f}</h2><p>Retorno ajustado al riesgo</p></div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="metric-card"><h4>💵 Utilidad Neta Real</h4><h2 style="color: {"#3B82F6" if utilidad_neta_total >= 0 else "#EF4444"}">${utilidad_neta_total:,.0f}</h2><p>Balance monetario puro</p></div>', unsafe_allow_html=True)
                     with col_kpi3:
-                        st.markdown(f'<div class="metric-card"><h4>Max Drawdown</h4><h2 style="color: #EF4444">${max_drawdown_cop:,.0f}</h2><p>Mayor caída de capital soportada</p></div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="metric-card"><h4>⚖️ Esperanza Matemática</h4><h2 style="color: {"#10B981" if ev > 0 else "#EF4444"}">{ev:,.3f}</h2><p>Calidad matemática de las cuotas</p></div>', unsafe_allow_html=True)
                     
                     st.markdown("---")
-                    st.subheader("📊 Eficiencia en la Cancha (Realidad Operativa)")
+                    st.subheader("📊 Radiografía Operativa (Conteo de Veces)")
                     
                     c1, c2, c3, c4, c5 = st.columns(5)
-                    c1.metric("Volumen Analizado", f"{total_ops} Ops")
-                    c2.metric("Efectividad Inicial", f"{win_rate:.1f}%")
-                    c3.metric("Frecuencia Rescate", f"{frecuencia_rescate:.1f}%")
-                    c4.metric("Tasa Fracaso", f"{loss_rate:.1f}%")
+                    c1.metric("Volumen Auditado", f"{total_ops} ops")
+                    c2.metric("Acertó Inicial", f"{victorias_pre_partido} veces")
+                    c3.metric("Entró Seguro", f"{victorias_cobertura} veces")
+                    c4.metric("Siniestros (Rojo)", f"{derrotas_totales} veces")
                     
                     texto_tiempo = f"{tiempo_promedio_cob:.0f} min" if tiempo_promedio_cob > 0 else "N/A"
-                    c5.metric("Tiempo Promedio a Cobertura", texto_tiempo)
+                    c5.metric("Tiempo a Cobertura", texto_tiempo)
 
                     # =====================================================================
-                    # 🧠 NUEVO: MAPA DE CALOR DE CUOTAS EXTENDIDO (HASTA 20.00+)
+                    # 🧠 MAPA DE EFECTIVIDAD DE CAZA (POR VECES)
                     # =====================================================================
                     st.markdown("---")
-                    st.subheader("🎯 Calibración de Cuotas (Mapa de Efectividad)")
-                    st.write("Muestra la tasa de éxito de tus coberturas agrupadas por niveles de riesgo. La escala incluye tramos de alta volatilidad.")
+                    st.subheader("🎯 Efectividad Atrapando el Seguro (Mapa de Calor)")
+                    st.write("Mide la **frecuencia de captura**: ¿En qué nivel de cuota eres mejor asegurando ganancias?")
                     
-                    # Filtramos operaciones que usaron esquema de cobertura (cuota_objetivo > 0)
+                    # Filtramos operaciones que intentaron usar esquema de cobertura
                     df_cob_data = df_est[df_est['cuota_objetivo'] > 0].copy()
                     
                     if not df_cob_data.empty:
                         df_cob_data['seguro_cazado'] = df_cob_data['cuota_cazada_real'] > 0
                         
-                        # 1. Crear los tramos contables de largo alcance (Bins de Pandas)
+                        # 1. Crear los tramos contables
                         bins = [1.0, 2.0, 3.0, 5.0, 8.0, 12.0, 20.0, 1000.0]
                         labels = [
                             '🛡️ Conservador (1.01 a 1.99)', 
@@ -1712,39 +1746,38 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                             '🌌 Astronómico (20.00+)'
                         ]
                         
-                        # El parámetro right=False asegura que un 2.0 exacto caiga en el tramo "2.0 a 2.99"
-                        df_cob_data['tramo'] = pd.cut(df_cob_data['cuota_objetivo'], bins=bins, labels=labels, right=False)
+                        df_cob_data['tramo'] = pd.cut(df_cob_data['cuota_objetivo'].astype(float), bins=bins, labels=labels, right=False)
                         
-                        # 2. Agrupar la estadística por cada tramo
+                        # 2. Agrupar la estadística por cada tramo (Por Frecuencia de Veces)
                         resumen = df_cob_data.groupby('tramo', observed=False).agg(
                             Intentos=('cuota_objetivo', 'count'),
                             Exitos=('seguro_cazado', 'sum')
                         ).reset_index()
                         
-                        # 3. Limpiar los tramos donde no has hecho operaciones
+                        # 3. Limpiar los tramos vacíos
                         resumen = resumen[resumen['Intentos'] > 0].copy()
                         
-                        # 4. Calcular los porcentajes reales
+                        # 4. Calcular los porcentajes reales de acierto
                         resumen['Tasa de Éxito'] = (resumen['Exitos'] / resumen['Intentos']) * 100
                         
-                        # Renombrar columnas para la tabla visual
-                        resumen.columns = ['Nivel de Riesgo (Cuota Objetivo)', 'Total de Intentos', 'Seguros Cazados', '% Efectividad Bruta']
+                        # Renombrar columnas
+                        resumen.columns = ['Nivel de Riesgo (Cuota Objetivo)', 'Intentos (Veces)', 'Atrapadas (Veces)', '% Efectividad Bruta']
                         
-                        # Renderizar tabla limpia
+                        # Renderizar tabla
                         resumen_show = resumen.copy()
                         resumen_show['% Efectividad Bruta'] = resumen_show['% Efectividad Bruta'].apply(lambda x: f"{x:.1f}%")
                         st.dataframe(resumen_show, use_container_width=True, hide_index=True)
                         
-                        # 5. El Dictamen Táctico para el Módulo 1
+                        # 5. El Dictamen Táctico
                         if len(resumen) > 1:
                             mejor_tramo = resumen.loc[resumen['% Efectividad Bruta'].idxmax()]
                             peor_tramo = resumen.loc[resumen['% Efectividad Bruta'].idxmin()]
                             
                             if mejor_tramo['% Efectividad Bruta'] == peor_tramo['% Efectividad Bruta']:
-                                st.info("Tienes la misma efectividad en todos los tramos intentados. Se requiere más volumen de operaciones para encontrar un patrón.")
+                                st.info("💡 Tienes la misma efectividad de caza en todos los tramos. Cierra más operaciones de prueba para generar un patrón estadístico.")
                             else:
-                                st.success(f"💡 **Dictamen del Algoritmo:** Tu zona más sólida de captura es el rango **{mejor_tramo['Nivel de Riesgo (Cuota Objetivo)']}** con una efectividad del **{mejor_tramo['% Efectividad Bruta']:.1f}%**. Trata de configurar tus próximas operaciones en el Módulo 1 apuntando a ese rango y evita el nivel **{peor_tramo['Nivel de Riesgo (Cuota Objetivo)']}**, donde tu acierto cae al **{peor_tramo['% Efectividad Bruta']:.1f}%**.")
+                                st.success(f"💡 **Dictamen:** Tu zona más sólida de captura es el rango **{mejor_tramo['Nivel de Riesgo (Cuota Objetivo)']}**, logras atrapar la cobertura el **{mejor_tramo['% Efectividad Bruta']:.1f}%** de las veces. Evita el nivel **{peor_tramo['Nivel de Riesgo (Cuota Objetivo)']}**, donde tu acierto cae al **{peor_tramo['% Efectividad Bruta']:.1f}%**.")
                         else:
-                            st.info("💡 Solo has operado en un único rango de riesgo. Intenta variar tus cuotas objetivo en el simulador para que el sistema encuentre tu límite.")
+                            st.info("💡 Solo has operado en un único rango de riesgo. Intenta variar tus cuotas en las próximas simulaciones para construir este mapa.")
                     else:
                         st.info("Muestra insuficiente de coberturas para generar el mapa de efectividad.")
