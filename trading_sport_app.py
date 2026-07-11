@@ -1,9 +1,12 @@
-import streamlit as st
-import pandas as pd
+
+
 import numpy as np
+import streamlit as st
+from supabase import create_client, Client
 import random
 import string
-from supabase import create_client, Client
+import pandas as pd
+import datetime
 
 st.set_page_config(page_title="Sistema de Trading y Auditoría COP", page_icon="⚖️", layout="wide")
 
@@ -22,29 +25,108 @@ def generar_codigo():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
 
 def obtener_saldo_banca(tipo_banca: str) -> float:
-    if supabase is None:
-        return 0.0
+    if supabase is None: return 0.0
     try:
         # 1. Sumar movimientos de caja
         res_movs = supabase.table("movimientos_caja").select("tipo_movimiento", "monto").eq("tipo_banca", tipo_banca).execute()
-        total_caja = 0.0
-        for mov in res_movs.data:
-            if mov['tipo_movimiento'] == "CONSIGNACION":
-                total_caja += float(mov['monto'])
-            elif mov['tipo_movimiento'] == "RETIRO":
-                total_caja -= float(mov['monto'])
+        total_caja = sum(float(m['monto']) if m['tipo_movimiento'] == "CONSIGNACION" else -float(m['monto']) for m in res_movs.data)
         
-        # 2. Consolidar utilidades/pérdidas de posiciones CERRADAS
+        # 2. Utilidades CERRADAS
         res_ops_cerradas = supabase.table("historial_trading").select("utilidad_neta_real").eq("tipo_banca", tipo_banca).eq("estado", "CERRADA").execute()
-        total_utilidad = sum(float(op['utilidad_neta_real']) for op in res_ops_cerradas.data) if res_ops_cerradas.data else 0.0
+        total_utilidad = sum(float(op['utilidad_neta_real'] or 0.0) for op in res_ops_cerradas.data)
         
-        # 3. Restar el capital que está COMPROMETIDO en posiciones abiertas
-        res_ops_abiertas = supabase.table("historial_trading").select("capital_total").eq("tipo_banca", tipo_banca).in_("estado", ["EN VIVO", "CUBIERTA"]).execute()
-        capital_retenido = sum(float(op['capital_total']) for op in res_ops_abiertas.data) if res_ops_abiertas.data else 0.0
-        
+        # 3. Capital retenido en abiertas
+        res_ops_abiertas = supabase.table("historial_trading").select("estado", "capital_total", "estrategia", "cuota_inicial", "cuota_cazada_real").eq("tipo_banca", tipo_banca).in_("estado", ["EN VIVO", "CUBIERTA"]).execute()
+        capital_retenido = 0.0
+        for op in res_ops_abiertas.data:
+            cap = float(op.get('capital_total') or 0.0)
+            capital_retenido += cap
+            # En eSports cubiertas, se inyectó capital dinámico extra
+            if op.get('estado') == "CUBIERTA" and "eSports" in op.get('estrategia', ''):
+                c_ini = float(op.get('cuota_inicial') or 1.0)
+                c_caz = float(op.get('cuota_cazada_real') or 0.0)
+                if c_caz > 0:
+                    capital_retenido += (cap * c_ini) / c_caz
+                    
         return total_caja + total_utilidad - capital_retenido
     except Exception as e:
         return 0.0
+
+# 🧠 NUEVO MOTOR: TRAZABILIDAD CRUZADA POR PLATAFORMA
+def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
+    if supabase is None: return pd.DataFrame()
+    try:
+        saldos = {}
+        
+        # 1. Movimientos Manuales (Fondeo y Retiro)
+        res_movs = supabase.table("movimientos_caja").select("tipo_movimiento", "monto", "plataforma").eq("tipo_banca", tipo_banca).execute()
+        for m in res_movs.data:
+            p = m.get('plataforma') or 'Sin Especificar'
+            if p not in saldos: saldos[p] = 0.0
+            if m['tipo_movimiento'] == "CONSIGNACION":
+                saldos[p] += float(m['monto'])
+            else:
+                saldos[p] -= float(m['monto'])
+                
+        # 2. Reconstrucción Operación por Operación (Trading)
+        res_ops = supabase.table("historial_trading").select("*").eq("tipo_banca", tipo_banca).execute()
+        for op in res_ops.data:
+            p_ini = op.get('plataforma_inicial') or 'Sin Especificar'
+            p_cob = op.get('plataforma_cobertura') or 'Sin Especificar'
+            if p_ini not in saldos: saldos[p_ini] = 0.0
+            if p_cob not in saldos: saldos[p_cob] = 0.0
+            
+            estado = op.get('estado', '')
+            res_fin = op.get('resultado_final', '')
+            estrategia = op.get('estrategia', '')
+            
+            stake_1 = float(op.get('stake_1') or op.get('capital_total') or 0.0)
+            c_ini = float(op.get('cuota_inicial') or 1.0)
+            c_caz = float(op.get('cuota_cazada_real') or 0.0)
+            util_neta = float(op.get('utilidad_neta_real') or 0.0)
+            
+            # Determinar cuánto dinero se metió en la cobertura
+            monto_cob = 0.0
+            if op.get('plataforma_cobertura'):
+                if "eSports" in estrategia:
+                    if c_caz > 0: monto_cob = (stake_1 * c_ini) / c_caz
+                else:
+                    monto_cob = float(op.get('reserva_stake_2') or 0.0)
+                    
+            if estado in ["EN VIVO", "CUBIERTA"]:
+                # Descontar saldo bloqueado en la casa
+                saldos[p_ini] -= stake_1
+                if estado == "CUBIERTA" and op.get('plataforma_cobertura'):
+                    saldos[p_cob] -= monto_cob
+            
+            elif estado == "CERRADA":
+                # Si ganó la Inicial
+                if any(k in res_fin for k in ["Ganó Inicial", "Apuesta Inicial", "Libre: Ganada", "Pre-Partido"]):
+                    saldos[p_ini] += (stake_1 * c_ini) - stake_1
+                    # Solo pierde la cobertura si realmente la metió (No aplica para Cierre Directo)
+                    if op.get('plataforma_cobertura') and "Directo" not in res_fin and "Libre" not in res_fin:
+                        saldos[p_cob] -= monto_cob
+                
+                # Si ganó la Cobertura (Seguro)
+                elif any(k in res_fin for k in ["Fondo de Cobertura", "Seguro Acertado"]):
+                    saldos[p_ini] -= stake_1
+                    saldos[p_cob] += (monto_cob * c_caz) - monto_cob
+                
+                # Si perdió todo (Déficit)
+                elif any(k in res_fin for k in ["Déficit", "Pérdida Total", "Perdió Inicial", "Libre: Perdida"]):
+                    saldos[p_ini] -= stake_1
+                    if op.get('plataforma_cobertura') and "Directo" not in res_fin and "Libre" not in res_fin:
+                        saldos[p_cob] -= monto_cob
+                else:
+                    # Respaldo para operaciones super antiguas
+                    saldos[p_ini] += util_neta
+                    
+        df = pd.DataFrame(list(saldos.items()), columns=['Casa de Apuestas', 'Saldo Actual (COP)'])
+        # Filtrar saldos en 0 o muy cercanos a 0 por decimales
+        df = df[df['Saldo Actual (COP)'].abs() > 0.1]
+        return df.sort_values(by='Saldo Actual (COP)', ascending=False)
+    except Exception as e:
+        return pd.DataFrame()
 
 # --- ESTILOS CSS ---
 st.markdown("""
@@ -74,7 +156,7 @@ estrategia_activa = st.sidebar.radio(
     [
         "💰 Gestión de Capital (Caja)",
         "🎯 Estrategia Libre (Apuesta Directa)",
-        "⚡ Estrategia 1: eSports (Scalping)", # <--- EL NUEVO MÓDULO CON SU NOMBRE CORRECTO
+        "⚡ Estrategia 1: eSports (Scalping)", 
         "2️⃣ Estrategia 2: Paz Mental (Fútbol)", 
         "🔒 Seguimiento y Liquidación de Posiciones",
         "🔬 Auditoría Cuantitativa (Reporte)"
@@ -98,54 +180,119 @@ st.title("⚖️ Sistema de Trading Automático")
 # MÓDULO: GESTIÓN DE CAPITAL (CONSIGNAR Y RETIRAR)
 # =====================================================================
 if estrategia_activa == "💰 Gestión de Capital (Caja)":
-    st.markdown("### 💰 Control de Flujos de Efectivo y Tesorería")
-    st.write("Administre los depósitos y retiros para fondear sus cuentas operativas.")
+    st.markdown("### 💰 Control de Flujos y Patrimonio por Plataforma")
+    st.write("El sistema deduce automáticamente cuánto dinero tienes en cada casa cruzando fondeos con los resultados de tus coberturas.")
     
     tab_real, tab_sim = st.tabs(["🟢 BANCA REAL", "🟡 BANCA DE SIMULACIÓN"])
     
     with tab_real:
-        st.markdown(f'<div class="kpi-banca"><h5>DISPONIBLE REAL</h5><h2>${saldo_real:,.0f} COP</h2></div>', unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        
+        col_kpi, col_table = st.columns([1, 1.5])
+        with col_kpi:
+            st.markdown(f'<div class="kpi-banca" style="height: 100%;"><h5>DISPONIBLE GLOBAL REAL</h5><h2 style="color:#10B981;">${saldo_real:,.0f} COP</h2><p style="font-size:0.8rem; color:#64748B;">Patrimonio Neto Total</p></div>', unsafe_allow_html=True)
+        with col_table:
+            df_plat_real = obtener_saldos_por_plataforma("REAL")
+            if not df_plat_real.empty:
+                st.write("**Distribución actual del dinero por casa:**")
+                st.dataframe(df_plat_real.style.format({"Saldo Actual (COP)": "${:,.0f}"}), hide_index=True, use_container_width=True)
+            else:
+                st.info("No hay dinero distribuido en plataformas.")
+
+        st.markdown("---")
         c1, c2 = st.columns(2)
         with c1:
             with st.form("consignar_real"):
+                st.markdown("#### 📥 Registrar Depósito en Casa")
+                plat_in = st.selectbox("¿En qué casa vas a fondear?", todas_las_plataformas)
+                plat_in_otra = st.text_input("Especificar plataforma:") if plat_in == "Otra" else ""
                 monto = st.number_input("Monto a Consignar (COP):", min_value=5000, step=5000, value=10000)
-                if st.form_submit_button("📥 Consignar en Banca Real"):
-                    supabase.table("movimientos_caja").insert({"tipo_banca": "REAL", "tipo_movimiento": "CONSIGNACION", "monto": monto}).execute()
-                    st.success("Depósito registrado con éxito.")
-                    st.rerun()
+                
+                if st.form_submit_button("Fijar Depósito (Banca Real)"):
+                    plataforma_final = plat_in_otra if plat_in == "Otra" else plat_in
+                    if not plataforma_final:
+                        st.error("Debes especificar la plataforma.")
+                    else:
+                        supabase.table("movimientos_caja").insert({
+                            "tipo_banca": "REAL", 
+                            "tipo_movimiento": "CONSIGNACION", 
+                            "monto": monto,
+                            "plataforma": plataforma_final
+                        }).execute()
+                        st.success(f"Depósito de ${monto:,.0f} en {plataforma_final} registrado.")
+                        st.rerun()
+                        
         with c2:
             with st.form("retirar_real"):
+                st.markdown("#### 📤 Registrar Retiro de Ganancias")
+                plat_out = st.selectbox("¿De qué casa retiras dinero?", todas_las_plataformas)
+                plat_out_otra = st.text_input("Especificar plataforma:") if plat_out == "Otra" else ""
                 monto = st.number_input("Monto a Retirar (COP):", min_value=5000, step=5000, value=10000)
-                if st.form_submit_button("📤 Retirar de Banca Real"):
-                    if monto > saldo_real:
-                        st.error("Fondos insuficientes para ejecutar el retiro.")
+                
+                if st.form_submit_button("Fijar Retiro (Banca Real)"):
+                    plataforma_final = plat_out_otra if plat_out == "Otra" else plat_out
+                    if not plataforma_final:
+                        st.error("Debes especificar la plataforma.")
+                    elif monto > saldo_real:
+                        st.error("El monto supera el patrimonio global disponible.")
                     else:
-                        supabase.table("movimientos_caja").insert({"tipo_banca": "REAL", "tipo_movimiento": "RETIRO", "monto": monto}).execute()
-                        st.success("Retiro registrado con éxito.")
+                        supabase.table("movimientos_caja").insert({
+                            "tipo_banca": "REAL", 
+                            "tipo_movimiento": "RETIRO", 
+                            "monto": monto,
+                            "plataforma": plataforma_final
+                        }).execute()
+                        st.success(f"Retiro de ${monto:,.0f} desde {plataforma_final} registrado.")
                         st.rerun()
                         
     with tab_sim:
-        st.markdown(f'<div class="kpi-banca"><h5>DISPONIBLE SIMULACIÓN</h5><h2>${saldo_simulacion:,.0f} COP</h2></div>', unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_allow_html=True)
-        
+        col_kpi_s, col_table_s = st.columns([1, 1.5])
+        with col_kpi_s:
+            st.markdown(f'<div class="kpi-banca" style="height: 100%;"><h5>DISPONIBLE SIMULACIÓN</h5><h2 style="color:#F59E0B;">${saldo_simulacion:,.0f} COP</h2><p style="font-size:0.8rem; color:#64748B;">Patrimonio Virtual</p></div>', unsafe_allow_html=True)
+        with col_table_s:
+            df_plat_sim = obtener_saldos_por_plataforma("SIMULACION")
+            if not df_plat_sim.empty:
+                st.write("**Distribución virtual por casa:**")
+                st.dataframe(df_plat_sim.style.format({"Saldo Actual (COP)": "${:,.0f}"}), hide_index=True, use_container_width=True)
+            else:
+                st.info("No hay dinero distribuido en simulación.")
+
+        st.markdown("---")
         c1, c2 = st.columns(2)
         with c1:
             with st.form("consignar_sim"):
-                monto = st.number_input("Monto a Consignar Simulado (COP):", min_value=5000, step=5000, value=50000)
-                if st.form_submit_button("📥 Consignar en Simulación"):
-                    supabase.table("movimientos_caja").insert({"tipo_banca": "SIMULACION", "tipo_movimiento": "CONSIGNACION", "monto": monto}).execute()
-                    st.success("Fondeo simulado registrado.")
+                st.markdown("#### 📥 Fondeo Virtual")
+                plat_in = st.selectbox("Plataforma simulada:", todas_las_plataformas)
+                plat_in_otra = st.text_input("Especificar plataforma:") if plat_in == "Otra" else ""
+                monto = st.number_input("Monto a Consignar (COP):", min_value=5000, step=5000, value=50000)
+                
+                if st.form_submit_button("Fijar Fondeo Virtual"):
+                    plataforma_final = plat_in_otra if plat_in == "Otra" else plat_in
+                    supabase.table("movimientos_caja").insert({
+                        "tipo_banca": "SIMULACION", 
+                        "tipo_movimiento": "CONSIGNACION", 
+                        "monto": monto,
+                        "plataforma": plataforma_final
+                    }).execute()
+                    st.success(f"Fondeo de ${monto:,.0f} a {plataforma_final} exitoso.")
                     st.rerun()
+                    
         with c2:
             with st.form("retirar_sim"):
-                monto = st.number_input("Monto a Retirar Simulado (COP):", min_value=5000, step=5000, value=50000)
-                if st.form_submit_button("📤 Retirar de Simulación"):
+                st.markdown("#### 📤 Retiro Virtual")
+                plat_out = st.selectbox("Plataforma simulada:", todas_las_plataformas)
+                plat_out_otra = st.text_input("Especificar plataforma:") if plat_out == "Otra" else ""
+                monto = st.number_input("Monto a Retirar (COP):", min_value=5000, step=5000, value=50000)
+                
+                if st.form_submit_button("Fijar Retiro Virtual"):
+                    plataforma_final = plat_out_otra if plat_out == "Otra" else plat_out
                     if monto > saldo_simulacion:
-                        st.error("Fondos simulados insuficientes.")
+                        st.error("Fondos simulados globales insuficientes.")
                     else:
-                        supabase.table("movimientos_caja").insert({"tipo_banca": "SIMULACION", "tipo_movimiento": "RETIRO", "monto": monto}).execute()
+                        supabase.table("movimientos_caja").insert({
+                            "tipo_banca": "SIMULACION", 
+                            "tipo_movimiento": "RETIRO", 
+                            "monto": monto,
+                            "plataforma": plataforma_final
+                        }).execute()
                         st.success("Retiro simulado registrado.")
                         st.rerun()
 # =====================================================================
