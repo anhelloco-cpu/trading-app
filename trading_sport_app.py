@@ -1,12 +1,9 @@
-
-
-import numpy as np
 import streamlit as st
-from supabase import create_client, Client
+import pandas as pd
+import numpy as np
 import random
 import string
-import pandas as pd
-import datetime
+from supabase import create_client, Client
 
 st.set_page_config(page_title="Sistema de Trading y Auditoría COP", page_icon="⚖️", layout="wide")
 
