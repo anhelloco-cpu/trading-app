@@ -1142,11 +1142,17 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         else:
                             contexto_mercado = f"El reloj es enemigo. Necesitas un gol de {sel_ini} o presión temprana para bajar la cuota."
                         
+                        # --- VARIABLES SEGURAS (Evita que la app se estrelle por datos vacíos) ---
+                        cap_total_seguro = float(op.get('capital_total') or 0.0)
+                        reserva_segura = float(op.get('reserva_stake_2') or 0.0)
+                        cuota_ini_segura = float(op.get('cuota_inicial') or 1.0)
+                        banca_op = str(op.get('tipo_banca') or 'N/A')
+                        
                         if es_apuesta_libre:
-                            st.write(f"**Capital Comprometido (Libre) [{tipo_banca_operacion}]:** ${op['capital_total']:,.0f}")
-                            st.info(f"🎯 **Selección:** **{sel_ini}** a cuota **{op['cuota_inicial']:.2f}** en **{op.get('plataforma_inicial', 'N/A')}**")
+                            st.write(f"**Capital Comprometido (Libre) [{banca_op}]:** ${cap_total_seguro:,.0f}")
+                            st.info(f"🎯 **Selección:** **{sel_ini}** a cuota **{cuota_ini_segura:.2f}** en **{op.get('plataforma_inicial', 'N/A')}**")
                         else:
-                            st.write(f"**Capital Comprometido [{tipo_banca_operacion}]:** ${op['capital_total']:,.0f} | **Fondo de Cobertura:** ${op['reserva_stake_2']:,.0f}")
+                            st.write(f"**Capital Comprometido [{banca_op}]:** ${cap_total_seguro:,.0f} | **Fondo de Cobertura:** ${reserva_segura:,.0f}")
                             
                             st.markdown(f"""
                             <div style="background-color: #F8FAFC; padding: 15px; border-left: 4px solid #3B82F6; border-radius: 4px; margin-bottom: 15px;">
