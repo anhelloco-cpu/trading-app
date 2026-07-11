@@ -1404,8 +1404,14 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     # 🔍 MATRIZ FINANCIERA (OPCIÓN A VS OPCIÓN B)
                                     # =====================================================================
                                     
-                                    plataforma_cob = st.selectbox("Plataforma donde cazaste la cobertura:", ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Otra"], key=f"plat_live_{op['codigo']}")
+                                    todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
+                                    plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
                                     
+                                    if plataforma_cob_sel == "Otra":
+                                        plataforma_cob = st.text_input("Especifica la plataforma de cobertura:", key=f"otra_plat_live_{op['codigo']}")
+                                    else:
+                                        plataforma_cob = plataforma_cob_sel
+                                        
                                     util_inicial_con_cob = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
                                     util_cobertura_con_cob = (op['reserva_stake_2'] * cuota_ingresada) - op['capital_total']
                                     util_inicial_sin_cob = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
@@ -1785,7 +1791,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         st.bar_chart(df_grafica_cons_s)
                 else:
                     st.info("No hay transacciones cerradas en Paper Trading.")
-                    
+
 # =====================================================================
 # MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
 # =====================================================================
