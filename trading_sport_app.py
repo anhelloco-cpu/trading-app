@@ -1554,7 +1554,7 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
             st.info("Aún no hay operaciones de simulación finalizadas para auditar.")
         else:
             # ---------------------------------------------------------
-            # 1. CLASIFICADOR DINÁMICO DE SUB-ESTRATEGIAS (EL SEPARADOR)
+            # 1. CLASIFICADOR DINÁMICO DE SUB-ESTRATEGIAS
             # ---------------------------------------------------------
             def clasificar_estrategia(row):
                 est_original = str(row.get('estrategia', ''))
@@ -1565,7 +1565,7 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     if "Menos de" in sel_ini or "Más de" in sel_ini or "Goles" in sel_ini:
                         return "⚡ eSports: Mercado de Goles"
                     elif "+ Gana" in sel_ini:
-                        return "⚡ eSports: Fuego Cruzado (Empate es Amenaza)"
+                        return "⚡ eSports: Fuego Cruzado (Empate Amenaza)"
                     else:
                         # Deducimos si es favorito evaluando quién tenía la cuota más baja
                         try:
@@ -1592,6 +1592,7 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
             estrategias_disponibles = sorted(df_sim['estrategia_desglosada'].dropna().unique().tolist())
             estrategia_seleccionada = st.selectbox("📌 Selecciona la rama específica a auditar:", estrategias_disponibles)
             
+            # EL FILTRO MAESTRO: Aísla los datos para que no se mezcle dinero ni frecuencias
             df_est = df_sim[df_sim['estrategia_desglosada'] == estrategia_seleccionada].copy()
             total_ops = len(df_est)
             
@@ -1608,7 +1609,7 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                         <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; border-radius: 5px; margin-bottom: 20px; color: #991B1B;">
                             <h4 style="margin-top: 0; color: #991B1B;">🚨 DICTAMEN: MUESTRA CRÍTICA (POCO VOLUMEN)</h4>
                             <p style="margin-bottom: 0; font-size: 0.95rem;">
-                                Tienes solo <b>{total_ops} operaciones</b> en esta rama. Es imposible saber si la estrategia es buena o mala porque el azar (suerte) influye demasiado en tan pocos intentos.
+                                Tienes solo <b>{total_ops} operaciones</b> en esta rama. Es imposible saber si la estrategia es buena o mala porque el azar influye demasiado.
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -1617,7 +1618,7 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                         <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 5px; margin-bottom: 20px; color: #92400E;">
                             <h4 style="margin-top: 0; color: #B45309;">⚠️ DICTAMEN PRELIMINAR (EN DESARROLLO)</h4>
                             <p style="margin-bottom: 0; font-size: 0.95rem;">
-                                Con <b>{total_ops} operaciones</b> ya se nota una tendencia, pero para que un modelo se declare "probado" a nivel contable requieres mínimo 100 eventos continuos.
+                                Con <b>{total_ops} operaciones</b> ya se nota una tendencia, pero para que un modelo se declare "probado" requieres mínimo 100 eventos continuos.
                             </p>
                         </div>
                         """, unsafe_allow_html=True)
@@ -1625,9 +1626,8 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                         st.success(f"✅ CERTIFICACIÓN OFICIAL: ESTRATEGIA ESTADÍSTICAMENTE PROBADA ({total_ops} ops).")
 
                     # ---------------------------------------------------------
-                    # 3. CÁLCULOS POR FRECUENCIA Y VECES (NO POR PLATA)
+                    # 3. CÁLCULOS POR FRECUENCIA Y DINERO EXCLUSIVO
                     # ---------------------------------------------------------
-                    # Buscamos coincidencias exactas en la base de datos de cómo se guardó el resultado
                     victorias_pre_partido = df_est['resultado_final'].str.contains("Pre-Partido|Ganó Inicial|Apuesta Inicial", case=False, na=False).sum()
                     victorias_cobertura = df_est['resultado_final'].str.contains("Cobertura|Profit", case=False, na=False).sum()
                     derrotas_totales = df_est['resultado_final'].str.contains("Déficit|Perdió|Pérdida|Loss", case=False, na=False).sum()
@@ -1643,11 +1643,15 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     except:
                         cuota_promedio = 1.0
                     
-                    # Cálculo exclusivo de la utilidad (plata real acumulada)
+                    # Cálculo exclusivo de dinero para la estrategia seleccionada
                     try:
                         utilidad_neta_total = df_est['utilidad_neta_real'].astype(float).sum()
+                        capital_total_movilizado = df_est['capital_total'].astype(float).sum()
+                        roi_historico_estrategia = (utilidad_neta_total / capital_total_movilizado) * 100 if capital_total_movilizado > 0 else 0
                     except:
                         utilidad_neta_total = 0
+                        capital_total_movilizado = 0
+                        roi_historico_estrategia = 0
 
                     # CÁLCULO DE TIEMPO PROMEDIO DE COBERTURA
                     tiempo_promedio_cob = 0
@@ -1663,28 +1667,35 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                             except Exception:
                                 tiempo_promedio_cob = 0
 
-                    # Esperanza Matemática Básica
                     ev = ((efectividad_global / 100) * (cuota_promedio - 1)) - (loss_rate / 100)
                     
-                    # Motor de Decisión
-                    if efectividad_global < 50:
-                        veredicto = "🚨 MODELO DEFICIENTE (Acierto < 50%)"
-                        color_v = "#EF4444"
-                        desc_v = "La estrategia falla más veces de las que acierta. Debes revisar tu análisis previo."
-                    elif ev <= 0:
-                        veredicto = "⚠️ RIESGO MATEMÁTICO (EV Negativo)"
-                        color_v = "#F59E0B"
-                        desc_v = "Aunque ganes varias veces, las cuotas promedio no son suficientes para cubrir las veces que pierdes."
-                    elif efectividad_global >= 70:
-                        veredicto = "💎 SISTEMA DE ALTO RENDIMIENTO (>70% Acierto)"
-                        color_v = "#3B82F6"
-                        desc_v = "La frecuencia de éxito es altísima. Modelo altamente consistente."
+                    # ---------------------------------------------------------
+                    # 4. MOTOR DE DECISIÓN AUDITADO (DINERO + FRECUENCIA)
+                    # ---------------------------------------------------------
+                    if utilidad_neta_total < 0:
+                        if efectividad_global >= 50:
+                            veredicto = "⚠️ ILUSIÓN DE RENTABILIDAD (Falsa Seguridad)"
+                            color_v = "#F59E0B"
+                            desc_v = "Ganas frecuentemente, pero las pérdidas son tan grandes que destruyen tu capital. El ROI es negativo. Revisa tu Stop Loss en esta rama específica."
+                        else:
+                            veredicto = "🚨 SISTEMA EN QUIEBRA (Modelo Deficiente)"
+                            color_v = "#EF4444"
+                            desc_v = "Matemática y financieramente en rojo. Baja tasa de aciertos y pérdida de patrimonio evidente. Detener ejecución."
                     else:
-                        veredicto = "✅ ESTRATEGIA ESTABLE Y RENTABLE"
-                        color_v = "#10B981"
-                        desc_v = "Frecuencia de aciertos saludable y utilidad en positivo."
+                        if efectividad_global >= 70 and ev > 0:
+                            veredicto = "💎 SISTEMA DE ALTO RENDIMIENTO (>70% Acierto)"
+                            color_v = "#3B82F6"
+                            desc_v = "Caja en verde y frecuencia de éxito altísima. Modelo altamente consistente y listo para escalado."
+                        elif efectividad_global >= 50:
+                            veredicto = "✅ ESTRATEGIA ESTABLE Y RENTABLE"
+                            color_v = "#10B981"
+                            desc_v = "El balance contable es positivo y la tasa de aciertos es saludable. Mantén el rigor disciplinario."
+                        else:
+                            veredicto = "⚠️ RENTABILIDAD POR SUERTE (Alta Varianza)"
+                            color_v = "#8B5CF6"
+                            desc_v = "Tienes utilidad positiva, pero aciertas menos del 50% de las veces. Tu rentabilidad depende de cazar cuotas muy altas. Cuidado con las rachas perdedoras."
 
-                    # --- RENDERIZADO DEL DASHBOARD (NUEVO DISEÑO) ---
+                    # --- RENDERIZADO DEL DASHBOARD FINANCIERO ---
                     st.markdown(f"""
                         <div style="background-color: {color_v}; padding: 20px; border-radius: 8px; color: white; text-align: center; margin-bottom: 25px;">
                             <h2 style="margin: 0; color: white;">{veredicto}</h2>
@@ -1703,11 +1714,11 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
 
                     col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
                     with col_kpi1:
-                        st.markdown(f'<div class="metric-card"><h4>🎯 Tasa de Éxito (Hit Rate)</h4><h2 style="color: {"#10B981" if efectividad_global >= 50 else "#EF4444"}">{efectividad_global:.1f}%</h2><p>{total_ganadas} operaciones terminaron en verde</p></div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="metric-card"><h4>🎯 Tasa de Éxito (Hit Rate)</h4><h2 style="color: {"#10B981" if efectividad_global >= 50 else "#EF4444"}">{efectividad_global:.1f}%</h2><p>{total_ganadas} operaciones en verde</p></div>', unsafe_allow_html=True)
                     with col_kpi2:
-                        st.markdown(f'<div class="metric-card"><h4>💵 Utilidad Neta Real</h4><h2 style="color: {"#3B82F6" if utilidad_neta_total >= 0 else "#EF4444"}">${utilidad_neta_total:,.0f}</h2><p>Balance monetario puro</p></div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="metric-card"><h4>💵 Utilidad Neta Real</h4><h2 style="color: {"#10B981" if utilidad_neta_total >= 0 else "#EF4444"}">${utilidad_neta_total:,.0f}</h2><p>Balance exclusivo de esta rama</p></div>', unsafe_allow_html=True)
                     with col_kpi3:
-                        st.markdown(f'<div class="metric-card"><h4>⚖️ Esperanza Matemática</h4><h2 style="color: {"#10B981" if ev > 0 else "#EF4444"}">{ev:,.3f}</h2><p>Calidad matemática de las cuotas</p></div>', unsafe_allow_html=True)
+                        st.markdown(f'<div class="metric-card"><h4>📈 ROI de la Estrategia</h4><h2 style="color: {"#3B82F6" if roi_historico_estrategia > 0 else "#EF4444"}">{roi_historico_estrategia:,.1f}%</h2><p>Sobre ${capital_total_movilizado:,.0f} invertidos aquí</p></div>', unsafe_allow_html=True)
                     
                     st.markdown("---")
                     st.subheader("📊 Radiografía Operativa (Conteo de Veces)")
