@@ -1455,10 +1455,15 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     else:
                                         plataforma_cob = plataforma_cob_sel
                                         
-                                    util_inicial_con_cob = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
-                                    util_cobertura_con_cob = (op['reserva_stake_2'] * cuota_ingresada) - op['capital_total']
-                                    util_inicial_sin_cob = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
-                                    util_perdida_sin_cob = -op['stake_1']
+                                    # --- BLINDAJE MATEMÁTICO (Previene caída por datos vacíos) ---
+                                    st1_seguro = float(op.get('stake_1') or cap_total_seguro)
+                                    c_ini_segura = float(op.get('cuota_inicial') or 1.0)
+                                    res_segura = float(op.get('reserva_stake_2') or 0.0)
+                                    
+                                    util_inicial_con_cob = (st1_seguro * c_ini_segura) - cap_total_seguro
+                                    util_cobertura_con_cob = (res_segura * cuota_ingresada) - cap_total_seguro
+                                    util_inicial_sin_cob = (st1_seguro * c_ini_segura) - st1_seguro
+                                    util_perdida_sin_cob = -st1_seguro
                                     
                                     st.markdown("#### 🔍 Matriz Financiera de la Operación")
                                     
