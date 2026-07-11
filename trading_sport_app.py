@@ -1110,9 +1110,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     with st.expander(f"⚽ {op['partido']} | Hora: {op.get('hora_inicio_partido', 'N/A')} | Ref: {op['codigo']} | Estado: {op['estado']}"):
                         es_apuesta_libre = op['reserva_stake_2'] == 0
                         
-                        sel_ini = op.get('seleccion_inicial', 'Apuesta Inicial')
-                        sel_cob = op.get('seleccion_cobertura', 'Cobertura')
-                        tipo_estrategia = op.get('estrategia', 'Estrategia 2: Paz Mental Clásica')
+                        sel_ini = str(op.get('seleccion_inicial') or 'Apuesta Inicial')
+                        sel_cob = str(op.get('seleccion_cobertura') or 'Cobertura')
+                        tipo_estrategia = str(op.get('estrategia') or 'Estrategia 2: Paz Mental Clásica')
                         
                         # --- CÁLCULO DE LÍMITES FINANCIEROS (CORREGIDO PARA DB VIEJA) ---
                         # Usamos "or 0.0" para evitar que los valores NULL de operaciones pasadas rompan el sistema
@@ -1320,7 +1320,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         
                                     st.progress(int(ird) / 100)
                                     st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
-                                    cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"cuota_live_{op['codigo']}")
+                                    # Escudo: Si la cuota vieja es 0 o vacía, arranca en 1.01 para no romper la app
+val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
+if val_cuota_obj < 1.01:
+    val_cuota_obj = 1.01
+
+cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"cuota_live_{op['codigo']}")
                                     
                                     if st.button("📸 Guardar Foto y Cerrar Ventana", key=f"btn_foto_{op['codigo']}", use_container_width=True):
                                         try:
