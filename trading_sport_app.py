@@ -1948,7 +1948,10 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
     import datetime
     import pandas as pd
     
-    if supabase is not None:
+    # 🛑 EL BOTÓN QUE FRENA LA CARGA PESADA
+    mostrar_informe = st.checkbox("🚀 Generar Informe Contable y Gráficas (Haz clic aquí para cargar)")
+    
+    if supabase is not None and mostrar_informe:
         res_cerradas = supabase.table("historial_trading").select("*").eq("estado", "CERRADA").order("fecha", desc=True).execute()
         df = pd.DataFrame(res_cerradas.data)
         
@@ -2016,11 +2019,13 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                         st.bar_chart(df_sim_master.groupby('dia')['utilidad_neta_real'].sum())
                 else:
                     st.info("No hay transacciones cerradas en Paper Trading.")
+        elif supabase is None:
+            st.error("Conecta Supabase primero.")
         else:
-            st.info("La base de datos está limpia. No hay operaciones registradas aún.")
+            st.info("👆 Activa la casilla de arriba para procesar los datos y ver el Libro Mayor.")
             
     st.markdown("---")
-    
+
     st.markdown("### 🔬 Auditoría por Frecuencia y Utilidad Neta")
     st.write("Evalúa la viabilidad del modelo midiendo **cuántas veces aciertas** (Frecuencia) y la **plata real que queda** (Utilidad), aislando el ruido del tamaño de la apuesta.")
     
