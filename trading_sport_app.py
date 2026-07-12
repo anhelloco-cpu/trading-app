@@ -1243,19 +1243,90 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             
                             accion_esports = st.radio(
                                 f"Acción Operativa ({etiqueta_db}):", 
-                                ["⚡ Cazar Cuota (Cobertura Dinámica)", "🏁 Liquidar Posición Directa (Sin Cobertura)"],
+                                ["📸 Evaluar Asedio y Cazar Cuota", "🏁 Liquidar Posición Directa (Sin Cobertura)"],
                                 key=f"acc_es_{op['codigo']}",
                                 horizontal=True
                             )
                             
-                            if accion_esports == "⚡ Cazar Cuota (Cobertura Dinámica)":
+                            if accion_esports == "📸 Evaluar Asedio y Cazar Cuota":
+                                st.markdown("#### ⏱️ Auditoría Táctica por Ritmo de Juego")
+                                
+                                # Extracción inteligente de equipos para la interfaz
+                                partido_str = str(op.get('partido', ''))
+                                solo_partido = partido_str.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str else partido_str
+                                if " vs " in solo_partido:
+                                    eq_local, eq_vis = solo_partido.split(" vs ")[0].strip(), solo_partido.split(" vs ")[1].strip()
+                                else:
+                                    eq_local, eq_vis = "Equipo 1", "Equipo 2"
+
+                                # Recuperar última foto de la base de datos
+                                res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
+                                ultima_foto = res_fotos.data[0] if res_fotos.data else {'goles_local': 0, 'goles_vis': 0, 'atkp_local': 0, 'atkp_vis': 0}
+                                min_base = ultima_foto.get('minuto_evaluado', 0) if res_fotos.data else 0
+
+                                minuto_sugerido = min_base
+                                if minuto_sugerido == 0 and op.get("hora_inicio_partido"):
+                                    try:
+                                        ahora = datetime.datetime.now()
+                                        h_ini = datetime.datetime.strptime(op["hora_inicio_partido"], "%H:%M").replace(year=ahora.year, month=ahora.month, day=ahora.day)
+                                        if ahora < h_ini: h_ini -= datetime.timedelta(days=1)
+                                        diff = int((ahora - h_ini).total_seconds() / 60)
+                                        minuto_sugerido = diff if diff <= 45 else (45 if diff < 60 else diff - 15)
+                                    except Exception: pass
+                                
+                                minuto_actual = st.number_input("⏱️ Minuto del Partido:", min_value=0, max_value=120, value=max(0, min(95, int(minuto_sugerido))), step=1, key=f"min_es_{op['codigo']}")
+                                
+                                st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+                                col_t1, col_t2 = st.columns(2)
+                                
+                                with col_t1:
+                                    st.markdown(f"<div style='background-color:#F8FAFC; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>🏠 {eq_local}</div>", unsafe_allow_html=True)
+                                    g_local = st.number_input("⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_local', 0)), key=f"g_l_es_{op['codigo']}")
+                                    atkp_local = st.number_input("🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_local', 0)), key=f"atk_l_es_{op['codigo']}")
+                                
+                                with col_t2:
+                                    st.markdown(f"<div style='background-color:#F8FAFC; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>🚀 {eq_vis}</div>", unsafe_allow_html=True)
+                                    g_vis = st.number_input("⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_es_{op['codigo']}")
+                                    atkp_vis = st.number_input("🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_es_{op['codigo']}")
+                                
+                                # Termómetro General de Asedio (Adaptado para Binarios)
+                                apm_total = (atkp_local + atkp_vis) / max(1, minuto_actual)
+                                ird = min(100.0, apm_total * 45.0) 
+                                
+                                st.markdown("---")
+                                st.markdown("#### 🌡️ Termómetro del Evento (IRD General)")
+                                if min_base == 0:
+                                    st.info("📌 **Fase de Calibración:** Ingresa los datos actuales para tomar la primera foto.")
+                                else:
+                                    st.info(f"🔎 Ritmo actual: El evento fluye a **{apm_total:.2f} Ataques Peligrosos por Minuto**.")
+                                    
+                                color = "#10B981" if ird < 40 else "#F59E0B" if ird < 70 else "#EF4444"
+                                estado = "BAJO - Ritmo pausado." if ird < 40 else "MODERADO - Competitivo." if ird < 70 else "CRÍTICO - ¡Alta volatilidad!"
+                                st.progress(int(ird) / 100)
+                                st.markdown(f"<h5 style='text-align: center; color: {color};'>Intensidad Ofensiva: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
+
                                 st.markdown("**⚡ Terminal de Cobertura en Vivo**")
                                 
                                 val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
                                 if val_cuota_obj < 1.01:
                                     val_cuota_obj = 1.01
+                                    
                                 cuota_input_es = st.number_input("Tasa Actual (En vivo):", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"c_live_es_{op['codigo']}")
                                 cuota_salida = cuota_input_es if cuota_input_es is not None else 1.01
+                                
+                                if st.button("📸 Guardar Foto Táctica (Entrenar IA)", key=f"btn_foto_es_{op['codigo']}", use_container_width=True):
+                                    try:
+                                        supabase.table("registro_fotos").insert({
+                                            "codigo_posicion": str(op['codigo']), "minuto_evaluado": int(minuto_actual),
+                                            "goles_local": int(g_local), "goles_vis": int(g_vis),
+                                            "atkp_local": int(atkp_local), "atkp_vis": int(atkp_vis),
+                                            "ird_calculado": float(round(ird, 2)), "cuota_ofrecida": float(cuota_salida)
+                                        }).execute()
+                                        st.success(f"✅ Foto capturada en el minuto {minuto_actual}. Datos inyectados a la IA.")
+                                        st.rerun()
+                                    except Exception as e: st.error(f"❌ Error al guardar foto: {str(e)}")
+                                
+                                st.markdown("<br>", unsafe_allow_html=True)
                                 
                                 monto_a_inyectar = retorno_bruto_esperado / cuota_salida
                                 utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
