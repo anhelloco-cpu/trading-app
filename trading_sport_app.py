@@ -1171,15 +1171,19 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                 else:
                     with st.expander(f"⚽ {op.get('partido', 'N/A')} | Hora: {op.get('hora_inicio_partido', 'N/A')} | Ref: {op.get('codigo', 'N/A')} | Estado: {op.get('estado', 'N/A')}"):
                         
-                        # --- 🛡️ VARIABLES SEGURAS (El blindaje que propusiste) ---
-                        cap_total_seguro = float(op.get('capital_total') or 0.0)
-                        reserva_segura = float(op.get('reserva_stake_2') or 0.0)
+                        # --- 🛡️ VARIABLES SEGURAS (Con sus nombres originales para no romper el Dictamen) ---
+                        cuota_sl = float(op.get('cuota_stop_loss') or 0.0)
+                        cuota_obj_segura = float(op.get('cuota_objetivo') or 0.0)
+                        reserva_actual = float(op.get('reserva_stake_2') or 0.0)
+                        capital_actual = float(op.get('capital_total') or 0.0)
+                        cuota_be = float(capital_actual / reserva_actual) if reserva_actual > 0 else 0.0
+                        
+                        # Nombres seguros para la UI
+                        cap_total_seguro = capital_actual
+                        reserva_segura = reserva_actual
                         st1_seguro = float(op.get('stake_1') or cap_total_seguro)
                         cuota_ini_segura = float(op.get('cuota_inicial') or 1.0)
-                        cuota_obj_segura = float(op.get('cuota_objetivo') or 0.0)
-                        cuota_sl_segura = float(op.get('cuota_stop_loss') or 0.0)
                         
-                        cuota_be = float(cap_total_seguro / reserva_segura) if reserva_segura > 0 else 0.0
                         banca_op = str(op.get('tipo_banca') or 'N/A')
                         es_apuesta_libre = (reserva_segura == 0)
                         
@@ -1218,7 +1222,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Stake 1:</b> A favor de <b>{sel_ini}</b></p>
                                 <p style="margin: 8px 0 0 0; font-size: 0.95rem; color: #15803D;">🟢 <b>Take Profit:</b> Cazar a <b>{sel_cob}</b> a cuota <b>{cuota_obj_segura:.2f}</b> o más.</p>
                                 <p style="margin: 8px 0 0 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Break-Even:</b> Cuota <b>{cuota_be:.2f}</b> (Recuperas todo el capital).</p>
-                                <p style="margin: 8px 0 8px 0; font-size: 0.95rem; color: #B91C1C;">🔴 <b>Stop Loss:</b> Cuota <b>{cuota_sl_segura:.2f}</b> (Paracaídas de emergencia).</p>
+                                <p style="margin: 8px 0 8px 0; font-size: 0.95rem; color: #B91C1C;">🔴 <b>Stop Loss:</b> Cuota <b>{cuota_sl:.2f}</b> (Paracaídas de emergencia).</p>
                                 <hr style="margin: 10px 0; border-color: #CBD5E1;">
                                 <p style="margin: 0; font-size: 0.85rem; color: #64748B;"><i>💡 {contexto_mercado}</i></p>
                             </div>
