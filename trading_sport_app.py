@@ -1948,7 +1948,7 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
     import datetime
     import pandas as pd
     
-    # 🛑 EL BOTÓN QUE FRENA LA CARGA PESADA
+    # 🛑 EL BOTÓN QUE FRENA LA CARGA PESADA DE MEMORIA
     mostrar_informe = st.checkbox("🚀 Generar Informe Contable y Gráficas (Haz clic aquí para cargar)")
     
     if supabase is not None and mostrar_informe:
@@ -1965,7 +1965,19 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
             df_mostrar_html['utilidad_neta_real'] = df_mostrar_html['utilidad_neta_real'].apply(lambda x: f"${x:,.0f}")
             df_mostrar_html['roi_real'] = df_mostrar_html['roi_real'].apply(lambda x: f"{x:.1f}%")
             
-            st.dataframe(df_mostrar_html, use_container_width=True, height=300)
+            # --- PAGINACIÓN DE LA TABLA (Para no colgar el navegador) ---
+            filas_por_pagina = 15
+            total_paginas = max(1, len(df_mostrar_html) // filas_por_pagina + (1 if len(df_mostrar_html) % filas_por_pagina > 0 else 0))
+            
+            col_pag1, col_pag2 = st.columns([1, 4])
+            with col_pag1:
+                pagina_actual = st.number_input("Página:", min_value=1, max_value=total_paginas, value=1, step=1)
+            
+            inicio_idx = (pagina_actual - 1) * filas_por_pagina
+            fin_idx = inicio_idx + filas_por_pagina
+            
+            st.write(f"Mostrando operaciones de la {inicio_idx + 1} a la {min(fin_idx, len(df_mostrar_html))} de un total de {len(df_mostrar_html)}")
+            st.dataframe(df_mostrar_html.iloc[inicio_idx:fin_idx], use_container_width=True, height=550)
             
             hoy = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).date()
             df['fecha_dt'] = pd.to_datetime(df['fecha'], utc=True) - pd.Timedelta(hours=5)
@@ -1996,7 +2008,8 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                             st.bar_chart(df_hoy_r.set_index('operacion')['utilidad_neta_real'])
                     else: 
                         st.metric(label="💰 Utilidad Neta Acumulada", value=f"${utilidad_total_r:,.0f} COP")
-                        st.bar_chart(df_real_master.groupby('dia')['utilidad_neta_real'].sum())
+                        # Gráfica ligera (Últimos 30 días para no saturar memoria)
+                        st.bar_chart(df_real_master.groupby('dia')['utilidad_neta_real'].sum().tail(30))
                 else:
                     st.info("No hay transacciones cerradas en Dinero Real.")
             
@@ -2016,14 +2029,18 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                             st.bar_chart(df_hoy_s.set_index('operacion')['utilidad_neta_real'])
                     else: 
                         st.metric(label="💰 Utilidad Virtual Acumulada", value=f"${utilidad_total_s:,.0f} COP")
-                        st.bar_chart(df_sim_master.groupby('dia')['utilidad_neta_real'].sum())
+                        # Gráfica ligera (Últimos 30 días)
+                        st.bar_chart(df_sim_master.groupby('dia')['utilidad_neta_real'].sum().tail(30))
                 else:
                     st.info("No hay transacciones cerradas en Paper Trading.")
-        elif supabase is None:
-            st.error("Conecta Supabase primero.")
         else:
-            st.info("👆 Activa la casilla de arriba para procesar los datos y ver el Libro Mayor.")
+            st.info("La base de datos está limpia. No hay operaciones registradas aún.")
             
+    elif supabase is None:
+        st.error("Conecta Supabase primero.")
+    else:
+        st.info("👆 Activa la casilla de arriba para procesar los datos y cargar el Libro Mayor Contable de forma segura.")
+
     st.markdown("---")
 
     st.markdown("### 🔬 Auditoría por Frecuencia y Utilidad Neta")
@@ -2066,6 +2083,8 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                                 return "⚡ eSports: Histórico (Sin datos de cuota)"
                         except:
                             return "⚡ eSports: Histórico (Sin datos de cuota)"
+                elif "Binario" in est_original:
+                    return "🎯 Estrategia 3: Binario Personalizado"
                 elif not est_original or str(est_original) == 'nan':
                     return "⚽ Estrategia 2: Paz Mental Clásica"
                 else:
@@ -2115,7 +2134,7 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                     # 3. CÁLCULOS POR FRECUENCIA Y DINERO EXCLUSIVO
                     # ---------------------------------------------------------
                     victorias_pre_partido = df_est['resultado_final'].str.contains("Pre-Partido|Ganó Inicial|Apuesta Inicial", case=False, na=False).sum()
-                    victorias_cobertura = df_est['resultado_final'].str.contains("Cobertura|Profit", case=False, na=False).sum()
+                    victorias_cobertura = df_est['resultado_final'].str.contains("Cobertura|Profit|Seguro", case=False, na=False).sum()
                     derrotas_totales = df_est['resultado_final'].str.contains("Déficit|Perdió|Pérdida|Loss", case=False, na=False).sum()
                     
                     total_ganadas = victorias_pre_partido + victorias_cobertura
