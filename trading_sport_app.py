@@ -239,10 +239,13 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
             df_plat_real = obtener_saldos_por_plataforma("REAL")
             if not df_plat_real.empty:
                 st.write("**Distribución actual del dinero por casa:**")
-                # BLINDAJE VISUAL: Formateamos como texto seguro antes de renderizar (Evita Segmentation Fault)
                 df_real_fmt = df_plat_real.copy()
-                df_real_fmt['Saldo Actual (COP)'] = df_real_fmt['Saldo Actual (COP)'].apply(lambda x: f"${x:,.0f}")
-                st.dataframe(df_real_fmt, hide_index=True, width="stretch")
+                # Formateamos a dinero y aseguramos que no explote
+                df_real_fmt['Saldo Actual (COP)'] = df_real_fmt['Saldo Actual (COP)'].apply(lambda x: f"${float(x):,.0f}")
+                # Hacemos que la casa sea el índice para ocultar los números laterales
+                df_real_fmt = df_real_fmt.set_index('Casa de Apuestas')
+                # 🛑 ESCUDO ANTI-CRASH: Usamos HTML puro estático, evadimos PyArrow
+                st.table(df_real_fmt)
             else:
                 st.info("No hay dinero distribuido en plataformas.")
 
@@ -300,10 +303,11 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
             df_plat_sim = obtener_saldos_por_plataforma("SIMULACION")
             if not df_plat_sim.empty:
                 st.write("**Distribución virtual por casa:**")
-                # BLINDAJE VISUAL: Formateamos como texto seguro antes de renderizar
                 df_sim_fmt = df_plat_sim.copy()
-                df_sim_fmt['Saldo Actual (COP)'] = df_sim_fmt['Saldo Actual (COP)'].apply(lambda x: f"${x:,.0f}")
-                st.dataframe(df_sim_fmt, hide_index=True, width="stretch")
+                df_sim_fmt['Saldo Actual (COP)'] = df_sim_fmt['Saldo Actual (COP)'].apply(lambda x: f"${float(x):,.0f}")
+                df_sim_fmt = df_sim_fmt.set_index('Casa de Apuestas')
+                # 🛑 ESCUDO ANTI-CRASH: Usamos HTML puro estático
+                st.table(df_sim_fmt)
             else:
                 st.info("No hay dinero distribuido en simulación.")
 
