@@ -1801,11 +1801,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
             st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], width="stretch")
             
             import datetime
-            import pytz # Asegura la zona horaria
             
-            # Corregido: warning de utcnow() deprecado
+            # Hora de Colombia (UTC-5) calculada matemáticamente sin librerías externas
             hoy = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).date()
-            df['fecha_dt'] = pd.to_datetime(df['fecha'], utc=True).dt.tz_convert('America/Bogota')
+            df['fecha_dt'] = pd.to_datetime(df['fecha'], utc=True) - pd.Timedelta(hours=5)
             df['dia'] = df['fecha_dt'].dt.date
             df['hora_cierre'] = df['fecha_dt'].dt.strftime('%H:%M')
             
