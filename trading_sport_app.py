@@ -76,7 +76,7 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
     try:
         saldos = {}
         
-        # 1. Movimientos Manuales (Limpios)
+        # 1. Movimientos Manuales (Consignaciones y Retiros)
         res_movs = supabase.table("movimientos_caja").select("tipo_movimiento", "monto", "plataforma").eq("tipo_banca", tipo_banca).execute()
         for m in res_movs.data:
             p = str(m.get('plataforma') or 'Sin Especificar').strip()
@@ -86,7 +86,7 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
             else:
                 saldos[p] -= round(safe_float(m.get('monto')))
                 
-        # 2. Operaciones Históricas 
+        # 2. Operaciones Históricas (Auditoría Unificada de Flujos)
         res_ops = supabase.table("historial_trading").select("*").eq("tipo_banca", tipo_banca).execute()
         for op in res_ops.data:
             p_ini = str(op.get('plataforma_inicial') or 'Sin Especificar').strip()
@@ -102,7 +102,7 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
             estrategia = str(op.get('estrategia') or '')
             es_dutching = op.get('es_dutching', False)
             
-            # --- Lectura Exacta vía Aspiradora ---
+            # Recaudación de Stakes vía Aspiradora
             util_neta = round(safe_float(op.get('utilidad_neta_real')))
             stake_base = round(safe_float(op.get('stake_dutch_base')))
             stake_emp = round(safe_float(op.get('stake_dutch_empate')))
@@ -115,74 +115,47 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
             if "eSports" in estrategia and c_caz > 0:
                 monto_cob = round((stake_1 * c_ini) / c_caz)
 
-            # --- ABIERTAS ---
-            if estado in ["EN VIVO", "CUBIERTA"]:
-                if es_dutching:
-                    saldos[p_ini] -= stake_base
-                    if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
-                else:
-                    saldos[p_ini] -= stake_1
-                    
-                if estado == "CUBIERTA" and p_cob != 'Sin Especificar':
+            # -------------------------------------------------------------
+            # PASO A: REGISTRO DEL EGRESO (Aplica a Abiertas, Cubiertas y Cerradas)
+            # -------------------------------------------------------------
+            if es_dutching:
+                saldos[p_ini] -= stake_base
+                if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
+            else:
+                saldos[p_ini] -= stake_1
+                
+            # Si la operación requirió cobertura (en curso o ejecutada históricamente)
+            if estado == "CUBIERTA" or (estado == "CERRADA" and p_cob != 'Sin Especificar' and monto_cob > 0 and "Directo" not in res_fin and "Libre" not in res_fin):
+                if p_cob != 'Sin Especificar':
                     saldos[p_cob] -= monto_cob
 
-            # --- CERRADAS ---
-            elif estado == "CERRADA":
-                # CASO 1: Ganó Inicial (Cualquiera de las dos de Fase 1)
-                if any(k in res_fin for k in ["Ganancia en", "Ganó Inicial", "Apuesta Inicial", "Libre Ganada", "Utilidad Base en", "Cobro de Apuesta Inicial"]):
-                    if es_dutching:
-                        if p_dutch != 'Sin Especificar' and f"[{p_dutch}]" in res_fin:
-                            # Ganó la casa del Empate
-                            if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
-                                # Estaba cubierta: Sube ganancia + lo de la Casa A + lo de la Casa del Seguro
-                                saldos[p_dutch] += (util_neta + stake_base + monto_cob)
-                                saldos[p_ini] -= stake_base
-                                saldos[p_cob] -= monto_cob
-                            else:
-                                # Fue directo: Sube ganancia + lo de la Casa A
-                                saldos[p_dutch] += (util_neta + stake_base)
-                                saldos[p_ini] -= stake_base
-                        else:
-                            # Ganó la casa del Favorito (Inicial)
-                            if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
-                                saldos[p_ini] += (util_neta + stake_emp + monto_cob)
-                                if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
-                                saldos[p_cob] -= monto_cob
-                            else:
-                                saldos[p_ini] += (util_neta + stake_emp)
-                                if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
-                    else:
-                        if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
-                            saldos[p_ini] += (util_neta + monto_cob)
-                            saldos[p_cob] -= monto_cob
-                        else:
-                            saldos[p_ini] += util_neta
-                            
-                # CASO 2: Ganó Seguro
+            # -------------------------------------------------------------
+            # PASO B: REGISTRO DEL INGRESO (Sólo aplica a Cerradas que generaron retorno)
+            # -------------------------------------------------------------
+            if estado == "CERRADA":
+                # Determinación de la masa de capital total indexada a la operación
+                capital_total_operacion = (stake_base + stake_emp) if es_dutching else stake_1
+                if p_cob != 'Sin Especificar' and monto_cob > 0 and "Directo" not in res_fin and "Libre" not in res_fin:
+                    capital_total_operacion += monto_cob
+                
+                # Ecuación Contable de Retorno Bruto (Inflows)
+                retorno_bruto = util_neta + capital_total_operacion
+                
+                # CONDICIÓN 1: Pérdida Total (Siniestro Absoluto) -> Retorno es $0
+                if any(k in res_fin for k in ["Déficit", "Pérdida Total", "Perdió Inicial", "Libre Perdida", "Pérdida de Stake"]):
+                    pass # No hay ingresos que retornar a ninguna cuenta
+                    
+                # CONDICIÓN 2: Ganó el Seguro / Cobertura
                 elif any(k in res_fin for k in ["Fondo de Cobertura", "Seguro Acertado", "Utilidad Seguro en"]):
-                    if es_dutching:
-                        saldos[p_ini] -= stake_base
-                        if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
-                    else:
-                        saldos[p_ini] -= stake_1
-                        
                     if p_cob != 'Sin Especificar':
-                        saldos[p_cob] += (util_neta + stake_1)
+                        saldos[p_cob] += retorno_bruto
                         
-                # CASO 3: Perdió Todo
-                elif any(k in res_fin for k in ["Déficit", "Pérdida Total", "Perdió Inicial", "Libre Perdida", "Pérdida de Stake"]):
-                    if es_dutching:
-                        saldos[p_ini] -= stake_base
-                        if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
-                    else:
-                        saldos[p_ini] -= stake_1
-                        
-                    if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
-                        saldos[p_cob] -= monto_cob
-                        
-                # CASO 4: Legacy
+                # CONDICIÓN 3: Ganó la selección de la Fase 1
                 else:
-                    saldos[p_ini] += util_neta
+                    if es_dutching and p_dutch != 'Sin Especificar' and f"[{p_dutch}]" in res_fin:
+                        saldos[p_dutch] += retorno_bruto
+                    else:
+                        saldos[p_ini] += retorno_bruto
 
         df = pd.DataFrame(list(saldos.items()), columns=['Casa de Apuestas', 'Saldo Actual (COP)'])
         if df.empty: return df
