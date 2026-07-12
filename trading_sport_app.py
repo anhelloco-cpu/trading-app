@@ -134,12 +134,10 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
                         if p_dutch != 'Sin Especificar' and f"[{p_dutch}]" in res_fin:
                             # Ganó la casa del Empate
                             if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
-                                # Estaba cubierta: Sube ganancia + lo de la Casa A + lo de la Casa del Seguro
                                 saldos[p_dutch] += (util_neta + stake_base + monto_cob)
                                 saldos[p_ini] -= stake_base
                                 saldos[p_cob] -= monto_cob
                             else:
-                                # Fue directo: Sube ganancia + lo de la Casa A
                                 saldos[p_dutch] += (util_neta + stake_base)
                                 saldos[p_ini] -= stake_base
                         else:
@@ -152,11 +150,14 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
                                 saldos[p_ini] += (util_neta + stake_emp)
                                 if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
                     else:
-                        if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
+                        if "Libre" in res_fin:
+                            # 🛡️ CORRECCIÓN: Si es Libre, se suma la ganancia neta + el capital apostado que retorna
+                            saldos[p_ini] += (util_neta + stake_1)
+                        elif "Directo" not in res_fin and p_cob != 'Sin Especificar':
                             saldos[p_ini] += (util_neta + monto_cob)
                             saldos[p_cob] -= monto_cob
                         else:
-                            saldos[p_ini] += util_neta
+                            saldos[p_ini] += (util_neta + stake_1) # También aplica si es Directo sin Libre explícito
                             
                 # CASO 2: Ganó Seguro
                 elif any(k in res_fin for k in ["Fondo de Cobertura", "Seguro Acertado", "Utilidad Seguro en"]):
@@ -175,7 +176,9 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
                         saldos[p_ini] -= stake_base
                         if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
                     else:
-                        saldos[p_ini] -= stake_1
+                        # 🛡️ CORRECCIÓN: Si pierde la Libre, el capital YA SE RESTÓ arriba cuando estaba en vivo. 
+                        # No debemos restarlo otra vez. Solo si había cobertura (monto_cob) se resta a esa plataforma.
+                        saldos[p_ini] -= stake_1 
                         
                     if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
                         saldos[p_cob] -= monto_cob
