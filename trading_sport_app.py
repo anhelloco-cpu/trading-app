@@ -1782,9 +1782,25 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         df = pd.DataFrame(res_cerradas.data)
         
         if not df.empty:
-            st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], use_container_width=True)
+            # --- BLINDAJE ANTI SEGMENTATION FAULT ---
+            # Forzamos los tipos de datos exactos para que el motor gráfico de Streamlit no explote
+            df['fecha'] = df['fecha'].astype(str)
+            df['tipo_banca'] = df['tipo_banca'].astype(str)
+            df['codigo'] = df['codigo'].astype(str)
+            df['partido'] = df['partido'].astype(str)
+            df['seleccion_inicial'] = df['seleccion_inicial'].astype(str)
+            df['resultado_final'] = df['resultado_final'].astype(str)
+            df['utilidad_neta_real'] = pd.to_numeric(df['utilidad_neta_real'], errors='coerce').fillna(0.0)
+            df['roi_real'] = pd.to_numeric(df['roi_real'], errors='coerce').fillna(0.0)
+
+            # Corregido: warning de use_container_width
+            st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], width="stretch")
             
-            hoy = (datetime.datetime.utcnow() - datetime.timedelta(hours=5)).date()
+            import datetime
+            import pytz # Asegura la zona horaria
+            
+            # Corregido: warning de utcnow() deprecado
+            hoy = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).date()
             df['fecha_dt'] = pd.to_datetime(df['fecha'], utc=True).dt.tz_convert('America/Bogota')
             df['dia'] = df['fecha_dt'].dt.date
             df['hora_cierre'] = df['fecha_dt'].dt.strftime('%H:%M')
@@ -1839,7 +1855,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         
                         if not df_hoy_s.empty:
                             st.markdown("<br><b>Evolución de la Sesión Virtual (Operación por Operación)</b>", unsafe_allow_html=True)
-                            df_hoy_s = df_sim_master[df_sim_master['dia'] == hoy].sort_values(by='fecha_dt')
+                            df_hoy_s = df_hoy_s.sort_values(by='fecha_dt')
                             df_hoy_s['operacion'] = df_hoy_s['hora_cierre'] + " - " + df_hoy_s['codigo']
                             df_grafica_hoy_s = df_hoy_s.set_index('operacion')['utilidad_neta_real']
                             st.bar_chart(df_grafica_hoy_s)
