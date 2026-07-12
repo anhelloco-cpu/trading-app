@@ -1182,12 +1182,18 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         else:
             for op in ops:
                 tipo_banca_operacion = op.get('tipo_banca', 'SIMULACION')
+                nombre_estrategia = op.get('estrategia', '')
                 
                 # =====================================================================
-                # ⚡ COCKPIT DE ESPORTS (DOS FASES + HEDGING DINÁMICO + BREAK-EVEN)
+                # ⚡ COCKPIT DINÁMICO (eSPORTS Y BINARIO PERSONALIZADO)
+                # Comparten el motor de "Reserva Elástica"
                 # =====================================================================
-                if op.get('estrategia') == "Estrategia 1: eSports Scalping":
-                    with st.expander(f"🎮 {op['partido']} | Ref: {op['codigo']} | Estado: {op['estado']}"):
+                if nombre_estrategia in ["Estrategia 1: eSports Scalping", "Estrategia 3: Binario Personalizado"]:
+                    # Identificador visual limpio según estrategia
+                    icono_est = "🎯" if "Binario" in nombre_estrategia else "🎮"
+                    etiqueta_db = "Binario" if "Binario" in nombre_estrategia else "eSports"
+                    
+                    with st.expander(f"{icono_est} {op['partido']} | Ref: {op['codigo']} | Estado: {op['estado']}"):
                         
                         sel_ini = op.get('seleccion_inicial', 'Apuesta Inicial')
                         sel_cob = op.get('seleccion_cobertura', 'Cobertura')
@@ -1197,6 +1203,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         st.markdown(f"""
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                             <span style="background:#3B82F6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold;">{tipo_banca_operacion}</span>
+                            <span style="color:#64748B; font-size:0.8rem; font-weight:bold;">{nombre_estrategia}</span>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -1204,7 +1211,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         st.markdown(f"""
                         <div style="background-color: #F8FAFC; padding: 15px; border-left: 5px solid #F59E0B; border-radius: 4px; margin-bottom: 15px;">
                             <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Posición Inicial:</b> {sel_ini} (Stake 1: <b>${op['stake_1']:,.0f} COP</b> a cuota {op['cuota_inicial']:.2f})</p>
-                            <p style="margin: 5px 0 0 0; font-size: 0.95rem;">🚀 <b>A quién cazarle (Seguro):</b> <span style="color:#D97706; font-weight:bold; font-size:1.05rem;">{sel_cob}</span></p>
+                            <p style="margin: 5px 0 0 0; font-size: 0.95rem;">🚀 <b>Amenaza a cubrir en vivo:</b> <span style="color:#D97706; font-weight:bold; font-size:1.05rem;">{sel_cob}</span></p>
                         </div>
                         """, unsafe_allow_html=True)
                         
@@ -1216,7 +1223,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         st.markdown("---")
                         
                         # -------------------------------------------------------------
-                        # FASE 1: EN VIVO (ANÁLISIS + DECISIÓN OPERATIVA)
+                        # FASE 1: EN VIVO (HEDGING DINÁMICO)
                         # -------------------------------------------------------------
                         if op['estado'] == "EN VIVO":
                             
@@ -1230,21 +1237,20 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             <div style="background-color: #EFF6FF; padding: 15px; border-left: 4px solid #3B82F6; border-radius: 4px; margin-bottom: 20px;">
                                 <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">📈 <b>Escenario SIN COBERTURA:</b> Si dejas correr y gana {sel_ini}, tu utilidad máxima será <b>${utilidad_original_maxima:,.0f} COP</b>.</p>
                                 <hr style="margin: 8px 0; border-color: #3B82F6; opacity: 0.2;">
-                                <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Punto de Equilibrio:</b> Para ganar con seguro, necesitas cazar a <b>cuota mínima de {cuota_minima_rentable:.2f}</b> (Inyectando máx ${inyeccion_maxima_breakeven:,.0f}).</p>
+                                <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Punto de Equilibrio:</b> Para ganar asegurando con cobertura, necesitas cazar a <b>cuota mínima de {cuota_minima_rentable:.2f}</b>.</p>
                             </div>
                             """, unsafe_allow_html=True)
                             
                             accion_esports = st.radio(
-                                "Acción Operativa eSports:", 
+                                f"Acción Operativa ({etiqueta_db}):", 
                                 ["⚡ Cazar Cuota (Cobertura Dinámica)", "🏁 Liquidar Posición Directa (Sin Cobertura)"],
                                 key=f"acc_es_{op['codigo']}",
                                 horizontal=True
                             )
                             
                             if accion_esports == "⚡ Cazar Cuota (Cobertura Dinámica)":
-                                st.markdown("**⚡ Terminal de Salida Rápida y Auditoría**")
+                                st.markdown("**⚡ Terminal de Cobertura en Vivo**")
                                 
-                                # Input por defecto en cuota objetivo
                                 cuota_salida = st.number_input("Tasa Actual (En vivo):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"c_live_es_{op['codigo']}")
                                 
                                 monto_a_inyectar = retorno_bruto_esperado / cuota_salida
@@ -1257,19 +1263,19 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 if utilidad_proyectada > 0:
                                     color_box, border_box, text_color = "#F0FDF4", "#16A34A", "#15803D"
-                                    veredicto = "✅ ESTADO ÓPTIMO: La matemática garantiza rentabilidad en cualquier escenario."
+                                    veredicto = "✅ ESTADO ÓPTIMO: La matemática garantiza rentabilidad."
                                 else:
                                     color_box, border_box, text_color = "#FEF2F2", "#DC2626", "#B91C1C"
-                                    veredicto = "🚨 ESTADO NEGATIVO: Estás por debajo del punto de equilibrio (Pérdida Neta asegurada)."
+                                    veredicto = "🚨 ESTADO NEGATIVO: Estás por debajo del punto de equilibrio (Pérdida Neta)."
 
                                 st.markdown(f"""
                                 <div style="background-color: {color_box}; padding: 15px; border-left: 5px solid {border_box}; border-radius: 4px; margin-bottom: 20px;">
                                     <p style="margin:0; font-size:1.05rem; color:#1E293B;">💵 Inversión dinámica exigida en <b>{sel_cob}</b>: <span style="font-weight:bold; color:#1E3A8A;">${monto_a_inyectar:,.0f} COP</span></p>
                                     <hr style="margin: 8px 0; border-color: {border_box}; opacity: 0.2;">
-                                    <p style="margin:0; font-size:0.95rem; color:#1E293B;"><b>📊 Escenarios Finales (Ya pagado el seguro):</b></p>
+                                    <p style="margin:0; font-size:0.95rem; color:#1E293B;"><b>📊 Escenarios Finales (Cobertura Activa):</b></p>
                                     <ul style="margin: 5px 0 10px 0; font-size: 0.95rem; color:#334155;">
-                                        <li>✅ Si gana <b>{sel_ini}</b> (Inicial): <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></li>
-                                        <li>🛡️ Si gana <b>{sel_cob}</b> (Seguro): <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></li>
+                                        <li>✅ Si gana <b>{sel_ini}</b>: <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></li>
+                                        <li>🛡️ Si gana <b>{sel_cob}</b>: <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></li>
                                     </ul>
                                     <p style="margin:0; font-size:0.9rem; color:#475569;">💼 Exposición total: <b>{exposicion_actual_pct:.1f}%</b> (Stake 1 + Inyección)</p>
                                     <hr style="margin: 10px 0; border-color: {border_box}; opacity: 0.3;">
@@ -1283,7 +1289,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         "estado": "CUBIERTA",
                                         "cuota_cazada_real": cuota_salida,
                                         "hora_cobertura": hora_actual,
-                                        "plataforma_cobertura": "eSports Live"
+                                        "plataforma_cobertura": "Dinámica Live"
                                     }).eq("codigo", op['codigo']).execute()
                                     st.success(f"¡Cobertura fijada con éxito a cuota {cuota_salida}! Pasa a conciliación final.")
                                     st.rerun()
@@ -1297,13 +1303,18 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         key=f"rad_dir_es_{op['codigo']}"
                                     )
                                     st.markdown("---")
-                                    st.markdown("🤖 **Datos para Entrenamiento de IA (Obligatorio)**")
-                                    goles_finales_seleccion = st.number_input(f"🎮 Puntos/Goles finales de {sel_ini}:", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
-                                    goles_finales_rival = st.number_input(f"🎮 Puntos/Goles finales de {sel_cob}:", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
+                                    st.markdown("🤖 **Datos para Entrenamiento de IA (Opcional si es Binario)**")
+                                    goles_finales_seleccion = st.number_input(f"Puntos/Goles de {sel_ini}:", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
+                                    goles_finales_rival = st.number_input(f"Puntos/Goles de {sel_cob}:", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
                                     
                                     if st.form_submit_button("Registrar Liquidación Directa"):
                                         utilidad = utilidad_original_maxima if "Ganó" in resultado_directo else -op['stake_1']
-                                        texto_cierre = "Cierre Directo eSports: Ganó Inicial" if "Ganó" in resultado_directo else "Cierre Directo eSports: Perdió Inicial"
+                                        
+                                        # Textos limpios para la IA según la estrategia
+                                        if "Ganó" in resultado_directo:
+                                            texto_cierre = f"Cierre Directo {etiqueta_db}: Ganó Inicial"
+                                        else:
+                                            texto_cierre = f"Cierre Directo {etiqueta_db}: Perdió Inicial"
                                             
                                         supabase.table("historial_trading").update({
                                             "estado": "CERRADA",
@@ -1317,38 +1328,37 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         st.rerun()
 
                         # -------------------------------------------------------------
-                        # FASE 2: CUBIERTA (ASENTAMIENTO FINAL CON GOLES)
+                        # FASE 2: CUBIERTA (ASENTAMIENTO FINAL)
                         # -------------------------------------------------------------
                         elif op['estado'] == "CUBIERTA":
-                            st.success(f"🛡️ Cobertura asegurada a tasa de {op.get('cuota_cazada_real', 0.0):.2f} en eSports Live.")
+                            st.success(f"🛡️ Cobertura asegurada a tasa de {op.get('cuota_cazada_real', 0.0):.2f}.")
                             
                             with st.form(f"liq_esports_{op['codigo']}"):
-                                st.markdown("#### 🏁 Conciliación Final del Evento eSports")
+                                st.markdown("#### 🏁 Conciliación Final de la Cobertura")
                                 resultado_final_ui = st.radio(
-                                    "Resolución de tu Apuesta:", 
+                                    "Resolución Final del Evento:", 
                                     [
                                         f"✅ Inicial Acertado: Ganó {sel_ini}", 
                                         f"🛡️ Seguro Acertado: Ganó {sel_cob}", 
-                                        "❌ Déficit Total (Siniestro en ambos bandos)"
+                                        "❌ Déficit Total (Siniestro)"
                                     ],
                                     key=f"rad_fin_es_{op['codigo']}"
                                 )
                                 st.markdown("---")
-                                st.markdown("🤖 **Datos para Entrenamiento de IA (Obligatorio)**")
-                                goles_finales_seleccion = st.number_input(f"🎮 Puntos/Goles finales de {sel_ini}:", min_value=0, step=1, value=0, key=f"gf_sel_es_{op['codigo']}")
-                                goles_finales_rival = st.number_input(f"🎮 Puntos/Goles finales de {sel_cob}:", min_value=0, step=1, value=0, key=f"gf_riv_es_{op['codigo']}")
+                                goles_finales_seleccion = st.number_input(f"Puntos/Goles de {sel_ini}:", min_value=0, step=1, value=0, key=f"gf_sel_es_{op['codigo']}")
+                                goles_finales_rival = st.number_input(f"Puntos/Goles de {sel_cob}:", min_value=0, step=1, value=0, key=f"gf_riv_es_{op['codigo']}")
                                 
-                                if st.form_submit_button("🏁 Cerrar Libro Mayor eSports"):
+                                if st.form_submit_button(f"🏁 Cerrar Libro Mayor {etiqueta_db}"):
                                     retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
                                     monto_cobertura_efectivo = retorno_bruto_esperado / float(op.get('cuota_cazada_real', 1.01))
                                     total_capital_operacion = op['stake_1'] + monto_cobertura_efectivo
                                     
                                     if "Déficit" in resultado_final_ui:
                                         utilidad = -total_capital_operacion
-                                        texto_db = "Pérdida Total del Capital (eSports)"
+                                        texto_db = f"Pérdida Total del Capital ({etiqueta_db})"
                                     else:
                                         utilidad = retorno_bruto_esperado - total_capital_operacion
-                                        texto_db = "Cobro de Apuesta Inicial (eSports)" if "Inicial" in resultado_final_ui else "Cobro de Fondo de Cobertura (eSports)"
+                                        texto_db = f"Cobro de Apuesta Inicial ({etiqueta_db})" if "Inicial" in resultado_final_ui else f"Cobro de Fondo de Cobertura ({etiqueta_db})"
                                         
                                     supabase.table("historial_trading").update({
                                         "estado": "CERRADA",
@@ -1368,14 +1378,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                 else:
                     with st.expander(f"⚽ {op.get('partido', 'N/A')} | Hora: {op.get('hora_inicio_partido', 'N/A')} | Ref: {op.get('codigo', 'N/A')} | Estado: {op.get('estado', 'N/A')}"):
                         
-                        # --- 🛡️ VARIABLES SEGURAS (Con sus nombres originales para no romper el Dictamen) ---
                         cuota_sl = float(op.get('cuota_stop_loss') or 0.0)
                         cuota_obj_segura = float(op.get('cuota_objetivo') or 0.0)
                         reserva_actual = float(op.get('reserva_stake_2') or 0.0)
                         capital_actual = float(op.get('capital_total') or 0.0)
                         cuota_be = float(capital_actual / reserva_actual) if reserva_actual > 0 else 0.0
                         
-                        # Nombres seguros para la UI
                         cap_total_seguro = capital_actual
                         reserva_segura = reserva_actual
                         st1_seguro = float(op.get('stake_1') or cap_total_seguro)
@@ -1388,7 +1396,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         sel_cob = str(op.get('seleccion_cobertura') or 'Cobertura')
                         tipo_estrategia = str(op.get('estrategia') or 'Estrategia 2: Paz Mental Clásica')
                         
-                        # --- DESGLOSE AUTOMÁTICO DE NOMBRES DE EQUIPOS ---
                         partido_str = str(op.get('partido') or 'Local vs Visitante')
                         if ' vs ' in partido_str:
                             eq_local = partido_str.split(' vs ')[0].strip()
@@ -1402,7 +1409,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         
                         es_st1_local = (sel_ini.lower() in eq_local.lower()) or (eq_local.lower() in sel_ini.lower())
                         
-                        # --- CONCIENCIA DE MERCADO ---
                         if "Inversa" in tipo_estrategia:
                             contexto_mercado = f"El reloj es aliado. Si {sel_ini} aguanta o anota, la cuota de {sel_cob} se disparará."
                         else:
@@ -1425,7 +1431,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             </div>
                             """, unsafe_allow_html=True)
                         
-                        # --- VARIABLES DE ENRUTAMIENTO (Para los cierres contables) ---
                         es_dutching_op = op.get('es_dutching', False)
                         p_ini = op.get('plataforma_inicial', 'N/A')
                         p_dutch = op.get('plataforma_dutch_secundaria', 'N/A')
@@ -1438,7 +1443,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             if es_apuesta_libre:
                                 st.write("### 🏁 Resolución de Apuesta Directa")
                                 with st.form(f"gestion_libre_{op['codigo']}"):
-                                    # 🛑 CORRECCIÓN: Opciones binarias reales, nada de Local/Visitante
+                                    # 🛑 CORRECCIÓN: Opciones binarias reales para Apuesta Libre
                                     resultado_libre = st.radio(
                                         "¿Se cumplió tu pronóstico?", 
                                         ["✅ Apuesta Acertada (Cobrar Ganancia)", "❌ Apuesta Fallada (Pérdida de Stake)"], 
@@ -1472,7 +1477,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 if accion == "Evaluar Asedio y Cobertura (IRD)":
                                     
-                                    # --- 1. RECUPERACIÓN DE LA ÚLTIMA FOTO ---
                                     res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
                                     
                                     if res_fotos.data:
@@ -1502,7 +1506,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
                                     col_t1, col_t2 = st.columns(2)
                                     
-                                    # --- FORMULARIO ESPEJO: GOLES Y ATAQUES ABSOLUTOS ---
                                     with col_t1:
                                         bg_local = "#F0FDF4" if es_st1_local else "#F8FAFC"
                                         lbl_local = f"🏠 {eq_local} (Tu Equipo)" if es_st1_local else f"🏠 {eq_local}"
@@ -1517,9 +1520,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         g_vis = st.number_input(f"⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_{op['codigo']}")
                                         atkp_vis = st.number_input(f"🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_{op['codigo']}")
 
-                                    # =====================================================================
-                                    # 🧠 INTELIGENCIA TÁCTICA: RELOJ, LETALIDAD Y MOMENTUM
-                                    # =====================================================================
                                     if es_st1_local:
                                         goles_nuestros = g_local
                                         goles_amenaza = g_vis
@@ -1552,7 +1552,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     exp_goles_nuestros = ataques_futuros_nuestros * letalidad_nuestra
                                     exp_goles_rival = ataques_futuros_rival * letalidad_rival
 
-                                    # --- ESCALA DE GRAVEDAD Y TIEMPO ---
                                     if diferencia_goles < 0:
                                         if diferencia_goles == -1: 
                                             if minuto_actual <= 45: ird_base = 65.0
@@ -1602,7 +1601,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         
                                     st.progress(int(ird) / 100)
                                     st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
-                                    # Escudo: Si la cuota vieja es 0 o vacía, arranca en 1.01 para no romper la app
+                                    
                                     val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
                                     if val_cuota_obj < 1.01:
                                         val_cuota_obj = 1.01
@@ -1629,10 +1628,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             
                                     st.markdown("---")
                                     
-                                    # =====================================================================
-                                    # 🔍 MATRIZ FINANCIERA (OPCIÓN A VS OPCIÓN B)
-                                    # =====================================================================
-                                    
                                     todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
                                     plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
                                     
@@ -1641,7 +1636,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     else:
                                         plataforma_cob = plataforma_cob_sel
                                         
-                                    # --- BLINDAJE MATEMÁTICO (Previene caída por datos vacíos) ---
                                     st1_seguro = float(op.get('stake_1') or cap_total_seguro)
                                     c_ini_segura = float(op.get('cuota_inicial') or 1.0)
                                     res_segura = float(op.get('reserva_stake_2') or 0.0)
@@ -1653,7 +1647,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     
                                     st.markdown("#### 🔍 Matriz Financiera de la Operación")
                                     
-                                    # --- ALERTA DE BREAK-EVEN EN VIVO ---
                                     if cuota_be > 0:
                                         if cuota_ingresada >= cuota_be:
                                             st.markdown(f"<div style='background-color: #F0FDF4; padding: 10px; border-left: 4px solid #16A34A; border-radius: 4px; margin-bottom: 10px; color: #166534; font-size: 0.9rem;'>⚖️ <b>Estado Break-Even:</b> La cuota actual ({cuota_ingresada:.2f}) ya superó tu Punto de Equilibrio ({cuota_be:.2f}). Estás operando en zona libre de pérdida de capital.</div>", unsafe_allow_html=True)
@@ -1679,9 +1672,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         </div>
                                         """, unsafe_allow_html=True)
                                     
-                                    # =====================================================================
-                                    # ⚖️ AUDITORÍA DE COSTO-BENEFICIO (PRECIO DE LA PÓLIZA)
-                                    # =====================================================================
                                     costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
                                     capital_rescatado = util_cobertura_con_cob - util_perdida_sin_cob
                                     
@@ -1712,9 +1702,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     </div>
                                     """, unsafe_allow_html=True)
 
-                                    # =====================================================================
-                                    # ⚖️ MOTOR DE DICTAMEN UNIFICADO
-                                    # =====================================================================
                                     dictamen_html = ""
                                     va_empatado = (diferencia_goles == 0)
                                     
@@ -1807,9 +1794,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         </div>
                                         """
                                     
-                                    # =====================================================================
-                                    # 🛡️ AUDITORÍA PATRIMONIAL PERMANENTE 
-                                    # =====================================================================
                                     saldo_banca_actual = saldo_real if banca_op == "REAL" else saldo_simulacion
                                     exposicion_pct = (cap_total_seguro / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
                                     pct_rescate_banca = (capital_rescatado / saldo_banca_actual) * 100 if saldo_banca_actual > 0 and capital_rescatado > 0 else 0
@@ -1943,7 +1927,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         "utilidad_neta_real": utilidad,
                                         "roi_real": (utilidad / cap_total_seguro) * 100 if cap_total_seguro > 0 else 0,
                                         "goles_finales_seleccion": goles_finales_seleccion, 
-                                        "goles_finales_rival": goles_finales_rival          
+                                        "goles_finales_rival": goles_finales_rival         
                                     }).eq("codigo", op['codigo']).execute()
                                     st.success(f"Libro cerrado y datos guardados para la IA. Balance de la operación: ${utilidad:,.0f} COP.")
                                     st.rerun()
@@ -1955,7 +1939,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
         
         if not df.empty:
             # --- BLINDAJE ANTI SEGMENTATION FAULT ---
-            # Forzamos los tipos de datos exactos para que el motor gráfico de Streamlit no explote
             df['fecha'] = df['fecha'].astype(str)
             df['tipo_banca'] = df['tipo_banca'].astype(str)
             df['codigo'] = df['codigo'].astype(str)
@@ -1965,12 +1948,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
             df['utilidad_neta_real'] = pd.to_numeric(df['utilidad_neta_real'], errors='coerce').fillna(0.0)
             df['roi_real'] = pd.to_numeric(df['roi_real'], errors='coerce').fillna(0.0)
 
-            # Corregido: warning de use_container_width
             st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], width="stretch")
             
             import datetime
             
-            # Hora de Colombia (UTC-5) calculada matemáticamente sin librerías externas
             hoy = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).date()
             df['fecha_dt'] = pd.to_datetime(df['fecha'], utc=True) - pd.Timedelta(hours=5)
             df['dia'] = df['fecha_dt'].dt.date
@@ -2040,7 +2021,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                         st.bar_chart(df_grafica_cons_s)
                 else:
                     st.info("No hay transacciones cerradas en Paper Trading.")
-
 # =====================================================================
 # MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
 # =====================================================================
