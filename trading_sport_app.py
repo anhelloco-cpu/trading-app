@@ -1254,7 +1254,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
                                 if val_cuota_obj < 1.01:
                                     val_cuota_obj = 1.01
-                                cuota_salida = st.number_input("Tasa Actual (En vivo):", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"c_live_es_{op['codigo']}")
+                                cuota_input_es = st.number_input("Tasa Actual (En vivo):", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"c_live_es_{op['codigo']}")
+                                cuota_salida = cuota_input_es if cuota_input_es is not None else 1.01
                                 
                                 monto_a_inyectar = retorno_bruto_esperado / cuota_salida
                                 utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
@@ -1602,14 +1603,15 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         color = "#EF4444"
                                         estado = f"CRÍTICO - ¡Alerta de Siniestro en Posición!"
                                         
-                                    st.progress(int(ird) / 100)
+                                    st.progress(int(ird))
                                     st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
                                     
                                     val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
                                     if val_cuota_obj < 1.01:
                                         val_cuota_obj = 1.01
 
-                                    cuota_ingresada = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"cuota_live_{op['codigo']}")
+                                    cuota_input_ft = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"cuota_live_{op['codigo']}")
+                                    cuota_ingresada = cuota_input_ft if cuota_input_ft is not None else 1.01
                                     
                                     if st.button("📸 Guardar Foto y Cerrar Ventana", key=f"btn_foto_{op['codigo']}", use_container_width=True):
                                         try:
