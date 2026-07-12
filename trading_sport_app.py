@@ -1937,35 +1937,39 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.success(f"Libro cerrado y datos guardados para la IA. Balance de la operación: ${utilidad:,.0f} COP.")
                                     st.rerun()
 
-        st.markdown("---")
-        st.subheader("📊 Libro Mayor Contable (Cierres Históricos)")
+        
+# =====================================================================
+# MÓDULO 4: AUDITORÍA CUANTITATIVA Y LIBRO MAYOR
+# =====================================================================
+elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
+    st.markdown("## 📊 Libro Mayor Contable (Cierres Históricos)")
+    st.write("Historial completo de transacciones liquidadas y estado de resultados.")
+    
+    import datetime
+    import pandas as pd
+    
+    if supabase is not None:
         res_cerradas = supabase.table("historial_trading").select("*").eq("estado", "CERRADA").order("fecha", desc=True).execute()
         df = pd.DataFrame(res_cerradas.data)
         
         if not df.empty:
-            # --- BLINDAJE ANTI SEGMENTATION FAULT ---
-            df['fecha'] = df['fecha'].astype(str)
-            df['tipo_banca'] = df['tipo_banca'].astype(str)
-            df['codigo'] = df['codigo'].astype(str)
-            df['partido'] = df['partido'].astype(str)
-            df['seleccion_inicial'] = df['seleccion_inicial'].astype(str)
-            df['resultado_final'] = df['resultado_final'].astype(str)
-            df['utilidad_neta_real'] = pd.to_numeric(df['utilidad_neta_real'], errors='coerce').fillna(0.0)
-            df['roi_real'] = pd.to_numeric(df['roi_real'], errors='coerce').fillna(0.0)
-
             df_mostrar = df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']].copy()
-            df_mostrar['utilidad_neta_real'] = df_mostrar['utilidad_neta_real'].apply(lambda x: f"${float(x):,.0f}")
-            df_mostrar['roi_real'] = df_mostrar['roi_real'].apply(lambda x: f"{float(x):.1f}%")
-            st.table(df_mostrar)
-
-
-            import datetime
+            df_mostrar['fecha'] = df_mostrar['fecha'].astype(str)
+            df_mostrar['utilidad_neta_real'] = pd.to_numeric(df_mostrar['utilidad_neta_real'], errors='coerce').fillna(0.0)
+            df_mostrar['roi_real'] = pd.to_numeric(df_mostrar['roi_real'], errors='coerce').fillna(0.0)
+            
+            df_mostrar_html = df_mostrar.copy()
+            df_mostrar_html['utilidad_neta_real'] = df_mostrar_html['utilidad_neta_real'].apply(lambda x: f"${x:,.0f}")
+            df_mostrar_html['roi_real'] = df_mostrar_html['roi_real'].apply(lambda x: f"{x:.1f}%")
+            
+            st.dataframe(df_mostrar_html, use_container_width=True, height=300)
             
             hoy = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).date()
             df['fecha_dt'] = pd.to_datetime(df['fecha'], utc=True) - pd.Timedelta(hours=5)
             df['dia'] = df['fecha_dt'].dt.date
             df['hora_cierre'] = df['fecha_dt'].dt.strftime('%H:%M')
             
+            st.markdown("---")
             st.markdown("### 📈 Estado de Resultados Desagregado")
             
             df_real_master = df[df['tipo_banca'] == 'REAL'].copy()
@@ -1976,7 +1980,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
             with tab_real:
                 if not df_real_master.empty:
                     filtro_tiempo_r = st.radio("Alcance Temporal (Real):", ["📅 Hoy", "📈 Consolidación Histórica"], horizontal=True, key="filtro_t_real")
-                    
                     df_hoy_r = df_real_master[df_real_master['dia'] == hoy]
                     utilidad_hoy_r = df_hoy_r['utilidad_neta_real'].sum()
                     ops_hoy_r = len(df_hoy_r)
@@ -1984,28 +1987,19 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     
                     if filtro_tiempo_r == "📅 Hoy":
                         st.metric(label="💵 Cierre de Caja (Hoy)", value=f"${utilidad_hoy_r:,.0f} COP", delta=f"{ops_hoy_r} operaciones cerradas")
-                        
                         if not df_hoy_r.empty:
-                            st.markdown("<br><b>Evolución de la Sesión Actual (Operación por Operación)</b>", unsafe_allow_html=True)
                             df_hoy_r = df_hoy_r.sort_values(by='fecha_dt')
                             df_hoy_r['operacion'] = df_hoy_r['hora_cierre'] + " - " + df_hoy_r['codigo']
-                            df_grafica_hoy_r = df_hoy_r.set_index('operacion')['utilidad_neta_real']
-                            st.bar_chart(df_grafica_hoy_r)
-                        else:
-                            st.info("Sin registros liquidados en la jornada de hoy.")
-                    
+                            st.bar_chart(df_hoy_r.set_index('operacion')['utilidad_neta_real'])
                     else: 
                         st.metric(label="💰 Utilidad Neta Acumulada", value=f"${utilidad_total_r:,.0f} COP")
-                        st.markdown("<br><b>Tendencia de Resultados Diarios (PNL Consolidado)</b>", unsafe_allow_html=True)
-                        df_grafica_cons_r = df_real_master.groupby('dia')['utilidad_neta_real'].sum()
-                        st.bar_chart(df_grafica_cons_r)
+                        st.bar_chart(df_real_master.groupby('dia')['utilidad_neta_real'].sum())
                 else:
                     st.info("No hay transacciones cerradas en Dinero Real.")
             
             with tab_sim:
                 if not df_sim_master.empty:
                     filtro_tiempo_s = st.radio("Alcance Temporal (Simulación):", ["📅 Hoy", "📈 Consolidación Histórica"], horizontal=True, key="filtro_t_sim")
-                    
                     df_hoy_s = df_sim_master[df_sim_master['dia'] == hoy]
                     utilidad_hoy_s = df_hoy_s['utilidad_neta_real'].sum()
                     ops_hoy_s = len(df_hoy_s)
@@ -2013,27 +2007,20 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                     
                     if filtro_tiempo_s == "📅 Hoy":
                         st.metric(label="💵 Cierre Virtual (Hoy)", value=f"${utilidad_hoy_s:,.0f} COP", delta=f"{ops_hoy_s} ops virtuales")
-                        
                         if not df_hoy_s.empty:
-                            st.markdown("<br><b>Evolución de la Sesión Virtual (Operación por Operación)</b>", unsafe_allow_html=True)
                             df_hoy_s = df_hoy_s.sort_values(by='fecha_dt')
                             df_hoy_s['operacion'] = df_hoy_s['hora_cierre'] + " - " + df_hoy_s['codigo']
-                            df_grafica_hoy_s = df_hoy_s.set_index('operacion')['utilidad_neta_real']
-                            st.bar_chart(df_grafica_hoy_s)
-                        else:
-                            st.info("Sin registros simulados el día de hoy.")
-                    
+                            st.bar_chart(df_hoy_s.set_index('operacion')['utilidad_neta_real'])
                     else: 
                         st.metric(label="💰 Utilidad Virtual Acumulada", value=f"${utilidad_total_s:,.0f} COP")
-                        st.markdown("<br><b>Rendimiento Histórico del Modelo (PNL Consolidado)</b>", unsafe_allow_html=True)
-                        df_grafica_cons_s = df_sim_master.groupby('dia')['utilidad_neta_real'].sum()
-                        st.bar_chart(df_grafica_cons_s)
+                        st.bar_chart(df_sim_master.groupby('dia')['utilidad_neta_real'].sum())
                 else:
                     st.info("No hay transacciones cerradas en Paper Trading.")
-# =====================================================================
-# MÓDULO 3: AUDITORÍA CUANTITATIVA (SIMULACIÓN E IA)
-# =====================================================================
-elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
+        else:
+            st.info("La base de datos está limpia. No hay operaciones registradas aún.")
+            
+    st.markdown("---")
+    
     st.markdown("### 🔬 Auditoría por Frecuencia y Utilidad Neta")
     st.write("Evalúa la viabilidad del modelo midiendo **cuántas veces aciertas** (Frecuencia) y la **plata real que queda** (Utilidad), aislando el ruido del tamaño de la apuesta.")
     
