@@ -128,19 +128,29 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
 
             # --- CERRADAS ---
             elif estado == "CERRADA":
-                # CASO 1: Ganó Inicial
+                # CASO 1: Ganó Inicial (Cualquiera de las dos de Fase 1)
                 if any(k in res_fin for k in ["Ganancia en", "Ganó Inicial", "Apuesta Inicial", "Libre Ganada", "Utilidad Base en", "Cobro de Apuesta Inicial"]):
                     if es_dutching:
-                        # 🛡️ CORRECCIÓN: El sistema detecta qué casa ganó el partido (Fuego Cruzado / Dutching).
                         if p_dutch != 'Sin Especificar' and f"[{p_dutch}]" in res_fin:
-                            # Ganó la casa del Empate: Se le devuelve su plata y se suma la ganancia
-                            saldos[p_dutch] += (util_neta + stake_base) 
-                            saldos[p_ini] -= stake_base 
+                            # Ganó la casa del Empate
+                            if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
+                                # Estaba cubierta: Sube ganancia + lo de la Casa A + lo de la Casa del Seguro
+                                saldos[p_dutch] += (util_neta + stake_base + monto_cob)
+                                saldos[p_ini] -= stake_base
+                                saldos[p_cob] -= monto_cob
+                            else:
+                                # Fue directo: Sube ganancia + lo de la Casa A
+                                saldos[p_dutch] += (util_neta + stake_base)
+                                saldos[p_ini] -= stake_base
                         else:
-                            # Ganó la casa Principal: Se le devuelve su plata y se suma la ganancia
-                            saldos[p_ini] += (util_neta + stake_emp) 
-                            if p_dutch != 'Sin Especificar':
-                                saldos[p_dutch] -= stake_emp 
+                            # Ganó la casa del Favorito (Inicial)
+                            if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
+                                saldos[p_ini] += (util_neta + stake_emp + monto_cob)
+                                if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
+                                saldos[p_cob] -= monto_cob
+                            else:
+                                saldos[p_ini] += (util_neta + stake_emp)
+                                if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
                     else:
                         if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
                             saldos[p_ini] += (util_neta + monto_cob)
