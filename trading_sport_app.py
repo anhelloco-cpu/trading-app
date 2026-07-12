@@ -239,7 +239,10 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
             df_plat_real = obtener_saldos_por_plataforma("REAL")
             if not df_plat_real.empty:
                 st.write("**Distribución actual del dinero por casa:**")
-                st.dataframe(df_plat_real.style.format({"Saldo Actual (COP)": "${:,.0f}"}), hide_index=True, use_container_width=True)
+                # BLINDAJE VISUAL: Formateamos como texto seguro antes de renderizar (Evita Segmentation Fault)
+                df_real_fmt = df_plat_real.copy()
+                df_real_fmt['Saldo Actual (COP)'] = df_real_fmt['Saldo Actual (COP)'].apply(lambda x: f"${x:,.0f}")
+                st.dataframe(df_real_fmt, hide_index=True, width="stretch")
             else:
                 st.info("No hay dinero distribuido en plataformas.")
 
@@ -297,7 +300,10 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
             df_plat_sim = obtener_saldos_por_plataforma("SIMULACION")
             if not df_plat_sim.empty:
                 st.write("**Distribución virtual por casa:**")
-                st.dataframe(df_plat_sim.style.format({"Saldo Actual (COP)": "${:,.0f}"}), hide_index=True, use_container_width=True)
+                # BLINDAJE VISUAL: Formateamos como texto seguro antes de renderizar
+                df_sim_fmt = df_plat_sim.copy()
+                df_sim_fmt['Saldo Actual (COP)'] = df_sim_fmt['Saldo Actual (COP)'].apply(lambda x: f"${x:,.0f}")
+                st.dataframe(df_sim_fmt, hide_index=True, width="stretch")
             else:
                 st.info("No hay dinero distribuido en simulación.")
 
