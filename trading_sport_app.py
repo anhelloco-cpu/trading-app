@@ -134,10 +134,12 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
                         if p_dutch != 'Sin Especificar' and f"[{p_dutch}]" in res_fin:
                             # Ganó la casa del Empate
                             if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
+                                # Estaba cubierta: Sube ganancia + lo de la Casa A + lo de la Casa del Seguro
                                 saldos[p_dutch] += (util_neta + stake_base + monto_cob)
                                 saldos[p_ini] -= stake_base
                                 saldos[p_cob] -= monto_cob
                             else:
+                                # Fue directo: Sube ganancia + lo de la Casa A
                                 saldos[p_dutch] += (util_neta + stake_base)
                                 saldos[p_ini] -= stake_base
                         else:
@@ -150,14 +152,11 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
                                 saldos[p_ini] += (util_neta + stake_emp)
                                 if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
                     else:
-                        if "Libre" in res_fin:
-                            # 🛡️ CORRECCIÓN: Si es Libre, se suma la ganancia neta + el capital apostado que retorna
-                            saldos[p_ini] += (util_neta + stake_1)
-                        elif "Directo" not in res_fin and p_cob != 'Sin Especificar':
+                        if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
                             saldos[p_ini] += (util_neta + monto_cob)
                             saldos[p_cob] -= monto_cob
                         else:
-                            saldos[p_ini] += (util_neta + stake_1) # También aplica si es Directo sin Libre explícito
+                            saldos[p_ini] += util_neta
                             
                 # CASO 2: Ganó Seguro
                 elif any(k in res_fin for k in ["Fondo de Cobertura", "Seguro Acertado", "Utilidad Seguro en"]):
@@ -176,9 +175,7 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
                         saldos[p_ini] -= stake_base
                         if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
                     else:
-                        # 🛡️ CORRECCIÓN: Si pierde la Libre, el capital YA SE RESTÓ arriba cuando estaba en vivo. 
-                        # No debemos restarlo otra vez. Solo si había cobertura (monto_cob) se resta a esa plataforma.
-                        saldos[p_ini] -= stake_1 
+                        saldos[p_ini] -= stake_1
                         
                     if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
                         saldos[p_cob] -= monto_cob
@@ -1280,33 +1277,22 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
 
                         if op['estado'] == "EN VIVO":
                             if es_apuesta_libre:
-                                st.write("Resolución final de la operación:")
+                                st.write("### 🏁 Resolución de Apuesta Directa")
                                 with st.form(f"gestion_libre_{op['codigo']}"):
-                                    resultado_libre = st.radio("Realidad del Partido:", opciones_resultados, key=f"rad_lib_{op['codigo']}")
+                                    # 🛑 CORRECCIÓN: Opciones binarias reales, nada de Local/Visitante
+                                    resultado_libre = st.radio(
+                                        "¿Se cumplió tu pronóstico?", 
+                                        ["✅ Apuesta Acertada (Cobrar Ganancia)", "❌ Apuesta Fallada (Pérdida de Stake)"], 
+                                        key=f"rad_lib_{op['codigo']}"
+                                    )
                                     
                                     if st.form_submit_button("Liquidar Apuesta Libre"):
-                                        # Inteligencia Contable: ¿Quién gana según el resultado?
-                                        gano_fase1 = False
-                                        plat_win = ""
-                                        
-                                        if "Local" in resultado_libre:
-                                            gano_fase1 = True
-                                            plat_win = p_ini
-                                        elif "Empató" in resultado_libre:
-                                            if not es_fuego:
-                                                gano_fase1 = True
-                                                plat_win = p_dutch if es_dutching_op else p_ini
-                                        elif "Visitante" in resultado_libre:
-                                            if es_fuego:
-                                                gano_fase1 = True
-                                                plat_win = p_dutch if es_dutching_op else p_ini
-                                        
-                                        if gano_fase1:
+                                        if "Acertada" in resultado_libre:
                                             utilidad = (cap_total_seguro * cuota_ini_segura) - cap_total_seguro
-                                            texto_cierre = f"Libre Ganada [{plat_win}]: {resultado_libre}"
+                                            texto_cierre = f"Libre Ganada [{p_ini}]"
                                         else:
                                             utilidad = -cap_total_seguro
-                                            texto_cierre = f"Libre Perdida: {resultado_libre}"
+                                            texto_cierre = f"Libre Perdida [{p_ini}]"
                                             
                                         supabase.table("historial_trading").update({
                                             "estado": "CERRADA",
@@ -1314,6 +1300,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             "utilidad_neta_real": utilidad,
                                             "roi_real": (utilidad / cap_total_seguro) * 100 if cap_total_seguro > 0 else 0
                                         }).eq("codigo", op['codigo']).execute()
+                                        
                                         st.success(f"Posición liquidada. Utilidad neta: ${utilidad:,.0f} COP.")
                                         st.rerun()
                             else:
