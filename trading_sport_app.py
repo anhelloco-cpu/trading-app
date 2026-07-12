@@ -1129,7 +1129,7 @@ elif estrategia_activa == "3️⃣ Estrategia 3: Binario Personalizado":
                     nuevo_codigo = f"{''.join(random.choices(string.ascii_uppercase, k=3))}-{random.randint(100, 999)}"
                     
                     # Truco maestro de nomenclatura
-                    partido_str = f"[{nombre_mercado}] {opcion_a} vs {opcion_b}"
+                    partido_str = f"🏟️ {partido_base} | [{nombre_mercado}] {opcion_a} vs {opcion_b}"
                     
                     # Le inyectamos la "Estrategia 1" en la base de datos para que el Seguimiento active la terminal dinámica
                     datos = {
@@ -1287,15 +1287,20 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 </div>
                                 """, unsafe_allow_html=True)
                                 
+                                st.markdown("---")
+                                todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
+                                plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_es_{op['codigo']}")
+                                plataforma_cob = st.text_input("Especifica la plataforma:", key=f"otra_plat_es_{op['codigo']}") if plataforma_cob_sel == "Otra" else plataforma_cob_sel
+                                
                                 if st.button("⚡ REGISTRAR COBERTURA", key=f"btn_cob_es_{op['codigo']}", use_container_width=True):
                                     hora_actual = datetime.datetime.now().strftime("%H:%M")
                                     supabase.table("historial_trading").update({
                                         "estado": "CUBIERTA",
-                                        "cuota_cazada_real": cuota_salida,
+                                        "cuota_cazada_real": float(cuota_salida),
                                         "hora_cobertura": hora_actual,
-                                        "plataforma_cobertura": "Dinámica Live"
+                                        "plataforma_cobertura": plataforma_cob
                                     }).eq("codigo", op['codigo']).execute()
-                                    st.success(f"¡Cobertura fijada con éxito a cuota {cuota_salida}! Pasa a conciliación final.")
+                                    st.success(f"¡Cobertura fijada con éxito a cuota {cuota_salida} en {plataforma_cob}! Pasa a conciliación final.")
                                     st.rerun()
                                     
                             else:
@@ -1307,9 +1312,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         key=f"rad_dir_es_{op['codigo']}"
                                     )
                                     st.markdown("---")
-                                    st.markdown("🤖 **Datos para Entrenamiento de IA (Opcional si es Binario)**")
-                                    goles_finales_seleccion = st.number_input(f"Puntos/Goles de {sel_ini}:", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
-                                    goles_finales_rival = st.number_input(f"Puntos/Goles de {sel_cob}:", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
+                                    st.info(f"🏟️ **Evento:** {op.get('partido', 'Desconocido')}")
+                                    st.markdown("🤖 **Marcador / Puntos Finales para Entrenamiento IA**")
+                                    goles_finales_seleccion = st.number_input(f"Puntos o Goles vinculados a '{sel_ini}':", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
+                                    goles_finales_rival = st.number_input(f"Puntos o Goles vinculados a '{sel_cob}':", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
                                     
                                     if st.form_submit_button("Registrar Liquidación Directa"):
                                         utilidad = utilidad_original_maxima if "Ganó" in resultado_directo else -op['stake_1']
@@ -1349,8 +1355,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     key=f"rad_fin_es_{op['codigo']}"
                                 )
                                 st.markdown("---")
-                                goles_finales_seleccion = st.number_input(f"Puntos/Goles de {sel_ini}:", min_value=0, step=1, value=0, key=f"gf_sel_es_{op['codigo']}")
-                                goles_finales_rival = st.number_input(f"Puntos/Goles de {sel_cob}:", min_value=0, step=1, value=0, key=f"gf_riv_es_{op['codigo']}")
+                                st.info(f"🏟️ **Evento:** {op.get('partido', 'Desconocido')}")
+                                st.markdown("🤖 **Marcador / Puntos Finales para Entrenamiento IA**")
+                                goles_finales_seleccion = st.number_input(f"Puntos o Goles vinculados a '{sel_ini}':", min_value=0, step=1, value=0, key=f"gf_sel_es_{op['codigo']}")
+                                goles_finales_rival = st.number_input(f"Puntos o Goles vinculados a '{sel_cob}':", min_value=0, step=1, value=0, key=f"gf_riv_es_{op['codigo']}")
                                 
                                 if st.form_submit_button(f"🏁 Cerrar Libro Mayor {etiqueta_db}"):
                                     retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
