@@ -112,7 +112,7 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
             c_caz = safe_float(op.get('cuota_cazada_real'))
             
             monto_cob = round(safe_float(op.get('reserva_stake_2')))
-            if "eSports" in estrategia and c_caz > 0:
+            if ("eSports" in estrategia or "Binario" in estrategia) and c_caz > 0:
                 monto_cob = round((stake_1 * c_ini) / c_caz)
 
             # -------------------------------------------------------------
@@ -1251,7 +1251,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             if accion_esports == "⚡ Cazar Cuota (Cobertura Dinámica)":
                                 st.markdown("**⚡ Terminal de Cobertura en Vivo**")
                                 
-                                cuota_salida = st.number_input("Tasa Actual (En vivo):", min_value=1.01, step=0.01, value=float(op['cuota_objetivo']), key=f"c_live_es_{op['codigo']}")
+                                val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
+                                if val_cuota_obj < 1.01:
+                                    val_cuota_obj = 1.01
+                                cuota_salida = st.number_input("Tasa Actual (En vivo):", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"c_live_es_{op['codigo']}")
                                 
                                 monto_a_inyectar = retorno_bruto_esperado / cuota_salida
                                 utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
@@ -1948,8 +1951,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
             df['utilidad_neta_real'] = pd.to_numeric(df['utilidad_neta_real'], errors='coerce').fillna(0.0)
             df['roi_real'] = pd.to_numeric(df['roi_real'], errors='coerce').fillna(0.0)
 
-            st.dataframe(df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']], width="stretch")
-            
+            df_mostrar = df[['fecha', 'tipo_banca', 'codigo', 'partido', 'seleccion_inicial', 'resultado_final', 'utilidad_neta_real', 'roi_real']].copy()
+            df_mostrar['utilidad_neta_real'] = df_mostrar['utilidad_neta_real'].apply(lambda x: f"${float(x):,.0f}")
+            df_mostrar['roi_real'] = df_mostrar['roi_real'].apply(lambda x: f"{float(x):.1f}%")
+            st.table(df_mostrar)
+
+
             import datetime
             
             hoy = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).date()
