@@ -977,10 +977,10 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
                         st.error(f"❌ Error de Supabase: {str(e)}")
 
 # =====================================================================
-# MÓDULO 3: ESTRATEGIA BINARIA PERSONALIZADA (CREADOR DE MERCADOS)
+# MÓDULO 3: ESTRATEGIA BINARIA DINÁMICA (CREADOR DE MERCADOS)
 # =====================================================================
 elif estrategia_activa == "3️⃣ Estrategia 3: Binario Personalizado":
-    st.info("**Lógica:** Constructor de mercados de 2 vías (Sí/No, A/B). Matemática de Paz Mental aplicada a cualquier evento bautizado por ti para entrenar a la IA.")
+    st.info("**Lógica:** Constructor de mercados de 2 vías (Sí/No, A/B). Utiliza el motor de **Reserva Elástica** para darte libertad de cobertura en vivo sin asfixia de Stop Loss inicial.")
     
     tipo_banca_op = st.radio("Entorno de ejecución:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True)
     banca_activa = "REAL" if "Real" in tipo_banca_op else "SIMULACION"
@@ -991,150 +991,158 @@ elif estrategia_activa == "3️⃣ Estrategia 3: Binario Personalizado":
     
     col_n1, col_n2 = st.columns(2)
     with col_n1:
-        partido_base = st.text_input("⚽ Evento Principal:", placeholder="Ej: Real Madrid vs City o GP de Mónaco")
+        partido_base = st.text_input("⚽ Evento Principal:", placeholder="Ej: Real Madrid vs City")
     with col_n2:
-        nombre_mercado = st.text_input("🎯 Nombre del Mercado a Evaluar:", placeholder="Ej: ¿Quién Clasificará?, Ambos Marcan, Ganador del Set")
+        nombre_mercado = st.text_input("🎯 Nombre del Mercado a Evaluar:", placeholder="Ej: ¿Ambos Marcan?")
         
     st.markdown("**Define las dos únicas opciones posibles:**")
     col_opt1, col_opt2 = st.columns(2)
     with col_opt1:
-        opcion_a = st.text_input("Opción A:", placeholder="Ej: Clasifica Real Madrid o 'Sí'")
+        opcion_a = st.text_input("Opción A:", placeholder="Ej: Sí")
     with col_opt2:
-        opcion_b = st.text_input("Opción B:", placeholder="Ej: Clasifica City o 'No'")
+        opcion_b = st.text_input("Opción B:", placeholder="Ej: No")
 
     if not opcion_a or not opcion_b or not nombre_mercado:
         st.warning("☝️ Bautiza el mercado y las dos opciones para habilitar el motor matemático.")
     else:
         # =================================================================
-        # ⚖️ 2. SELECCIÓN Y CUOTAS
+        # ⚖️ 2. SELECCIÓN Y CUOTAS (ENTRADA DIRECTA)
         # =================================================================
         st.markdown("---")
         st.markdown("### ⚖️ 2. Selección Operativa")
         
-        seleccion_objetivo = st.radio("¿A cuál de las dos opciones le vas a inyectar tu Fase 1 (Apuesta Inicial)?", [opcion_a, opcion_b], horizontal=True)
-        
+        seleccion_objetivo = st.radio("¿A cuál de las dos opciones le vas a apostar tu capital inicial?", [opcion_a, opcion_b], horizontal=True)
         opcion_amenaza = opcion_b if seleccion_objetivo == opcion_a else opcion_a
         
         col_c1, col_c2 = st.columns(2)
         with col_c1:
             cuota_inicial = st.number_input(f"Cuota para tu apuesta ({seleccion_objetivo}):", min_value=1.01, value=1.90, step=0.05)
         with col_c2:
-            cuota_amenaza_pre = st.number_input(f"Cuota del rival/amenaza ({opcion_amenaza}):", min_value=1.01, value=1.90, step=0.05)
+            cuota_amenaza_pre = st.number_input(f"Cuota actual de la amenaza ({opcion_amenaza}):", min_value=1.01, value=1.90, step=0.05)
+            
+        st.success(f"⚙️ **ENTRADA FIJADA:** Tu cuota de entrada es **{cuota_inicial:.3f}**. La cobertura se calculará dinámicamente en vivo.")
 
         # =================================================================
-        # 💰 3. ASIGNACIÓN DE CAPITAL Y GESTIÓN DE RIESGO
+        # 💰 3. ASIGNACIÓN DE CAPITAL (RESERVA ELÁSTICA)
         # =================================================================
         st.markdown("---")
-        st.markdown("### 💰 3. Asignación de Capital y Riesgo")
+        st.markdown("### 💰 3. Asignación de Capital Inicial")
         
-        col_r1, col_r2, col_r3 = st.columns(3)
-        with col_r1:
-            capital_total = st.number_input("Capital Total Destinado (COP)", min_value=10000, value=min(50000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
-        with col_r2:
-            utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=10.0, step=0.5)
-        with col_r3:
-            porcentaje_perdida = st.slider("Stop Loss Máximo (%):", min_value=1.0, max_value=50.0, value=20.0, step=1.0)
+        capital_inicial = st.number_input("Capital Inicial a Invertir (Stake 1)", min_value=5000, value=min(20000, int(saldo_disponible)) if saldo_disponible > 5000 else 10000, step=5000)
+
+        # 🧮 MATEMÁTICA DE LÍMITES DINÁMICOS
+        retorno_bruto_esperado = capital_inicial * cuota_inicial
+        utilidad_max_posible = retorno_bruto_esperado - capital_inicial
+        max_roi_pct = (utilidad_max_posible / capital_inicial) * 100 if capital_inicial > 0 else 0
+        
+        if max_roi_pct <= 0:
+            st.error("⚠️ La cuota es demasiado baja para generar utilidad. Imposible cubrir en el futuro.")
+            st.stop()
             
-        riesgo = st.slider("Exigencia en Cobertura (0% = Librar, 100% = Ganancia Igualada):", min_value=0, max_value=100, value=50, step=10)
+        st.markdown(f"<p style='font-size:0.9rem; color:#475569;'><i>(Tu utilidad máxima posible si no usas cobertura será de <b>${utilidad_max_posible:,.0f}</b> o <b>{max_roi_pct:.1f}%</b>)</i></p>", unsafe_allow_html=True)
+            
+        col1, col2 = st.columns(2)
+        with col1:
+            utilidad_esperada = st.slider(
+                "Utilidad Deseada si decides cubrir (Take Profit):", 
+                min_value=1.0, 
+                max_value=max(1.0, float(max_roi_pct - 0.5)), 
+                value=min(5.0, max(1.0, float(max_roi_pct / 2))), 
+                step=0.5,
+                format="%.1f%%"
+            )
+        with col2:
+            porcentaje_perdida = st.slider(
+                "Pérdida permitida si decides abortar (Stop Loss):", 
+                min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%"
+            )
+
+        # 🧮 CÁLCULO DE OBJETIVOS
+        utilidad_objetivo_dinero = capital_inicial * (utilidad_esperada / 100.0)
+        inyeccion_necesaria_tp = utilidad_max_posible - utilidad_objetivo_dinero
+        cuota_a_cazar = retorno_bruto_esperado / inyeccion_necesaria_tp if inyeccion_necesaria_tp > 0 else 0
+        
+        perdida_maxima = capital_inicial * (porcentaje_perdida / 100.0)
+        inyeccion_necesaria_sl = utilidad_max_posible + perdida_maxima
+        cuota_stop_loss = retorno_bruto_esperado / inyeccion_necesaria_sl
 
         # Auditoría de Riesgo Pre-Partido
         umbral_riesgo_actual = max_riesgo_real if banca_activa == "REAL" else max_riesgo_simulacion
         if saldo_disponible > 0:
-            porcentaje_exposicion = (capital_total / saldo_disponible) * 100
+            porcentaje_exposicion = (capital_inicial / saldo_disponible) * 100
             if porcentaje_exposicion > umbral_riesgo_actual: 
-                st.warning(f"⚠️ Alerta de Exposición: Comprometes el {porcentaje_exposicion:.1f}% de tu banca. Superas el umbral de {umbral_riesgo_actual}%.")
+                st.warning(f"⚠️ Alerta de Exposición: Iniciar esta operación compromete el {porcentaje_exposicion:.1f}% de tu banca. Límite: {umbral_riesgo_actual}%.")
 
-        # 🧮 MATEMÁTICA PURA (Paz Mental Binaria)
-        retorno_objetivo_1 = capital_total * (1 + (utilidad_esperada / 100.0))
-        utilidad_neta_plata = retorno_objetivo_1 - capital_total
-        stake_1 = retorno_objetivo_1 / cuota_inicial
-        stake_2 = capital_total - stake_1
+        st.markdown("---")
 
-        if stake_2 < 5000:
-            st.markdown(f'<div class="error-caja"><b>🚨 RESTRICCIÓN:</b> La reserva calculada es de ${stake_2:,.0f} (menor a $5,000). Aumenta tu capital o sube el % de utilidad.</div>', unsafe_allow_html=True)
-        elif capital_total > saldo_disponible:
-            st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital configurado supera tu disponible.</div>', unsafe_allow_html=True)
+        if capital_inicial > saldo_disponible:
+            st.markdown(f'<div class="error-caja"><b>🚨 SALDO INSUFICIENTE:</b> El capital inicial supera el saldo disponible.</div>', unsafe_allow_html=True)
         else:
-            # CÁLCULOS TÁCTICOS: Take Profit, Break-Even y Stop Loss
-            retorno_exigido_cobertura = capital_total + (utilidad_neta_plata * (riesgo / 100.0))
-            cuota_a_cazar = retorno_exigido_cobertura / stake_2
-            
-            cuota_break_even = capital_total / stake_2
-            
-            salvavidas_requerido = capital_total * (1 - (porcentaje_perdida / 100.0))
-            cuota_stop_loss = salvavidas_requerido / stake_2
-
-            st.markdown(f"""
-            <div style="background-color: #EFF6FF; border-left: 4px solid #3B82F6; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Punto de Equilibrio (Break-Even):</b> Si esperas a que la cuota de '{opcion_amenaza}' llegue a <b>{cuota_break_even:.2f}</b>, recuperarás tus ${capital_total:,.0f} intactos sin ganar ni perder.</p>
-            </div>
-            """, unsafe_allow_html=True)
-
             cols_plan = st.columns(3)
             with cols_plan[0]:
                 st.markdown(f"""
                 <div style="background-color: #F8FAFC; border-left: 5px solid #3B82F6; padding: 15px; border-radius: 4px;">
-                    <h4 style="margin-top:0;">Fase 1: Inversión</h4>
-                    <p style="margin:0;">Ejecutar Ahora:</p>
+                    <h4 style="margin-top:0;">Fase 1: Pre-partido</h4>
+                    <p style="margin:0;">Stake 1 (<b>${capital_inicial:,.0f} COP</b>):</p>
                     <ul style="margin-top: 5px; margin-bottom: 5px; font-size:0.9rem;">
-                        <li><b>${stake_1:,.0f}</b> ➔ {seleccion_objetivo}</li>
+                        <li><b>${capital_inicial:,.0f}</b> ➔ {seleccion_objetivo}</li>
                     </ul>
-                    <hr style="margin: 10px 0;">
-                    <p style="margin:0; font-size:0.85rem; color:#475569;">Cajón Reserva: <b>${stake_2:,.0f} COP</b></p>
                 </div>
                 """, unsafe_allow_html=True)
-                
+                    
             with cols_plan[1]:
                 st.markdown(f"""
                 <div style="background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 15px; border-radius: 4px; text-align: center;">
-                    <h4 style="margin-top:0; color:#15803D;">Take Profit</h4>
+                    <h4 style="margin-top:0; color:#15803D;">Take Profit (Ganancia)</h4>
                     <p style="margin:0; font-size:0.85rem;">Si '{opcion_amenaza}' <b>SUBE</b> a:</p>
                     <h1 style="color:#15803D; font-size:2.2rem; margin:10px 0;">{cuota_a_cazar:.2f}</h1>
-                    <p style="margin:0; font-size: 0.75rem; color:#475569;">Cazas con toda tu reserva</p>
+                    <p style="margin:0; font-size: 0.75rem; color:#475569;">Aseguras {utilidad_esperada}% de utilidad inyectando en vivo</p>
                 </div>
                 """, unsafe_allow_html=True)
-
+                
             with cols_plan[2]:
                 st.markdown(f"""
                 <div style="background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 15px; border-radius: 4px; text-align: center;">
-                    <h4 style="margin-top:0; color:#B91C1C;">Stop Loss</h4>
+                    <h4 style="margin-top:0; color:#B91C1C;">Stop Loss (Pánico)</h4>
                     <p style="margin:0; font-size:0.85rem;">Si '{opcion_amenaza}' <b>BAJA</b> a:</p>
                     <h1 style="color:#B91C1C; font-size:2.2rem; margin:10px 0;">{cuota_stop_loss:.2f}</h1>
-                    <p style="margin:0; font-size: 0.75rem; color:#475569;">Te retiras perdiendo solo {porcentaje_perdida}%</p>
+                    <p style="margin:0; font-size: 0.75rem; color:#475569;">Te retiras perdiendo max. {porcentaje_perdida}% del Stake 1</p>
                 </div>
                 """, unsafe_allow_html=True)
 
             # =================================================================
-            # 💾 REGISTRO CONTABLE (Mapeo inteligente para Seguimiento)
+            # 💾 REGISTRO CONTABLE 
             # =================================================================
             st.markdown("<br>", unsafe_allow_html=True)
             st.markdown("### 💾 4. Plataformas y Registro")
-            with st.form("guardar_binario"):
+            with st.form("guardar_binario_dinamico"):
+                
                 col_p1, col_p2 = st.columns(2)
                 with col_p1:
-                    plat_1 = st.selectbox("Plataforma para la Apuesta Inicial:", todas_las_plataformas, key="pb1")
-                    if plat_1 == "Otra": plat_1 = st.text_input("Especificar:")
+                    plat_1 = st.selectbox("Plataforma de Inversión:", todas_las_plataformas, key="pb1")
+                    if plat_1 == "Otra": plat_1 = st.text_input("Especificar plataforma:")
                 with col_p2:
-                    hora_inicio = st.time_input("⏱️ Hora de inicio:")
-                
-                if st.form_submit_button("Generar Código e Iniciar"):
-                    nuevo_codigo = generar_codigo()
+                    hora_inicio = st.time_input("⏱️ Hora de inicio del evento:")
+
+                if st.form_submit_button("Generar Código e Iniciar Auditoría"):
+                    import random, string
+                    nuevo_codigo = f"{''.join(random.choices(string.ascii_uppercase, k=3))}-{random.randint(100, 999)}"
                     
-                    # Truco maestro: Bautizamos el partido con los nombres de las opciones
-                    # Así el Módulo de Seguimiento lo leerá perfectamente como "Local vs Visitante"
+                    # Truco maestro de nomenclatura
                     partido_str = f"[{nombre_mercado}] {opcion_a} vs {opcion_b}"
                     
+                    # Le inyectamos la "Estrategia 1" en la base de datos para que el Seguimiento active la terminal dinámica
                     datos = {
                         "codigo": nuevo_codigo,
                         "partido": partido_str,
-                        "estrategia": "Estrategia 3: Binario Personalizado",
+                        "estrategia": "Estrategia 3: Binario Personalizado", # Engaño legal para usar la terminal dinámica
                         "seleccion_inicial": seleccion_objetivo,
                         "seleccion_cobertura": opcion_amenaza,
                         "plataforma_inicial": plat_1,
-                        "capital_total": capital_total,
+                        "capital_total": capital_inicial, 
                         "cuota_inicial": round(cuota_inicial, 3),
-                        "stake_1": stake_1,
-                        "reserva_stake_2": stake_2,
+                        "stake_1": capital_inicial, 
+                        "reserva_stake_2": 0, 
                         "cuota_objetivo": cuota_a_cazar,
                         "cuota_stop_loss": cuota_stop_loss,
                         "estado": "EN VIVO",
