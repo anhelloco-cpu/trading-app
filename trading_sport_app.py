@@ -1169,21 +1169,26 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                 # ⚽ INTERFAZ TÁCTICA PARA FÚTBOL (PAZ MENTAL Y LIBRE)
                 # =====================================================================
                 else:
-                    with st.expander(f"⚽ {op['partido']} | Hora: {op.get('hora_inicio_partido', 'N/A')} | Ref: {op['codigo']} | Estado: {op['estado']}"):
-                        es_apuesta_libre = op['reserva_stake_2'] == 0
+                    with st.expander(f"⚽ {op.get('partido', 'N/A')} | Hora: {op.get('hora_inicio_partido', 'N/A')} | Ref: {op.get('codigo', 'N/A')} | Estado: {op.get('estado', 'N/A')}"):
+                        
+                        # --- 🛡️ VARIABLES SEGURAS (El blindaje que propusiste) ---
+                        cap_total_seguro = float(op.get('capital_total') or 0.0)
+                        reserva_segura = float(op.get('reserva_stake_2') or 0.0)
+                        st1_seguro = float(op.get('stake_1') or cap_total_seguro)
+                        cuota_ini_segura = float(op.get('cuota_inicial') or 1.0)
+                        cuota_obj_segura = float(op.get('cuota_objetivo') or 0.0)
+                        cuota_sl_segura = float(op.get('cuota_stop_loss') or 0.0)
+                        
+                        cuota_be = float(cap_total_seguro / reserva_segura) if reserva_segura > 0 else 0.0
+                        banca_op = str(op.get('tipo_banca') or 'N/A')
+                        es_apuesta_libre = (reserva_segura == 0)
                         
                         sel_ini = str(op.get('seleccion_inicial') or 'Apuesta Inicial')
                         sel_cob = str(op.get('seleccion_cobertura') or 'Cobertura')
                         tipo_estrategia = str(op.get('estrategia') or 'Estrategia 2: Paz Mental Clásica')
                         
-                        # --- CÁLCULO DE LÍMITES FINANCIEROS (CORREGIDO PARA DB VIEJA) ---
-                        cuota_sl = float(op.get('cuota_stop_loss') or 0.0)
-                        reserva_actual = float(op.get('reserva_stake_2') or 0.0)
-                        capital_actual = float(op.get('capital_total') or 0.0)
-                        cuota_be = float(capital_actual / reserva_actual) if reserva_actual > 0 else 0.0
-                        
                         # --- DESGLOSE AUTOMÁTICO DE NOMBRES DE EQUIPOS ---
-                        partido_str = op.get('partido', 'Local vs Visitante')
+                        partido_str = str(op.get('partido') or 'Local vs Visitante')
                         if ' vs ' in partido_str:
                             eq_local = partido_str.split(' vs ')[0].strip()
                             eq_vis = partido_str.split(' vs ')[1].strip()
@@ -1194,7 +1199,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             eq_local = "Local"
                             eq_vis = "Visitante"
                         
-                        # Identificación automática de bando
                         es_st1_local = (sel_ini.lower() in eq_local.lower()) or (eq_local.lower() in sel_ini.lower())
                         
                         # --- CONCIENCIA DE MERCADO ---
@@ -1202,12 +1206,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             contexto_mercado = f"El reloj es aliado. Si {sel_ini} aguanta o anota, la cuota de {sel_cob} se disparará."
                         else:
                             contexto_mercado = f"El reloj es enemigo. Necesitas un gol de {sel_ini} o presión temprana para bajar la cuota."
-                        
-                        # --- VARIABLES SEGURAS (Evita que la app se estrelle por datos vacíos) ---
-                        cap_total_seguro = float(op.get('capital_total') or 0.0)
-                        reserva_segura = float(op.get('reserva_stake_2') or 0.0)
-                        cuota_ini_segura = float(op.get('cuota_inicial') or 1.0)
-                        banca_op = str(op.get('tipo_banca') or 'N/A')
                         
                         if es_apuesta_libre:
                             st.write(f"**Capital Comprometido (Libre) [{banca_op}]:** ${cap_total_seguro:,.0f}")
@@ -1218,9 +1216,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             st.markdown(f"""
                             <div style="background-color: #F8FAFC; padding: 15px; border-left: 4px solid #3B82F6; border-radius: 4px; margin-bottom: 15px;">
                                 <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Stake 1:</b> A favor de <b>{sel_ini}</b></p>
-                                <p style="margin: 8px 0 0 0; font-size: 0.95rem; color: #15803D;">🟢 <b>Take Profit:</b> Cazar a <b>{sel_cob}</b> a cuota <b>{op.get('cuota_objetivo', 0):.2f}</b> o más.</p>
+                                <p style="margin: 8px 0 0 0; font-size: 0.95rem; color: #15803D;">🟢 <b>Take Profit:</b> Cazar a <b>{sel_cob}</b> a cuota <b>{cuota_obj_segura:.2f}</b> o más.</p>
                                 <p style="margin: 8px 0 0 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Break-Even:</b> Cuota <b>{cuota_be:.2f}</b> (Recuperas todo el capital).</p>
-                                <p style="margin: 8px 0 8px 0; font-size: 0.95rem; color: #B91C1C;">🔴 <b>Stop Loss:</b> Cuota <b>{cuota_sl:.2f}</b> (Paracaídas de emergencia).</p>
+                                <p style="margin: 8px 0 8px 0; font-size: 0.95rem; color: #B91C1C;">🔴 <b>Stop Loss:</b> Cuota <b>{cuota_sl_segura:.2f}</b> (Paracaídas de emergencia).</p>
                                 <hr style="margin: 10px 0; border-color: #CBD5E1;">
                                 <p style="margin: 0; font-size: 0.85rem; color: #64748B;"><i>💡 {contexto_mercado}</i></p>
                             </div>
