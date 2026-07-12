@@ -24,57 +24,60 @@ def generar_codigo():
 def obtener_saldo_banca(tipo_banca: str) -> float:
     if supabase is None: return 0.0
     try:
-        # 1. Sumar movimientos de caja
+        # 1. Sumar movimientos de caja (Redondeados exactos)
         res_movs = supabase.table("movimientos_caja").select("tipo_movimiento", "monto").eq("tipo_banca", tipo_banca).execute()
-        total_caja = sum(float(m['monto']) if m['tipo_movimiento'] == "CONSIGNACION" else -float(m['monto']) for m in res_movs.data)
+        total_caja = sum(round(float(m.get('monto') or 0.0)) if str(m.get('tipo_movimiento')) == "CONSIGNACION" else -round(float(m.get('monto') or 0.0)) for m in res_movs.data)
         
-        # 2. Utilidades CERRADAS
+        # 2. Utilidades CERRADAS (Redondeadas exactas de la BD)
         res_ops_cerradas = supabase.table("historial_trading").select("utilidad_neta_real").eq("tipo_banca", tipo_banca).eq("estado", "CERRADA").execute()
-        total_utilidad = sum(float(op['utilidad_neta_real'] or 0.0) for op in res_ops_cerradas.data)
+        total_utilidad = sum(round(float(op.get('utilidad_neta_real') or 0.0)) for op in res_ops_cerradas.data)
         
-        # 3. Capital retenido en abiertas
-        res_ops_abiertas = supabase.table("historial_trading").select("estado", "capital_total", "estrategia", "cuota_inicial", "cuota_cazada_real").eq("tipo_banca", tipo_banca).in_("estado", ["EN VIVO", "CUBIERTA"]).execute()
+        # 3. Capital retenido en abiertas (Ahora sincronizado perfectamente con las plataformas)
+        res_ops_abiertas = supabase.table("historial_trading").select("estado", "capital_total", "stake_1", "reserva_stake_2", "estrategia", "cuota_inicial", "cuota_cazada_real", "es_dutching", "stake_dutch_base", "stake_dutch_empate").eq("tipo_banca", tipo_banca).in_("estado", ["EN VIVO", "CUBIERTA"]).execute()
         capital_retenido = 0.0
+        
         for op in res_ops_abiertas.data:
-            cap = float(op.get('capital_total') or 0.0)
-            capital_retenido += cap
-            # En eSports cubiertas, se inyectó capital dinámico extra
-            if op.get('estado') == "CUBIERTA" and "eSports" in op.get('estrategia', ''):
+            estado = op.get('estado')
+            es_dutch = op.get('es_dutching', False)
+            
+            if es_dutch:
+                cap_fase1 = round(float(op.get('stake_dutch_base') or 0.0)) + round(float(op.get('stake_dutch_empate') or 0.0))
+            else:
+                cap_fase1 = round(float(op.get('stake_1') or op.get('capital_total') or 0.0))
+            
+            # Descontamos el capital base que ya está en juego
+            capital_retenido += cap_fase1
+            
+            # SOLO descontamos la reserva si el seguro ya se ejecutó en la plataforma
+            if estado == "CUBIERTA":
                 c_ini = float(op.get('cuota_inicial') or 1.0)
                 c_caz = float(op.get('cuota_cazada_real') or 0.0)
-                if c_caz > 0:
-                    capital_retenido += (cap * c_ini) / c_caz
+                if "eSports" in str(op.get('estrategia') or '') and c_caz > 0:
+                    capital_retenido += round((cap_fase1 * c_ini) / c_caz)
+                else:
+                    capital_retenido += round(float(op.get('reserva_stake_2') or 0.0))
                     
         return total_caja + total_utilidad - capital_retenido
-    except Exception as e:
+    except Exception:
         return 0.0
 
 # 🧠 NUEVO MOTOR: TRAZABILIDAD CRUZADA POR PLATAFORMA (CONTABILIDAD DOBLE ASIENTO)
 def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
     if supabase is None: return pd.DataFrame()
-    
-    # --- 🛡️ FUNCIÓN ESCUDO: Limpia espacios, comas y nulos de la Base de Datos ---
-    def s_float(val):
-        try:
-            if val is None or str(val).strip() == "": return 0.0
-            return float(str(val).replace(',', '').strip())
-        except:
-            return 0.0
-
     try:
         saldos = {}
         
-        # 1. Movimientos Manuales (Fondeo y Retiro)
+        # 1. Movimientos Manuales (Limpios)
         res_movs = supabase.table("movimientos_caja").select("tipo_movimiento", "monto", "plataforma").eq("tipo_banca", tipo_banca).execute()
         for m in res_movs.data:
             p = str(m.get('plataforma') or 'Sin Especificar').strip()
             if p not in saldos: saldos[p] = 0.0
             if str(m.get('tipo_movimiento')) == "CONSIGNACION":
-                saldos[p] += s_float(m.get('monto'))
+                saldos[p] += round(float(m.get('monto') or 0.0))
             else:
-                saldos[p] -= s_float(m.get('monto'))
+                saldos[p] -= round(float(m.get('monto') or 0.0))
                 
-        # 2. Reconstrucción Operación por Operación (Trading y Arbitraje)
+        # 2. Operaciones Históricas (Limpias y sin decimales)
         res_ops = supabase.table("historial_trading").select("*").eq("tipo_banca", tipo_banca).execute()
         for op in res_ops.data:
             p_ini = str(op.get('plataforma_inicial') or 'Sin Especificar').strip()
@@ -90,71 +93,66 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
             estrategia = str(op.get('estrategia') or '')
             es_dutching = op.get('es_dutching', False)
             
-            # --- Lectura Segura de Dinero ---
-            cap_total = s_float(op.get('capital_total'))
-            stake_1_calc = s_float(op.get('stake_1'))
-            if stake_1_calc == 0: stake_1_calc = cap_total
-            stake_2_calc = s_float(op.get('reserva_stake_2'))
+            # --- Lectura Exacta (Cero Decimales) ---
+            util_neta = round(float(op.get('utilidad_neta_real') or 0.0))
+            stake_base = round(float(op.get('stake_dutch_base') or 0.0))
+            stake_emp = round(float(op.get('stake_dutch_empate') or 0.0))
+            stake_1 = round(float(op.get('stake_1') or op.get('capital_total') or 0.0))
             
-            c_ini = s_float(op.get('cuota_inicial'))
-            if c_ini == 0: c_ini = 1.0
-            c_caz = s_float(op.get('cuota_cazada_real'))
-            util_neta = s_float(op.get('utilidad_neta_real'))
+            c_ini = float(op.get('cuota_inicial') or 1.0)
+            c_caz = float(op.get('cuota_cazada_real') or 0.0)
             
-            stake_base = s_float(op.get('stake_dutch_base'))
-            stake_emp = s_float(op.get('stake_dutch_empate'))
-            
-            # --- MANEJO DE ESTADOS ABIERTOS (CONGELAMIENTO DE SALDO) ---
+            monto_cob = round(float(op.get('reserva_stake_2') or 0.0))
+            if "eSports" in estrategia and c_caz > 0:
+                monto_cob = round((stake_1 * c_ini) / c_caz)
+
+            # --- ABIERTAS (CONGELAMIENTO EN TIEMPO REAL) ---
             if estado in ["EN VIVO", "CUBIERTA"]:
                 if es_dutching:
                     saldos[p_ini] -= stake_base
-                    if p_dutch != 'Sin Especificar':
-                        saldos[p_dutch] -= stake_emp
+                    if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
                 else:
-                    saldos[p_ini] -= stake_1_calc
-                
+                    saldos[p_ini] -= stake_1
+                    
                 if estado == "CUBIERTA" and p_cob != 'Sin Especificar':
-                    monto_cob = stake_2_calc
-                    if "eSports" in estrategia and c_caz > 0:
-                        monto_cob = (stake_1_calc * c_ini) / c_caz
                     saldos[p_cob] -= monto_cob
 
-            # --- MANEJO DE ESTADOS CERRADOS (LIQUIDACIÓN DE PÉRDIDAS/GANANCIAS) ---
+            # --- CERRADAS (ASIENTOS EXACTOS BASADOS EN UTILIDAD NETA DE DB) ---
             elif estado == "CERRADA":
-                monto_cob = stake_2_calc
-                if "eSports" in estrategia and c_caz > 0:
-                    monto_cob = (stake_1_calc * c_ini) / c_caz
-                
-                # ESCENARIO 1: Ganó la Inicial
+                # CASO 1: Ganó la Inicial
                 if any(k in res_fin for k in ["Ganancia en", "Ganó Inicial", "Apuesta Inicial", "Libre Ganada", "Utilidad Base en", "Cobro de Apuesta Inicial"]):
                     if es_dutching:
                         saldos[p_ini] += util_neta
                     else:
-                        saldos[p_ini] += (stake_1_calc * c_ini) - stake_1_calc
                         if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
+                            saldos[p_ini] += (util_neta + monto_cob)
                             saldos[p_cob] -= monto_cob
-
-                # ESCENARIO 2: Ganó Seguro
+                        else:
+                            saldos[p_ini] += util_neta
+                            
+                # CASO 2: Ganó el Seguro
                 elif any(k in res_fin for k in ["Fondo de Cobertura", "Seguro Acertado", "Utilidad Seguro en"]):
                     if es_dutching:
                         saldos[p_ini] -= stake_base
                         if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
                     else:
-                        saldos[p_ini] -= stake_1_calc
-                    
+                        saldos[p_ini] -= stake_1
+                        
                     if p_cob != 'Sin Especificar':
-                        saldos[p_cob] += (monto_cob * c_caz) - monto_cob
-                
-                # ESCENARIO 3: Pérdida
+                        saldos[p_cob] += (util_neta + stake_1)
+                        
+                # CASO 3: Perdió Todo
                 elif any(k in res_fin for k in ["Déficit", "Pérdida Total", "Perdió Inicial", "Libre Perdida", "Pérdida de Stake"]):
                     if es_dutching:
                         saldos[p_ini] -= stake_base
                         if p_dutch != 'Sin Especificar': saldos[p_dutch] -= stake_emp
                     else:
-                        saldos[p_ini] -= stake_1_calc
-                    
+                        saldos[p_ini] -= stake_1
+                        
                     if "Directo" not in res_fin and "Libre" not in res_fin and p_cob != 'Sin Especificar':
                         saldos[p_cob] -= monto_cob
+                        
+                # CASO 4: Antiguas sin ruta clara
                 else:
                     saldos[p_ini] += util_neta
 
@@ -164,7 +162,6 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
         return df.sort_values(by='Saldo Actual (COP)', ascending=False)
         
     except Exception as e:
-        # Si algo explota, ahora lo veremos en rojo en la pantalla, no se ocultará.
         st.error(f"🚨 Error matemático en Caja ({tipo_banca}): {str(e)}")
         return pd.DataFrame()
 
