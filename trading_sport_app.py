@@ -1357,15 +1357,37 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                     ird = 85.0
                                         else:
                                             # Va 1-0 o 0-1
-                                            if g_local == 0: eq_necesitado = eq_local; apm_necesitado = apm_local; eq_dominante = eq_vis
-                                            else: eq_necesitado = eq_vis; apm_necesitado = apm_vis; eq_dominante = eq_local
+                                            if g_local == 0: 
+                                                eq_necesitado = eq_local; atkp_necesitado = atkp_local
+                                                eq_dominante = eq_vis; atkp_dominante = atkp_vis
+                                            else: 
+                                                eq_necesitado = eq_vis; atkp_necesitado = atkp_vis
+                                                eq_dominante = eq_local; atkp_dominante = atkp_local
                                                 
-                                            if apm_necesitado >= 0.6:
-                                                msj_ia = f"⏳ **ESPERANZA VIVA:** {eq_necesitado} pierde pero ataca agresivamente ({apm_necesitado:.1f} APM). El empate es altamente probable."
-                                                ird = 40.0
+                                            # 1. Cuota de Poder (Share Ofensivo)
+                                            total_atkp_actual = atkp_necesitado + atkp_dominante
+                                            share_necesitado = (atkp_necesitado / total_atkp_actual) * 100 if total_atkp_actual > 0 else 0
+                                            
+                                            # 2. Factor Tiempo
+                                            tiempo_restante = 90 - minuto_actual
+                                            
+                                            st.write(f"🔍 **Análisis Táctico:** {eq_necesitado} tiene el **{share_necesitado:.0f}%** del poder ofensivo.")
+                                            
+                                            if share_necesitado >= 45:
+                                                msj_ia = f"⚔️ **PARTIDO REÑIDO:** El juego está equilibrado. {eq_necesitado} compite de tú a tú. Altas probabilidades de empate."
+                                                ird = 35.0 if tiempo_restante > 20 else 60.0 # Se estresa un poco si queda poco tiempo
+                                            elif share_necesitado >= 30:
+                                                msj_ia = f"⚠️ **DESVENTAJA OFENSIVA:** {eq_dominante} domina, pero {eq_necesitado} aún responde ocasionalmente. Prepara la salida."
+                                                ird = 65.0 if tiempo_restante > 20 else 80.0
                                             else:
-                                                msj_ia = f"🚨 **SOMETIMIENTO:** {eq_dominante} gana y además asfixia a {eq_necesitado} (Solo {apm_necesitado:.1f} APM). Necesitas evacuar."
-                                                ird = 90.0
+                                                msj_ia = f"🚨 **SOMETIMIENTO ABSOLUTO:** {eq_dominante} tiene asfixiado a {eq_necesitado} (Solo {share_necesitado:.0f}% de ataques). El empate es un milagro estadístico."
+                                                ird = 95.0
+                                                
+                                            # Si ya pasó el minuto 80, cualquier escenario que no sea 1-1 es crítico.
+                                            if tiempo_restante <= 10 and (g_local == 0 or g_vis == 0):
+                                                msj_ia += " ⏳ **¡TIEMPO AGOTADO!** Faltan menos de 10 min. Caza la cuota ya mismo."
+                                                ird = max(ird, 90.0)
+
                                     else:
                                         # LÓGICA PARA EL "NO"
                                         if g_local > 0 and g_vis > 0:
@@ -1376,14 +1398,25 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             ird = 10.0
                                         else:
                                             # Va 1-0 o 0-1 (Alerta, si el que tiene 0 marca, perdemos)
-                                            if g_local == 0: eq_peligro = eq_local; apm_peligro = apm_local
-                                            else: eq_peligro = eq_vis; apm_peligro = apm_vis
-                                                
-                                            if apm_peligro >= 0.6:
-                                                msj_ia = f"🚨 **PELIGRO DE EMPATE:** {eq_peligro} ataca con fuerza ({apm_peligro:.1f} APM) buscando su gol. Caza la cuota para salvar el NO."
-                                                ird = 85.0
+                                            if g_local == 0: 
+                                                eq_peligro = eq_local; atkp_peligro = atkp_local
+                                                atkp_control = atkp_vis 
+                                            else: 
+                                                eq_peligro = eq_vis; atkp_peligro = atkp_vis
+                                                atkp_control = atkp_local
+                                            
+                                            total_atkp_actual = atkp_peligro + atkp_control
+                                            share_peligro = (atkp_peligro / total_atkp_actual) * 100 if total_atkp_actual > 0 else 0
+                                            tiempo_restante = 90 - minuto_actual
+                                            
+                                            if share_peligro >= 45:
+                                                msj_ia = f"🚨 **PELIGRO DE EMPATE:** {eq_peligro} ataca fuertemente (Tiene el {share_peligro:.0f}% de los ataques). Caza la cuota para salvar el NO."
+                                                ird = 85.0 if tiempo_restante > 20 else 95.0
+                                            elif share_peligro >= 30:
+                                                msj_ia = f"⚠️ **AMENAZA LATENTE:** {eq_peligro} intenta reaccionar ({share_peligro:.0f}% del ataque). Vigila de cerca."
+                                                ird = 60.0
                                             else:
-                                                msj_ia = f"🛡️ **CONTROLADO:** {eq_peligro} no ataca ({apm_peligro:.1f} APM). No hay riesgo de que nos dañen el NO."
+                                                msj_ia = f"🛡️ **CONTROLADO:** El equipo rival domina el balón y neutraliza a {eq_peligro}. El NO está seguro."
                                                 ird = 20.0
                                                 
                                     st.info(msj_ia)
