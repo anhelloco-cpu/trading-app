@@ -1294,15 +1294,17 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         minuto_sugerido = diff if diff <= 45 else (45 if diff < 60 else diff - 15)
                                     except Exception: pass
                                 
-                                # 2. PANELES DE INPUT (Táctica y Cuota en vivo agrupados)
-                                c_top1, c_top2 = st.columns(2)
+                                # 2. PANELES DE INPUT (Táctica, Cuota y Cashout)
+                                c_top1, c_top2, c_top3 = st.columns(3)
                                 with c_top1:
-                                    minuto_actual = st.number_input("⏱️ Minuto del Partido:", min_value=0, max_value=120, value=max(0, min(95, int(minuto_sugerido))), step=1, key=f"min_es_{op['codigo']}")
+                                    minuto_actual = st.number_input("⏱️ Minuto:", min_value=0, max_value=120, value=max(0, min(95, int(minuto_sugerido))), step=1, key=f"min_es_{op['codigo']}")
                                 with c_top2:
                                     val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
                                     if val_cuota_obj < 1.01: val_cuota_obj = 1.01
-                                    cuota_input_es = st.number_input("📉 Cuota Actual de Cobertura:", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"c_live_es_{op['codigo']}")
+                                    cuota_input_es = st.number_input("📉 Cuota Cobertura:", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"c_live_es_{op['codigo']}")
                                     cuota_salida = cuota_input_es if cuota_input_es is not None else 1.01
+                                with c_top3:
+                                    oferta_cashout = st.number_input("💰 Oferta Cashout ($):", min_value=0.0, step=1000.0, value=0.0, key=f"cash_es_{op['codigo']}", help="Escribe lo que te ofrece la casa en el botón de Cerrar Apuesta")
 
                                 st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
                                 col_t1, col_t2 = st.columns(2)
@@ -1462,7 +1464,35 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 monto_a_inyectar = retorno_bruto_esperado / cuota_salida
                                 utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
                                 
-                                st.markdown(f"**Inversión para cazar a {cuota_salida:.2f}:** ${monto_a_inyectar:,.0f} COP ➡️ **Pérdida/Ganancia consolidada:** ${utilidad_proyectada:,.0f} COP")
+                                st.markdown(f"**Inversión para cazar a {cuota_salida:.2f}:** ${monto_a_inyectar:,.0f} COP ➡️ **Balance Consolidado:** ${utilidad_proyectada:,.0f} COP")
+
+                                # =====================================================================
+                                # ⚖️ RADAR DE EFICIENCIA CASHOUT VS. COBERTURA MANUAL
+                                # =====================================================================
+                                if oferta_cashout > 0:
+                                    utilidad_cashout = oferta_cashout - op['stake_1']
+                                    diferencia_cashout = utilidad_proyectada - utilidad_cashout
+                                    
+                                    if diferencia_cashout > 0:
+                                        # Te están robando en el Cashout
+                                        st.markdown(f"""
+                                        <div style="background-color: #F0FDF4; border-left: 5px solid #22C55E; padding: 12px; border-radius: 4px; margin-top: 10px;">
+                                            <span style="font-size: 1.05em; color: #166534;">🛡️ <b>¡NO USES EL BOTÓN DE LA CASA!</b></span><br>
+                                            <span style="font-size: 0.95em; color: #15803D;">El botón te deja un balance de <b>${utilidad_cashout:,.0f}</b>. Cubrir matemáticamente la cuota te deja en <b>${utilidad_proyectada:,.0f}</b>.</span><br>
+                                            <span style="font-weight: bold; color: #16A34A;">👉 Cazar la cuota tú mismo te salva ${diferencia_cashout:,.0f} COP adicionales.</span>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                    elif diferencia_cashout < 0:
+                                        # El Cashout es sorprendentemente mejor
+                                        st.markdown(f"""
+                                        <div style="background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 12px; border-radius: 4px; margin-top: 10px;">
+                                            <span style="font-size: 1.05em; color: #991B1B;">🚨 <b>¡TOMA EL CASHOUT DE LA CASA INMEDIATAMENTE!</b></span><br>
+                                            <span style="font-size: 0.95em; color: #B91C1C;">Cubrir matemáticamente te deja en <b>${utilidad_proyectada:,.0f}</b>. El botón de la casa es más generoso y te deja en <b>${utilidad_cashout:,.0f}</b>.</span><br>
+                                            <span style="font-weight: bold; color: #DC2626;">👉 Usar el botón de la casa te salva ${abs(diferencia_cashout):,.0f} COP. ¡Tómalo ya!</span>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+                                    else:
+                                        st.info("⚖️ Ambas opciones (Cobertura Manual o Cashout) te dejan exactamente con el mismo margen de dinero.")
 
                                 st.markdown("---")
                                 todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
