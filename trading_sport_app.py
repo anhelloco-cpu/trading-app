@@ -1470,10 +1470,23 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         key=f"rad_dir_es_{op['codigo']}"
                                     )
                                     st.markdown("---")
-                                    st.info(f"🏟️ **Evento:** {op.get('partido', 'Desconocido')}")
+                                    
+                                    # Extractor de equipos para Liquidación
+                                    partido_str = str(op.get('partido', ''))
+                                    solo_partido = partido_str.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str else partido_str
+                                    txt_norm = solo_partido.lower().replace("vs.", "vs").replace("-", "vs")
+                                    if "vs" in txt_norm:
+                                        eq_local = txt_norm.split("vs")[0].strip().title()
+                                        eq_vis = txt_norm.split("vs")[1].strip().title()
+                                    else:
+                                        eq_local = solo_partido if len(solo_partido) > 1 else "Equipo Local"
+                                        eq_vis = "Equipo Visitante"
+                                    if "Ambos Anotan" in eq_local or "[" in eq_local: eq_local, eq_vis = "Equipo A", "Equipo B"
+
+                                    st.info(f"🏟️ **Evento:** {partido_str}")
                                     st.markdown("🤖 **Marcador / Puntos Finales para Entrenamiento IA**")
-                                    goles_finales_seleccion = st.number_input(f"Puntos o Goles vinculados a '{sel_ini}':", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
-                                    goles_finales_rival = st.number_input(f"Puntos o Goles vinculados a '{sel_cob}':", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
+                                    goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {eq_local}:", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
+                                    goles_finales_rival = st.number_input(f"⚽ Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
                                     
                                     if st.form_submit_button("Registrar Liquidación Directa"):
                                         utilidad = utilidad_original_maxima if "Ganó" in resultado_directo else -op['stake_1']
@@ -1513,10 +1526,23 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     key=f"rad_fin_es_{op['codigo']}"
                                 )
                                 st.markdown("---")
-                                st.info(f"🏟️ **Evento:** {op.get('partido', 'Desconocido')}")
+                                
+                                # Extractor de equipos para Liquidación
+                                partido_str = str(op.get('partido', ''))
+                                solo_partido = partido_str.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str else partido_str
+                                txt_norm = solo_partido.lower().replace("vs.", "vs").replace("-", "vs")
+                                if "vs" in txt_norm:
+                                    eq_local = txt_norm.split("vs")[0].strip().title()
+                                    eq_vis = txt_norm.split("vs")[1].strip().title()
+                                else:
+                                    eq_local = solo_partido if len(solo_partido) > 1 else "Equipo Local"
+                                    eq_vis = "Equipo Visitante"
+                                if "Ambos Anotan" in eq_local or "[" in eq_local: eq_local, eq_vis = "Equipo A", "Equipo B"
+
+                                st.info(f"🏟️ **Evento:** {partido_str}")
                                 st.markdown("🤖 **Marcador / Puntos Finales para Entrenamiento IA**")
-                                goles_finales_seleccion = st.number_input(f"Puntos o Goles vinculados a '{sel_ini}':", min_value=0, step=1, value=0, key=f"gf_sel_es_{op['codigo']}")
-                                goles_finales_rival = st.number_input(f"Puntos o Goles vinculados a '{sel_cob}':", min_value=0, step=1, value=0, key=f"gf_riv_es_{op['codigo']}")
+                                goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {eq_local}:", min_value=0, step=1, value=0, key=f"gf_sel_es_{op['codigo']}")
+                                goles_finales_rival = st.number_input(f"⚽ Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_es_{op['codigo']}")
                                 
                                 if st.form_submit_button(f"🏁 Cerrar Libro Mayor {etiqueta_db}"):
                                     retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
