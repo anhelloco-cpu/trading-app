@@ -993,14 +993,21 @@ elif estrategia_activa == "3️⃣ Estrategia 3: Binario Personalizado":
     with col_n1:
         partido_base = st.text_input("⚽ Evento Principal:", placeholder="Ej: Real Madrid vs City")
     with col_n2:
-        nombre_mercado = st.text_input("🎯 Nombre del Mercado a Evaluar:", placeholder="Ej: ¿Ambos Marcan?")
+        tipo_mercado = st.selectbox("🎯 Selecciona el Mercado:", ["🔥 Ambos Anotan (BTTS)", "✍️ Otro Mercado Personalizado..."])
         
-    st.markdown("**Define las dos únicas opciones posibles:**")
-    col_opt1, col_opt2 = st.columns(2)
-    with col_opt1:
-        opcion_a = st.text_input("Opción A:", placeholder="Ej: Sí")
-    with col_opt2:
-        opcion_b = st.text_input("Opción B:", placeholder="Ej: No")
+    if tipo_mercado == "🔥 Ambos Anotan (BTTS)":
+        nombre_mercado = "Ambos Anotan"
+        opcion_a = "Sí"
+        opcion_b = "No"
+        st.info("💡 **Mercado Automático:** Las opciones 'Sí' y 'No' han sido preconfiguradas. El Motor IA táctico se activará para este evento.")
+    else:
+        nombre_mercado = st.text_input("🎯 Nombre del Mercado:", placeholder="Ej: Más de 10 Córners")
+        st.markdown("**Define las dos únicas opciones posibles:**")
+        col_opt1, col_opt2 = st.columns(2)
+        with col_opt1:
+            opcion_a = st.text_input("Opción A:", placeholder="Ej: Sí")
+        with col_opt2:
+            opcion_b = st.text_input("Opción B:", placeholder="Ej: No")
 
     if not opcion_a or not opcion_b or not nombre_mercado:
         st.warning("☝️ Bautiza el mercado y las dos opciones para habilitar el motor matemático.")
@@ -1289,21 +1296,63 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     g_vis = st.number_input("⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_es_{op['codigo']}")
                                     atkp_vis = st.number_input("🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_es_{op['codigo']}")
                                 
-                                # Termómetro General de Asedio (Adaptado para Binarios)
-                                apm_total = (atkp_local + atkp_vis) / max(1, minuto_actual)
-                                ird = min(100.0, apm_total * 45.0) 
-                                
                                 st.markdown("---")
-                                st.markdown("#### 🌡️ Termómetro del Evento (IRD General)")
-                                if min_base == 0:
-                                    st.info("📌 **Fase de Calibración:** Ingresa los datos actuales para tomar la primera foto.")
-                                else:
-                                    st.info(f"🔎 Ritmo actual: El evento fluye a **{apm_total:.2f} Ataques Peligrosos por Minuto**.")
+                                
+                                # 🧠 INTELIGENCIA ARTIFICIAL: DETECTOR DE MERCADO
+                                is_ambos_anotan = "Ambos Anotan" in str(op.get('partido', ''))
+                                
+                                if is_ambos_anotan:
+                                    st.markdown("#### 🧠 Asesoría Táctica IA (Mercado 'Ambos Anotan')")
                                     
-                                color = "#10B981" if ird < 40 else "#F59E0B" if ird < 70 else "#EF4444"
-                                estado = "BAJO - Ritmo pausado." if ird < 40 else "MODERADO - Competitivo." if ird < 70 else "CRÍTICO - ¡Alta volatilidad!"
-                                st.progress(int(ird) / 100)
-                                st.markdown(f"<h5 style='text-align: center; color: {color};'>Intensidad Ofensiva: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
+                                    if g_local > 0 and g_vis > 0:
+                                        st.success("🎉 **¡OBJETIVO CUMPLIDO!** Ambos equipos ya marcaron. Liquida la posición y asegura tu ganancia total.")
+                                        ird = 0.0
+                                    elif g_local == 0 and g_vis == 0:
+                                        apm_total = (atkp_local + atkp_vis) / max(1, minuto_actual)
+                                        ird = min(100.0, apm_total * 45.0)
+                                        if ird < 40:
+                                            st.error(f"📉 **Partido Muerto (0-0):** El asedio global es muy bajo ({apm_total:.2f} APM). Altamente recomendado cazar la cuota de salida AHORA.")
+                                        else:
+                                            st.info(f"🔥 **Partido Vivo (0-0):** Hay buen asedio global ({apm_total:.2f} APM). Mantén la posición un poco más.")
+                                    else:
+                                        # Escenario 1-0 o 0-1 (Auditoría del equipo asfixiado)
+                                        if g_local == 0:
+                                            eq_necesitado = eq_local; atkp_necesitado = atkp_local; eq_dominante = eq_vis
+                                        else:
+                                            eq_necesitado = eq_vis; atkp_necesitado = atkp_vis; eq_dominante = eq_local
+                                            
+                                        apm_necesitado = atkp_necesitado / max(1, minuto_actual)
+                                        st.write(f"🔍 **Foco de Auditoría:** Evaluando exclusivamente a **{eq_necesitado}** (Necesita marcar).")
+                                        
+                                        if apm_necesitado >= 0.7:
+                                            st.success(f"⏳ **PACIENCIA ESTRATÉGICA:** {eq_necesitado} está atacando agresivamente ({apm_necesitado:.2f} APM). El gol es inminente. No quemes el seguro todavía.")
+                                            ird = 30.0
+                                        elif apm_necesitado >= 0.4:
+                                            st.warning(f"⚠️ **RIESGO MODERADO:** {eq_necesitado} intenta atacar ({apm_necesitado:.2f} APM) pero le cuesta. Abre tu casa de apuestas y prepara la cobertura.")
+                                            ird = 65.0
+                                        else:
+                                            st.error(f"🚨 **SOMETIMIENTO TÁCTICO:** {eq_dominante} tiene anulado a {eq_necesitado} ({apm_necesitado:.2f} APM). Quien necesitas que anote no tiene el balón. ¡CAZA LA CUOTA DE SALIDA YA!")
+                                            ird = 95.0
+                                            
+                                    color = "#10B981" if ird < 40 else "#F59E0B" if ird < 70 else "#EF4444"
+                                    st.progress(int(ird) / 100)
+                                    st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Alerta: {ird:.1f}%</h5>", unsafe_allow_html=True)
+                                    
+                                else:
+                                    # Termómetro General de Asedio (Para otros Binarios y eSports)
+                                    apm_total = (atkp_local + atkp_vis) / max(1, minuto_actual)
+                                    ird = min(100.0, apm_total * 45.0) 
+                                    
+                                    st.markdown("#### 🌡️ Termómetro del Evento (IRD General)")
+                                    if min_base == 0:
+                                        st.info("📌 **Fase de Calibración:** Ingresa los datos actuales para tomar la primera foto.")
+                                    else:
+                                        st.info(f"🔎 Ritmo actual: El evento fluye a **{apm_total:.2f} Ataques Peligrosos por Minuto**.")
+                                        
+                                    color = "#10B981" if ird < 40 else "#F59E0B" if ird < 70 else "#EF4444"
+                                    estado = "BAJO - Ritmo pausado." if ird < 40 else "MODERADO - Competitivo." if ird < 70 else "CRÍTICO - ¡Alta volatilidad!"
+                                    st.progress(int(ird) / 100)
+                                    st.markdown(f"<h5 style='text-align: center; color: {color};'>Intensidad Ofensiva: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
 
                                 st.markdown("**⚡ Terminal de Cobertura en Vivo**")
                                 
