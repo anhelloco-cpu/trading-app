@@ -1495,34 +1495,71 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         st.info("⚖️ Ambas opciones (Cobertura Manual o Cashout) te dejan exactamente con el mismo margen de dinero.")
 
                                 st.markdown("---")
-                                todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
-                                plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_es_{op['codigo']}")
-                                plataforma_cob = st.text_input("Especifica la plataforma:", key=f"otra_plat_es_{op['codigo']}") if plataforma_cob_sel == "Otra" else plataforma_cob_sel
                                 
-                                col_btn1, col_btn2 = st.columns(2)
-                                with col_btn1:
-                                    if st.button("📸 Guardar Foto Táctica (Entrenar IA)", key=f"btn_foto_es_{op['codigo']}", use_container_width=True):
-                                        try:
-                                            supabase.table("registro_fotos").insert({
-                                                "codigo_posicion": str(op['codigo']), "minuto_evaluado": int(minuto_actual),
-                                                "goles_local": int(g_local), "goles_vis": int(g_vis),
-                                                "atkp_local": int(atkp_local), "atkp_vis": int(atkp_vis),
-                                                "ird_calculado": float(round(ird, 2)), "cuota_ofrecida": float(cuota_salida)
-                                            }).execute()
-                                            st.success(f"✅ Foto capturada min {minuto_actual}. Datos inyectados.")
+                                # Lógica para saber si el botón de Cashout domina
+                                es_mejor_cashout = False
+                                if oferta_cashout > 0:
+                                    utilidad_cashout = oferta_cashout - op['stake_1']
+                                    if (utilidad_proyectada - utilidad_cashout) < 0:
+                                        es_mejor_cashout = True
+
+                                if es_mejor_cashout:
+                                    st.info(f"💡 **Retorno Directo:** Como el Cashout es la mejor opción, el dinero regresa a tu banco original ({op.get('plataforma_inicial', 'tu plataforma')}). La operación se cerrará inmediatamente.")
+                                    col_btn1, col_btn2 = st.columns(2)
+                                    with col_btn1:
+                                        if st.button("📸 Guardar Foto Táctica (Entrenar IA)", key=f"btn_foto_es_{op['codigo']}", use_container_width=True):
+                                            try:
+                                                supabase.table("registro_fotos").insert({
+                                                    "codigo_posicion": str(op['codigo']), "minuto_evaluado": int(minuto_actual),
+                                                    "goles_local": int(g_local), "goles_vis": int(g_vis),
+                                                    "atkp_local": int(atkp_local), "atkp_vis": int(atkp_vis),
+                                                    "ird_calculado": float(round(ird, 2)), "cuota_ofrecida": float(cuota_salida)
+                                                }).execute()
+                                                st.success("✅ Foto inyectada a la IA.")
+                                                st.rerun()
+                                            except Exception as e: st.error(f"❌ Error al guardar foto: {str(e)}")
+                                    with col_btn2:
+                                        if st.button("✅ LIQUIDAR POR CASHOUT", key=f"btn_cash_{op['codigo']}", use_container_width=True):
+                                            hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                            supabase.table("historial_trading").update({
+                                                "estado": "CERRADA", # Pasa directamente a cerrada, no a cubierta
+                                                "resultado_final": "Cashout (Cierre Anticipado)",
+                                                "utilidad_neta_real": float(utilidad_cashout),
+                                                "roi_real": float((utilidad_cashout / op['stake_1']) * 100),
+                                                "hora_cobertura": hora_actual,
+                                                "plataforma_cobertura": "Misma (Cashout)"
+                                            }).eq("codigo", op['codigo']).execute()
+                                            st.success(f"¡Cashout registrado! Has cerrado la operación con retorno de ${oferta_cashout:,.0f}.")
                                             st.rerun()
-                                        except Exception as e: st.error(f"❌ Error al guardar foto: {str(e)}")
-                                with col_btn2:
-                                    if st.button("⚡ REGISTRAR COBERTURA CONTABLE", key=f"btn_cob_es_{op['codigo']}", use_container_width=True):
-                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
-                                        supabase.table("historial_trading").update({
-                                            "estado": "CUBIERTA",
-                                            "cuota_cazada_real": float(cuota_salida),
-                                            "hora_cobertura": hora_actual,
-                                            "plataforma_cobertura": plataforma_cob
-                                        }).eq("codigo", op['codigo']).execute()
-                                        st.success(f"¡Cobertura fijada a cuota {cuota_salida} en {plataforma_cob}! Pasa a liquidación.")
-                                        st.rerun()
+                                else:
+                                    todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
+                                    plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_es_{op['codigo']}")
+                                    plataforma_cob = st.text_input("Especifica la plataforma:", key=f"otra_plat_es_{op['codigo']}") if plataforma_cob_sel == "Otra" else plataforma_cob_sel
+                                    
+                                    col_btn1, col_btn2 = st.columns(2)
+                                    with col_btn1:
+                                        if st.button("📸 Guardar Foto Táctica (Entrenar IA)", key=f"btn_foto_es_{op['codigo']}", use_container_width=True):
+                                            try:
+                                                supabase.table("registro_fotos").insert({
+                                                    "codigo_posicion": str(op['codigo']), "minuto_evaluado": int(minuto_actual),
+                                                    "goles_local": int(g_local), "goles_vis": int(g_vis),
+                                                    "atkp_local": int(atkp_local), "atkp_vis": int(atkp_vis),
+                                                    "ird_calculado": float(round(ird, 2)), "cuota_ofrecida": float(cuota_salida)
+                                                }).execute()
+                                                st.success(f"✅ Foto capturada min {minuto_actual}. Datos inyectados.")
+                                                st.rerun()
+                                            except Exception as e: st.error(f"❌ Error al guardar foto: {str(e)}")
+                                    with col_btn2:
+                                        if st.button("⚡ REGISTRAR COBERTURA CONTABLE", key=f"btn_cob_es_{op['codigo']}", use_container_width=True):
+                                            hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                            supabase.table("historial_trading").update({
+                                                "estado": "CUBIERTA",
+                                                "cuota_cazada_real": float(cuota_salida),
+                                                "hora_cobertura": hora_actual,
+                                                "plataforma_cobertura": plataforma_cob
+                                            }).eq("codigo", op['codigo']).execute()
+                                            st.success(f"¡Cobertura fijada a cuota {cuota_salida} en {plataforma_cob}! Pasa a liquidación.")
+                                            st.rerun()
                                     
                             else:
                                 with st.form(f"get_dir_es_{op['codigo']}"):
