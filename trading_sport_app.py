@@ -1261,10 +1261,22 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 # 1. Extracción inteligente de equipos para las cajas de goles
                                 partido_str = str(op.get('partido', ''))
                                 solo_partido = partido_str.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str else partido_str
-                                if " vs " in solo_partido:
-                                    eq_local, eq_vis = solo_partido.split(" vs ")[0].strip(), solo_partido.split(" vs ")[1].strip()
+                                
+                                # Filtro blindado: busca 'vs', 'vs.', o '-' sin importar mayúsculas
+                                txt_norm = solo_partido.lower().replace("vs.", "vs").replace("-", "vs")
+                                
+                                if "vs" in txt_norm:
+                                    partes = txt_norm.split("vs")
+                                    eq_local = partes[0].strip().title()
+                                    eq_vis = partes[1].strip().title()
                                 else:
-                                    eq_local, eq_vis = "Local", "Visitante"
+                                    # Si solo escribió un nombre sin 'vs', usamos ese
+                                    eq_local = solo_partido if len(solo_partido) > 1 else "Equipo Local"
+                                    eq_vis = "Equipo Visitante"
+                                    
+                                # Parche retroactivo: Si la apuesta era vieja y el sistema guardó el nombre del mercado
+                                if "Ambos Anotan" in eq_local or "[" in eq_local:
+                                    eq_local, eq_vis = "Equipo A", "Equipo B"
 
                                 # Recuperar última foto
                                 res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
