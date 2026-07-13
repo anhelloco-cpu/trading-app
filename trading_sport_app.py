@@ -1256,21 +1256,22 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             )
                             
                             if accion_esports == "📸 Evaluar Asedio y Cazar Cuota":
-                                st.markdown("#### ⏱️ Auditoría Táctica por Ritmo de Juego")
+                                st.markdown("#### ⏱️ Auditoría Táctica y Financiera")
                                 
-                                # Extracción inteligente de equipos para la interfaz
+                                # 1. Extracción inteligente de equipos para las cajas de goles
                                 partido_str = str(op.get('partido', ''))
                                 solo_partido = partido_str.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str else partido_str
                                 if " vs " in solo_partido:
                                     eq_local, eq_vis = solo_partido.split(" vs ")[0].strip(), solo_partido.split(" vs ")[1].strip()
                                 else:
-                                    eq_local, eq_vis = "Equipo 1", "Equipo 2"
+                                    eq_local, eq_vis = "Local", "Visitante"
 
-                                # Recuperar última foto de la base de datos
+                                # Recuperar última foto
                                 res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
                                 ultima_foto = res_fotos.data[0] if res_fotos.data else {'goles_local': 0, 'goles_vis': 0, 'atkp_local': 0, 'atkp_vis': 0}
                                 min_base = ultima_foto.get('minuto_evaluado', 0) if res_fotos.data else 0
 
+                                # Calcular minuto sugerido
                                 minuto_sugerido = min_base
                                 if minuto_sugerido == 0 and op.get("hora_inicio_partido"):
                                     try:
@@ -1281,147 +1282,172 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         minuto_sugerido = diff if diff <= 45 else (45 if diff < 60 else diff - 15)
                                     except Exception: pass
                                 
-                                minuto_actual = st.number_input("⏱️ Minuto del Partido:", min_value=0, max_value=120, value=max(0, min(95, int(minuto_sugerido))), step=1, key=f"min_es_{op['codigo']}")
-                                
+                                # 2. PANELES DE INPUT (Táctica y Cuota en vivo agrupados)
+                                c_top1, c_top2 = st.columns(2)
+                                with c_top1:
+                                    minuto_actual = st.number_input("⏱️ Minuto del Partido:", min_value=0, max_value=120, value=max(0, min(95, int(minuto_sugerido))), step=1, key=f"min_es_{op['codigo']}")
+                                with c_top2:
+                                    val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
+                                    if val_cuota_obj < 1.01: val_cuota_obj = 1.01
+                                    cuota_input_es = st.number_input("📉 Cuota Actual de Cobertura:", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"c_live_es_{op['codigo']}")
+                                    cuota_salida = cuota_input_es if cuota_input_es is not None else 1.01
+
                                 st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
                                 col_t1, col_t2 = st.columns(2)
                                 
                                 with col_t1:
-                                    st.markdown(f"<div style='background-color:#F8FAFC; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>🏠 {eq_local}</div>", unsafe_allow_html=True)
-                                    g_local = st.number_input("⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_local', 0)), key=f"g_l_es_{op['codigo']}")
-                                    atkp_local = st.number_input("🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_local', 0)), key=f"atk_l_es_{op['codigo']}")
+                                    g_local = st.number_input(f"⚽ Goles de {eq_local}", min_value=0, value=int(ultima_foto.get('goles_local', 0)), key=f"g_l_es_{op['codigo']}")
+                                    atkp_local = st.number_input(f"🔥 Atq. de {eq_local}", min_value=0, value=int(ultima_foto.get('atkp_local', 0)), key=f"atk_l_es_{op['codigo']}")
                                 
                                 with col_t2:
-                                    st.markdown(f"<div style='background-color:#F8FAFC; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>🚀 {eq_vis}</div>", unsafe_allow_html=True)
-                                    g_vis = st.number_input("⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_es_{op['codigo']}")
-                                    atkp_vis = st.number_input("🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_es_{op['codigo']}")
+                                    g_vis = st.number_input(f"⚽ Goles de {eq_vis}", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_es_{op['codigo']}")
+                                    atkp_vis = st.number_input(f"🔥 Atq. de {eq_vis}", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_es_{op['codigo']}")
                                 
                                 st.markdown("---")
                                 
-                                # 🧠 INTELIGENCIA ARTIFICIAL: DETECTOR DE MERCADO
+                                # 3. CÁLCULOS MATEMÁTICOS DE IA
                                 is_ambos_anotan = "Ambos Anotan" in str(op.get('partido', ''))
+                                apm_local = atkp_local / max(1, minuto_actual)
+                                apm_vis = atkp_vis / max(1, minuto_actual)
+                                apm_total = apm_local + apm_vis
+                                
+                                retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
+                                utilidad_original_maxima = retorno_bruto_esperado - op['stake_1']
+                                cuota_minima_rentable = retorno_bruto_esperado / utilidad_original_maxima if utilidad_original_maxima > 0 else 0
+                                cuota_sl = float(op.get('cuota_stop_loss') or 0.0)
+                                
+                                ird = 0.0
+                                msj_ia = ""
                                 
                                 if is_ambos_anotan:
                                     st.markdown("#### 🧠 Asesoría Táctica IA (Mercado 'Ambos Anotan')")
+                                    # Evaluamos si apostó al SÍ o al NO
+                                    aposto_si = (sel_ini.strip().lower() in ["sí", "si", "yes"])
                                     
-                                    if g_local > 0 and g_vis > 0:
-                                        st.success("🎉 **¡OBJETIVO CUMPLIDO!** Ambos equipos ya marcaron. Liquida la posición y asegura tu ganancia total.")
-                                        ird = 0.0
-                                    elif g_local == 0 and g_vis == 0:
-                                        apm_total = (atkp_local + atkp_vis) / max(1, minuto_actual)
-                                        ird = min(100.0, apm_total * 45.0)
-                                        if ird < 40:
-                                            st.error(f"📉 **Partido Muerto (0-0):** El asedio global es muy bajo ({apm_total:.2f} APM). Altamente recomendado cazar la cuota de salida AHORA.")
+                                    if aposto_si:
+                                        # LÓGICA PARA EL "SÍ"
+                                        if g_local > 0 and g_vis > 0:
+                                            msj_ia = "🎉 **¡OBJETIVO CUMPLIDO!** Ambos marcaron. Ganaste el SÍ. Liquida ya."
+                                            ird = 0.0
+                                        elif g_local == 0 and g_vis == 0:
+                                            if minuto_actual < 20:
+                                                msj_ia = f"⏳ **Fase de Estudio:** Minuto {minuto_actual}. Es muy temprano para alarmarse por un 0-0. Deja correr."
+                                                ird = 20.0
+                                            else:
+                                                if apm_local >= 0.5 and apm_vis >= 0.5:
+                                                    msj_ia = f"🔥 **Ritmo de Ida y Vuelta:** Ambos atacan bien ({eq_local}: {apm_local:.1f} | {eq_vis}: {apm_vis:.1f}). El gol puede caer de cualquier lado. Riesgo bajo."
+                                                    ird = 30.0
+                                                elif apm_local >= 0.5 or apm_vis >= 0.5:
+                                                    msj_ia = f"⚠️ **Dominio Inclinado:** Solo uno ataca fuerte. Se reduce la probabilidad estadística de que ambos anoten."
+                                                    ird = 60.0
+                                                else:
+                                                    msj_ia = f"📉 **Partido Muerto:** Nadie ataca (APM global bajísimo). Considera salir."
+                                                    ird = 85.0
                                         else:
-                                            st.info(f"🔥 **Partido Vivo (0-0):** Hay buen asedio global ({apm_total:.2f} APM). Mantén la posición un poco más.")
+                                            # Va 1-0 o 0-1
+                                            if g_local == 0: eq_necesitado = eq_local; apm_necesitado = apm_local; eq_dominante = eq_vis
+                                            else: eq_necesitado = eq_vis; apm_necesitado = apm_vis; eq_dominante = eq_local
+                                                
+                                            if apm_necesitado >= 0.6:
+                                                msj_ia = f"⏳ **ESPERANZA VIVA:** {eq_necesitado} pierde pero ataca agresivamente ({apm_necesitado:.1f} APM). El empate es altamente probable."
+                                                ird = 40.0
+                                            else:
+                                                msj_ia = f"🚨 **SOMETIMIENTO:** {eq_dominante} gana y además asfixia a {eq_necesitado} (Solo {apm_necesitado:.1f} APM). Necesitas evacuar."
+                                                ird = 90.0
                                     else:
-                                        # Escenario 1-0 o 0-1 (Auditoría del equipo asfixiado)
-                                        if g_local == 0:
-                                            eq_necesitado = eq_local; atkp_necesitado = atkp_local; eq_dominante = eq_vis
+                                        # LÓGICA PARA EL "NO"
+                                        if g_local > 0 and g_vis > 0:
+                                            msj_ia = "❌ **SINIESTRO:** Ambos marcaron. Perdiste el NO."
+                                            ird = 100.0
+                                        elif g_local == 0 and g_vis == 0:
+                                            msj_ia = "✅ **Escenario Ideal:** Va 0-0. El NO se mantiene inmaculado."
+                                            ird = 10.0
                                         else:
-                                            eq_necesitado = eq_vis; atkp_necesitado = atkp_vis; eq_dominante = eq_local
-                                            
-                                        apm_necesitado = atkp_necesitado / max(1, minuto_actual)
-                                        st.write(f"🔍 **Foco de Auditoría:** Evaluando exclusivamente a **{eq_necesitado}** (Necesita marcar).")
-                                        
-                                        if apm_necesitado >= 0.7:
-                                            st.success(f"⏳ **PACIENCIA ESTRATÉGICA:** {eq_necesitado} está atacando agresivamente ({apm_necesitado:.2f} APM). El gol es inminente. No quemes el seguro todavía.")
-                                            ird = 30.0
-                                        elif apm_necesitado >= 0.4:
-                                            st.warning(f"⚠️ **RIESGO MODERADO:** {eq_necesitado} intenta atacar ({apm_necesitado:.2f} APM) pero le cuesta. Abre tu casa de apuestas y prepara la cobertura.")
-                                            ird = 65.0
-                                        else:
-                                            st.error(f"🚨 **SOMETIMIENTO TÁCTICO:** {eq_dominante} tiene anulado a {eq_necesitado} ({apm_necesitado:.2f} APM). Quien necesitas que anote no tiene el balón. ¡CAZA LA CUOTA DE SALIDA YA!")
-                                            ird = 95.0
-                                            
-                                    color = "#10B981" if ird < 40 else "#F59E0B" if ird < 70 else "#EF4444"
-                                    st.progress(int(ird) / 100)
-                                    st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Alerta: {ird:.1f}%</h5>", unsafe_allow_html=True)
-                                    
+                                            # Va 1-0 o 0-1 (Alerta, si el que tiene 0 marca, perdemos)
+                                            if g_local == 0: eq_peligro = eq_local; apm_peligro = apm_local
+                                            else: eq_peligro = eq_vis; apm_peligro = apm_vis
+                                                
+                                            if apm_peligro >= 0.6:
+                                                msj_ia = f"🚨 **PELIGRO DE EMPATE:** {eq_peligro} ataca con fuerza ({apm_peligro:.1f} APM) buscando su gol. Caza la cuota para salvar el NO."
+                                                ird = 85.0
+                                            else:
+                                                msj_ia = f"🛡️ **CONTROLADO:** {eq_peligro} no ataca ({apm_peligro:.1f} APM). No hay riesgo de que nos dañen el NO."
+                                                ird = 20.0
+                                                
+                                    st.info(msj_ia)
                                 else:
-                                    # Termómetro General de Asedio (Para otros Binarios y eSports)
-                                    apm_total = (atkp_local + atkp_vis) / max(1, minuto_actual)
-                                    ird = min(100.0, apm_total * 45.0) 
-                                    
+                                    # Termómetro General de Asedio (Para otros Mercados)
                                     st.markdown("#### 🌡️ Termómetro del Evento (IRD General)")
-                                    if min_base == 0:
-                                        st.info("📌 **Fase de Calibración:** Ingresa los datos actuales para tomar la primera foto.")
+                                    ird = min(100.0, apm_total * 45.0) 
+                                    st.info(f"🔎 El evento fluye a **{apm_total:.2f} Ataques Peligrosos por Minuto** totales.")
+                                
+                                color_barra = "#10B981" if ird < 40 else "#F59E0B" if ird < 70 else "#EF4444"
+                                st.progress(int(ird) / 100)
+                                st.markdown(f"<h5 style='text-align: center; color: {color_barra};'>Alerta Táctica (IRD): {ird:.1f}%</h5>", unsafe_allow_html=True)
+                                
+                                # =====================================================================
+                                # 4. DICTAMEN INTEGRAL (Cruza Táctica + Stop Loss + Break-Even)
+                                # =====================================================================
+                                dictamen_fin = ""
+                                if cuota_sl > 0 and cuota_salida <= cuota_sl:
+                                    dictamen_fin = f"🛑 **¡STOP LOSS ROTO!** La cuota actual ({cuota_salida:.2f}) ha tocado tu límite estructural ({cuota_sl:.2f}). **EVACUACIÓN OBLIGATORIA AHORA**."
+                                    c_dict = "#FEF2F2"; b_dict = "#B91C1C"
+                                elif cuota_salida >= cuota_minima_rentable:
+                                    if ird >= 70:
+                                        dictamen_fin = f"⚖️ **TOMA DE BENEFICIOS:** El riesgo táctico es crítico (IRD {ird:.1f}%), PERO la cuota ({cuota_salida:.2f}) ya superó tu Break-Even ({cuota_minima_rentable:.2f}). **Caza la cuota y sal en verde.**"
+                                        c_dict = "#FFFBEB"; b_dict = "#D97706"
                                     else:
-                                        st.info(f"🔎 Ritmo actual: El evento fluye a **{apm_total:.2f} Ataques Peligrosos por Minuto**.")
-                                        
-                                    color = "#10B981" if ird < 40 else "#F59E0B" if ird < 70 else "#EF4444"
-                                    estado = "BAJO - Ritmo pausado." if ird < 40 else "MODERADO - Competitivo." if ird < 70 else "CRÍTICO - ¡Alta volatilidad!"
-                                    st.progress(int(ird) / 100)
-                                    st.markdown(f"<h5 style='text-align: center; color: {color};'>Intensidad Ofensiva: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
-
-                                st.markdown("**⚡ Terminal de Cobertura en Vivo**")
-                                
-                                val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
-                                if val_cuota_obj < 1.01:
-                                    val_cuota_obj = 1.01
-                                    
-                                cuota_input_es = st.number_input("Tasa Actual (En vivo):", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"c_live_es_{op['codigo']}")
-                                cuota_salida = cuota_input_es if cuota_input_es is not None else 1.01
-                                
-                                if st.button("📸 Guardar Foto Táctica (Entrenar IA)", key=f"btn_foto_es_{op['codigo']}", use_container_width=True):
-                                    try:
-                                        supabase.table("registro_fotos").insert({
-                                            "codigo_posicion": str(op['codigo']), "minuto_evaluado": int(minuto_actual),
-                                            "goles_local": int(g_local), "goles_vis": int(g_vis),
-                                            "atkp_local": int(atkp_local), "atkp_vis": int(atkp_vis),
-                                            "ird_calculado": float(round(ird, 2)), "cuota_ofrecida": float(cuota_salida)
-                                        }).execute()
-                                        st.success(f"✅ Foto capturada en el minuto {minuto_actual}. Datos inyectados a la IA.")
-                                        st.rerun()
-                                    except Exception as e: st.error(f"❌ Error al guardar foto: {str(e)}")
-                                
-                                st.markdown("<br>", unsafe_allow_html=True)
-                                
-                                monto_a_inyectar = retorno_bruto_esperado / cuota_salida
-                                utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
-                                total_en_juego = op['stake_1'] + monto_a_inyectar
-                                exposicion_actual_pct = (total_en_juego / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
-                                
-                                if exposicion_actual_pct > umbral_permitido:
-                                    st.error(f"⚠️ ALERTA DE UMBRAL: Esta inyección eleva tu exposición al **{exposicion_actual_pct:.1f}%**. Límite: **{umbral_permitido}%**.")
-                                
-                                if utilidad_proyectada > 0:
-                                    color_box, border_box, text_color = "#F0FDF4", "#16A34A", "#15803D"
-                                    veredicto = "✅ ESTADO ÓPTIMO: La matemática garantiza rentabilidad."
+                                        dictamen_fin = f"🛡️ **ZONA DE CONFORT:** El partido está a tu favor (IRD bajo) y la cuota ({cuota_salida:.2f}) ya te da ganancias. Puedes asegurar utilidad o dejar correr sin miedo."
+                                        c_dict = "#F0FDF4"; b_dict = "#15803D"
                                 else:
-                                    color_box, border_box, text_color = "#FEF2F2", "#DC2626", "#B91C1C"
-                                    veredicto = "🚨 ESTADO NEGATIVO: Estás por debajo del punto de equilibrio (Pérdida Neta)."
-
+                                    if ird >= 85:
+                                        dictamen_fin = f"🚨 **AMPUTACIÓN TÁCTICA:** Colapso en la cancha. Cubrir ahora implica pérdida financiera (Break-Even era {cuota_minima_rentable:.2f}), pero la IA sugiere amputar antes de perder el 100% de tu dinero."
+                                        c_dict = "#FEF2F2"; b_dict = "#DC2626"
+                                    else:
+                                        dictamen_fin = f"⏳ **AGUANTAR POSICIÓN:** Cazar ahora ({cuota_salida:.2f}) te daría pérdidas, y la lectura táctica dice que la situación no es grave (IRD {ird:.1f}%). Mantén la calma y espera."
+                                        c_dict = "#EFF6FF"; b_dict = "#1D4ED8"
+                                        
                                 st.markdown(f"""
-                                <div style="background-color: {color_box}; padding: 15px; border-left: 5px solid {border_box}; border-radius: 4px; margin-bottom: 20px;">
-                                    <p style="margin:0; font-size:1.05rem; color:#1E293B;">💵 Inversión dinámica exigida en <b>{sel_cob}</b>: <span style="font-weight:bold; color:#1E3A8A;">${monto_a_inyectar:,.0f} COP</span></p>
-                                    <hr style="margin: 8px 0; border-color: {border_box}; opacity: 0.2;">
-                                    <p style="margin:0; font-size:0.95rem; color:#1E293B;"><b>📊 Escenarios Finales (Cobertura Activa):</b></p>
-                                    <ul style="margin: 5px 0 10px 0; font-size: 0.95rem; color:#334155;">
-                                        <li>✅ Si gana <b>{sel_ini}</b>: <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></li>
-                                        <li>🛡️ Si gana <b>{sel_cob}</b>: <span style="font-weight:bold; color:{border_box};">${utilidad_proyectada:,.0f} COP</span></li>
-                                    </ul>
-                                    <p style="margin:0; font-size:0.9rem; color:#475569;">💼 Exposición total: <b>{exposicion_actual_pct:.1f}%</b> (Stake 1 + Inyección)</p>
-                                    <hr style="margin: 10px 0; border-color: {border_box}; opacity: 0.3;">
-                                    <p style="margin:0; font-weight:bold; color:{text_color};">{veredicto}</p>
+                                <div style="background-color: {c_dict}; border-left: 5px solid {b_dict}; padding: 15px; border-radius: 4px; margin-top: 15px; margin-bottom: 15px;">
+                                    <p style="margin: 0; font-size: 0.95rem; color: {b_dict};">{dictamen_fin}</p>
                                 </div>
                                 """, unsafe_allow_html=True)
+
+                                # 5. Ejecución Final de la Cobertura
+                                monto_a_inyectar = retorno_bruto_esperado / cuota_salida
+                                utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
                                 
+                                st.markdown(f"**Inversión para cazar a {cuota_salida:.2f}:** ${monto_a_inyectar:,.0f} COP ➡️ **Pérdida/Ganancia consolidada:** ${utilidad_proyectada:,.0f} COP")
+
                                 st.markdown("---")
                                 todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
                                 plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_es_{op['codigo']}")
                                 plataforma_cob = st.text_input("Especifica la plataforma:", key=f"otra_plat_es_{op['codigo']}") if plataforma_cob_sel == "Otra" else plataforma_cob_sel
                                 
-                                if st.button("⚡ REGISTRAR COBERTURA", key=f"btn_cob_es_{op['codigo']}", use_container_width=True):
-                                    hora_actual = datetime.datetime.now().strftime("%H:%M")
-                                    supabase.table("historial_trading").update({
-                                        "estado": "CUBIERTA",
-                                        "cuota_cazada_real": float(cuota_salida),
-                                        "hora_cobertura": hora_actual,
-                                        "plataforma_cobertura": plataforma_cob
-                                    }).eq("codigo", op['codigo']).execute()
-                                    st.success(f"¡Cobertura fijada con éxito a cuota {cuota_salida} en {plataforma_cob}! Pasa a conciliación final.")
-                                    st.rerun()
+                                col_btn1, col_btn2 = st.columns(2)
+                                with col_btn1:
+                                    if st.button("📸 Guardar Foto Táctica (Entrenar IA)", key=f"btn_foto_es_{op['codigo']}", use_container_width=True):
+                                        try:
+                                            supabase.table("registro_fotos").insert({
+                                                "codigo_posicion": str(op['codigo']), "minuto_evaluado": int(minuto_actual),
+                                                "goles_local": int(g_local), "goles_vis": int(g_vis),
+                                                "atkp_local": int(atkp_local), "atkp_vis": int(atkp_vis),
+                                                "ird_calculado": float(round(ird, 2)), "cuota_ofrecida": float(cuota_salida)
+                                            }).execute()
+                                            st.success(f"✅ Foto capturada min {minuto_actual}. Datos inyectados.")
+                                            st.rerun()
+                                        except Exception as e: st.error(f"❌ Error al guardar foto: {str(e)}")
+                                with col_btn2:
+                                    if st.button("⚡ REGISTRAR COBERTURA CONTABLE", key=f"btn_cob_es_{op['codigo']}", use_container_width=True):
+                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                        supabase.table("historial_trading").update({
+                                            "estado": "CUBIERTA",
+                                            "cuota_cazada_real": float(cuota_salida),
+                                            "hora_cobertura": hora_actual,
+                                            "plataforma_cobertura": plataforma_cob
+                                        }).eq("codigo", op['codigo']).execute()
+                                        st.success(f"¡Cobertura fijada a cuota {cuota_salida} en {plataforma_cob}! Pasa a liquidación.")
+                                        st.rerun()
                                     
                             else:
                                 with st.form(f"get_dir_es_{op['codigo']}"):
