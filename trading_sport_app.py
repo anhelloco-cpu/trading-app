@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import random
 import string
+import joblib
 from supabase import create_client, Client
 
 st.set_page_config(page_title="Sistema de Trading y Auditoría COP", page_icon="⚖️", layout="wide")
@@ -2711,142 +2712,107 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                 """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # PESTAÑA 2: EN VIVO (Buscador de Patrones / K-NN)
+    # PESTAÑA 2: EN VIVO (Conexión a los 3 Cerebros .pkl)
     # ---------------------------------------------------------
     with tab_vivo:
         st.subheader("🧠 El Cerebro Táctico (Machine Learning)")
-        st.write("Ingresa los datos actuales del partido. La IA buscará en tu historial partidos idénticos y te dirá qué pasó.")
+        st.write("Ingresa los datos actuales. La IA cruzará estas 11 variables exactas con sus redes neuronales para darte una predicción integral.")
         
-        mercado_vivo = st.selectbox("¿Qué mercado estás analizando?", ["Línea de Goles (Total de Goles)", "Ambos Anotan (BTTS)"])
+        st.markdown("#### 1. Contexto del Mercado (Ojos iniciales de la IA)")
+        c_pre1, c_pre2, c_pre3 = st.columns(3)
+        c_base_sim = c_pre1.number_input("Cuota Inicial Local:", min_value=1.01, value=2.10, step=0.05)
+        c_emp_sim = c_pre2.number_input("Cuota Inicial Empate:", min_value=1.01, value=3.20, step=0.05)
+        c_vis_sim = c_pre3.number_input("Cuota Inicial Visita:", min_value=1.01, value=3.50, step=0.05)
         
-        colA, colB, colC = st.columns(3)
-        with colA:
-            minuto_sim = st.number_input("⏱️ Minuto Actual:", min_value=1, max_value=120, value=60)
-        with colB:
-            g_loc_sim = st.number_input("⚽ Goles Local:", min_value=0, value=0)
-            g_vis_sim = st.number_input("⚽ Goles Visitante:", min_value=0, value=0)
-        with colC:
-            atq_loc_sim = st.number_input("🔥 Atq. Pel. Local:", min_value=0, value=40)
-            atq_vis_sim = st.number_input("🔥 Atq. Pel. Visitante:", min_value=0, value=25)
+        # Cálculo automático de Doble Oportunidad (La IA necesita este dato)
+        c_dc_sim = 1 / ((1/c_base_sim) + (1/c_emp_sim))
+        
+        st.markdown("#### 2. Foto Táctica En Vivo")
+        c_vivo1, c_vivo2, c_vivo3 = st.columns(3)
+        minuto_sim = c_vivo1.number_input("⏱️ Minuto Actual:", min_value=1, max_value=120, value=60)
+        g_loc_sim = c_vivo2.number_input("⚽ Goles Local:", min_value=0, value=0)
+        g_vis_sim = c_vivo3.number_input("⚽ Goles Visitante:", min_value=0, value=0)
+        
+        c_vivo4, c_vivo5, c_vivo6 = st.columns(3)
+        atq_loc_sim = c_vivo4.number_input("🔥 Atq. Pel. Local:", min_value=0, value=40)
+        atq_vis_sim = c_vivo5.number_input("🔥 Atq. Pel. Visitante:", min_value=0, value=25)
+        cuota_of_sim = c_vivo6.number_input("📉 Cuota Ofrecida (Live):", min_value=1.01, value=1.85, step=0.05)
+        
+        if st.button("🧠 Despertar Oráculo (Proyectar Escenario)", use_container_width=True):
+            import joblib
+            import pandas as pd
+            import os
             
-        if st.button("🔮 Consultar Oráculo (Buscar Patrones Históricos)", use_container_width=True):
-            if supabase is None:
-                st.error("Conecta Supabase para acceder al cerebro de datos.")
+            # Verificamos que los cerebros existan en la carpeta
+            if not os.path.exists('modelo_1x2.pkl'):
+                st.error("🚨 Falta el archivo 'modelo_1x2.pkl'. Asegúrate de que los 3 cerebros estén en la misma carpeta que este archivo de Streamlit.")
             else:
-                with st.spinner("Sumergiéndose en la base de datos..."):
-                    # 1. Cálculos de Entrada
-                    apm_loc_sim = atq_loc_sim / max(1, minuto_sim)
-                    apm_vis_sim = atq_vis_sim / max(1, minuto_sim)
-                    apm_total_sim = apm_loc_sim + apm_vis_sim
-                    
-                    st.markdown("---")
-                    st.markdown(f"**Velocímetro Actual:** Global **{apm_total_sim:.2f} APM** | Local **{apm_loc_sim:.2f}** | Visita **{apm_vis_sim:.2f}**")
-                    
-                    # 2. Extraer historial
-                    res_fotos = supabase.table("registro_fotos").select("*").execute()
-                    res_trading = supabase.table("historial_trading").select("codigo, resultado_final, goles_finales_seleccion, goles_finales_rival").eq("estado", "CERRADA").execute()
-                    
-                    if not res_fotos.data or not res_trading.data:
-                        st.info("No hay suficientes datos históricos (Fotos Tácticas + Operaciones Cerradas) para predecir.")
-                    else:
-                        import pandas as pd
-                        df_fotos = pd.DataFrame(res_fotos.data)
-                        df_trading = pd.DataFrame(res_trading.data)
+                with st.spinner("Procesando millones de rutas en las redes neuronales..."):
+                    try:
+                        # 1. Cargar los cerebros congelados
+                        modelo_1x2 = joblib.load('modelo_1x2.pkl')
+                        modelo_goles = joblib.load('modelo_goles.pkl')
+                        modelo_btts = joblib.load('modelo_btts.pkl')
                         
-                        # Limpiar nulos para evitar errores
-                        df_trading['goles_finales_seleccion'] = pd.to_numeric(df_trading['goles_finales_seleccion'], errors='coerce').fillna(0)
-                        df_trading['goles_finales_rival'] = pd.to_numeric(df_trading['goles_finales_rival'], errors='coerce').fillna(0)
+                        # 2. Calcular el IRD para la IA
+                        apm_total = (atq_loc_sim + atq_vis_sim) / max(1, minuto_sim)
+                        ird_sim = min(100.0, apm_total * 45.0)
                         
-                        # Unir las tablas por el código de operación
-                        df_master = pd.merge(df_fotos, df_trading, left_on="codigo_posicion", right_on="codigo", how="inner")
+                        # 3. Empaquetar los datos EXACTAMENTE como los estudió la IA
+                        X_input = pd.DataFrame([{
+                            'cuota_base_audit': c_base_sim,
+                            'cuota_empate_audit': c_emp_sim,
+                            'cuota_dc_audit': c_dc_sim,
+                            'cuota_amenaza_audit': c_vis_sim,
+                            'minuto_evaluado': minuto_sim,
+                            'goles_local': g_loc_sim,
+                            'goles_vis': g_vis_sim,
+                            'atkp_local': atq_loc_sim,
+                            'atkp_vis': atq_vis_sim,
+                            'ird_calculado': ird_sim,
+                            'cuota_ofrecida': cuota_of_sim
+                        }])
                         
-                        if df_master.empty:
-                            st.warning("Aún no tienes operaciones cerradas que contengan Fotos Tácticas.")
-                        else:
-                            # 3. EL ALGORITMO K-NN (Filtro de Similitud)
-                            # Tolerancias: +/- 15 minutos, y +/- 0.4 APM de diferencia
-                            margen_minuto = 15
-                            margen_apm = 0.4
+                        # 4. Extraer las Predicciones
+                        pred_1x2 = modelo_1x2.predict(X_input)[0]
+                        pred_goles = modelo_goles.predict(X_input)[0]
+                        pred_btts = modelo_btts.predict(X_input)[0]
+                        
+                        # 5. Traducción de resultados de máquina a humano
+                        ganador_str = "Empate" if pred_1x2 == 1 else "Equipo Local" if pred_1x2 == 2 else "Equipo Visitante"
+                        btts_str = "SÍ" if pred_btts == 1 else "NO"
+                        color_btts = "#10B981" if pred_btts == 1 else "#EF4444"
+                        
+                        st.markdown("---")
+                        st.markdown("### 🔮 Veredicto del Oráculo (Multimercado)")
+                        
+                        col_r1, col_r2, col_r3 = st.columns(3)
+                        with col_r1:
+                            st.markdown(f"""
+                            <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h4 style="margin-top:0; color:#475569;">🏆 Ganador Proyectado</h4>
+                                <h2 style="color:#0F172A; margin: 10px 0;">{ganador_str}</h2>
+                                <p style="margin:0; font-size: 0.8rem; color:#64748B;">Precisión del modelo: 86.11%</p>
+                            </div>
+                            """, unsafe_allow_html=True)
                             
-                            # Calcular APMs históricos en el dataframe
-                            df_master['apm_hist_loc'] = df_master['atkp_local'] / df_master['minuto_evaluado'].clip(lower=1)
-                            df_master['apm_hist_vis'] = df_master['atkp_vis'] / df_master['minuto_evaluado'].clip(lower=1)
-                            df_master['apm_hist_total'] = df_master['apm_hist_loc'] + df_master['apm_hist_vis']
+                        with col_r2:
+                            st.markdown(f"""
+                            <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h4 style="margin-top:0; color:#475569;">⚽ Goles Totales (Al final)</h4>
+                                <h2 style="color:#0EA5E9; margin: 10px 0;">{pred_goles:.1f} Goles</h2>
+                                <p style="margin:0; font-size: 0.8rem; color:#64748B;">Margen de error: ±0.49</p>
+                            </div>
+                            """, unsafe_allow_html=True)
                             
-                            # Filtrar por Fase del Partido (Tiempo)
-                            df_similares = df_master[
-                                (df_master['minuto_evaluado'] >= (minuto_sim - margen_minuto)) & 
-                                (df_master['minuto_evaluado'] <= (minuto_sim + margen_minuto))
-                            ].copy()
+                        with col_r3:
+                            st.markdown(f"""
+                            <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;">
+                                <h4 style="margin-top:0; color:#475569;">🔥 ¿Ambos Anotan?</h4>
+                                <h2 style="color:{color_btts}; margin: 10px 0;">{btts_str}</h2>
+                                <p style="margin:0; font-size: 0.8rem; color:#64748B;">Precisión del modelo: 83.33%</p>
+                            </div>
+                            """, unsafe_allow_html=True)
                             
-                            if mercado_vivo == "Línea de Goles (Total de Goles)":
-                                # Para goles, nos importa la VELOCIDAD GLOBAL
-                                df_gemelos = df_similares[
-                                    (df_similares['apm_hist_total'] >= (apm_total_sim - margen_apm)) & 
-                                    (df_similares['apm_hist_total'] <= (apm_total_sim + margen_apm))
-                                ].copy()
-                                
-                                total_gemelos = len(df_gemelos)
-                                
-                                if total_gemelos < 3:
-                                    st.warning(f"Se encontraron solo {total_gemelos} escenarios similares. La muestra es muy pequeña para una predicción certera.")
-                                else:
-                                    # ¿Cuántos goles hubo al final en estos escenarios?
-                                    df_gemelos['goles_totales_finales'] = df_gemelos['goles_finales_seleccion'] + df_gemelos['goles_finales_rival']
-                                    df_gemelos['goles_marcados_despues'] = df_gemelos['goles_totales_finales'] - (df_gemelos['goles_local'] + df_gemelos['goles_vis'])
-                                    
-                                    # Asegurarnos de que no haya negativos extraños por errores de tipeo pasados
-                                    df_gemelos['goles_marcados_despues'] = df_gemelos['goles_marcados_despues'].clip(lower=0)
-                                    
-                                    # Estadísticas
-                                    casos_mas_05 = len(df_gemelos[df_gemelos['goles_marcados_despues'] >= 1])
-                                    casos_mas_15 = len(df_gemelos[df_gemelos['goles_marcados_despues'] >= 2])
-                                    
-                                    prob_05 = (casos_mas_05 / total_gemelos) * 100
-                                    prob_15 = (casos_mas_15 / total_gemelos) * 100
-                                    promedio_goles_extra = df_gemelos['goles_marcados_despues'].mean()
-                                    
-                                    st.markdown(f"""
-                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px;">
-                                        <h4 style="margin-top:0; color:#0F172A;">📊 Proyección: Mercado de Goles</h4>
-                                        <p style="color:#475569;">Basado en <b>{total_gemelos} partidos históricos</b> que tenían este mismo asedio ({apm_total_sim:.1f} APM) alrededor del minuto {minuto_sim}:</p>
-                                        <hr>
-                                        <h2 style="color:#0EA5E9; margin: 10px 0;">{prob_05:.0f}% <span style="font-size:1.1rem; color:#334155;">probabilidad de que anoten MÍNIMO 1 GOL MÁS.</span></h2>
-                                        <h2 style="color:#8B5CF6; margin: 10px 0;">{prob_15:.0f}% <span style="font-size:1.1rem; color:#334155;">probabilidad de que anoten MÍNIMO 2 GOLES MÁS.</span></h2>
-                                        <p style="margin-top:15px;"><b>Promedio de goles extra conseguidos:</b> {promedio_goles_extra:.1f} goles.</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                    
-                            else:
-                                # Mercado AMBOS ANOTAN
-                                # Corregido: Ahora sí obligamos a la IA a buscar partidos donde el asedio 
-                                # INDIVIDUAL del Local y del Visitante sean estadísticamente gemelos al actual.
-                                df_gemelos = df_similares[
-                                    (df_similares['apm_hist_loc'] >= (apm_loc_sim - margen_apm)) & 
-                                    (df_similares['apm_hist_loc'] <= (apm_loc_sim + margen_apm)) &
-                                    (df_similares['apm_hist_vis'] >= (apm_vis_sim - margen_apm)) & 
-                                    (df_similares['apm_hist_vis'] <= (apm_vis_sim + margen_apm))
-                                ].copy()
-                                
-                                total_gemelos = len(df_gemelos)
-                                
-                                if total_gemelos < 3:
-                                    st.warning("Muestra histórica insuficiente para este mercado.")
-                                else:
-                                    # Contamos los casos donde ambos equipos terminaron con >0 goles finales
-                                    casos_btts = len(df_gemelos[(df_gemelos['goles_finales_seleccion'] > 0) & (df_gemelos['goles_finales_rival'] > 0)])
-                                    prob_btts = (casos_btts / total_gemelos) * 100
-                                    
-                                    color_btts = "#10B981" if prob_btts >= 60 else "#F59E0B" if prob_btts >= 40 else "#EF4444"
-                                    dictamen_btts = "Alta viabilidad" if prob_btts >= 60 else "Riesgo extremo" if prob_btts < 40 else "Incierto"
-                                    
-                                    st.markdown(f"""
-                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px;">
-                                        <h4 style="margin-top:0; color:#0F172A;">🔥 Proyección: Ambos Anotan</h4>
-                                        <p style="color:#475569;">Basado en <b>{total_gemelos} escenarios similares</b> analizados:</p>
-                                        <hr>
-                                        <h1 style="color:{color_btts}; text-align:center; font-size:3rem; margin:10px 0;">{prob_btts:.0f}%</h1>
-                                        <p style="text-align:center; font-weight:bold; color:#334155;">Probabilidad histórica de que el partido termine con goles de ambos lados.</p>
-                                        <p style="text-align:center; color:{color_btts};">Veredicto IA: <b>{dictamen_btts}</b></p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                    except Exception as e:
+                        st.error(f"❌ Error al procesar la predicción: {str(e)}")
