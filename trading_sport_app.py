@@ -2712,11 +2712,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                 """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # PESTAÑA 2: EN VIVO (Conexión a los 3 Cerebros .pkl)
+    # PESTAÑA 2: EN VIVO (Oráculo Táctico Puro)
     # ---------------------------------------------------------
     with tab_vivo:
         st.subheader("🧠 El Cerebro Táctico (Machine Learning)")
-        st.write("Ingresa tu Foto Táctica actual. La IA cruzará estas 7 variables para darte una predicción integral al instante.")
+        st.write("Ingresa tu Foto Táctica actual. La IA, operando como un analista puro (ciega a las cuotas de la casa), cruzará el asedio en cancha para darte una predicción integral al instante.")
         
         st.markdown("#### 📸 Foto Táctica En Vivo")
         c_vivo1, c_vivo2, c_vivo3 = st.columns(3)
@@ -2727,7 +2727,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
         c_vivo4, c_vivo5, c_vivo6 = st.columns(3)
         atq_loc_sim = c_vivo4.number_input("🔥 Atq. Pel. Local:", min_value=0, value=40)
         atq_vis_sim = c_vivo5.number_input("🔥 Atq. Pel. Visitante:", min_value=0, value=25)
-        cuota_of_sim = c_vivo6.number_input("📉 Cuota Ofrecida (Live):", min_value=1.01, value=1.85, step=0.05)
+        # La caja de "Cuota Ofrecida" ha sido eliminada por completo.
         
         if st.button("🧠 Despertar Oráculo (Proyectar Escenario)", use_container_width=True):
             import joblib
@@ -2738,7 +2738,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             if not os.path.exists('modelo_1x2.pkl'):
                 st.error("🚨 Falta el archivo 'modelo_1x2.pkl'. Asegúrate de que los 3 cerebros estén en la misma carpeta.")
             else:
-                with st.spinner("Procesando redes neuronales..."):
+                with st.spinner("Procesando redes neuronales tácticas..."):
                     try:
                         # 1. Cargar los cerebros congelados
                         modelo_1x2 = joblib.load('modelo_1x2.pkl')
@@ -2749,15 +2749,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         apm_total = (atq_loc_sim + atq_vis_sim) / max(1, minuto_sim)
                         ird_sim = min(100.0, apm_total * 45.0)
                         
-                        # 3. Empaquetar las 7 variables tácticas EXACTAS
+                        # 3. Empaquetar las 6 variables tácticas EXACTAS
                         X_input = pd.DataFrame([{
                             'minuto_evaluado': minuto_sim,
                             'goles_local': g_loc_sim,
                             'goles_vis': g_vis_sim,
                             'atkp_local': atq_loc_sim,
                             'atkp_vis': atq_vis_sim,
-                            'ird_calculado': ird_sim,
-                            'cuota_ofrecida': cuota_of_sim
+                            'ird_calculado': ird_sim
                         }])
                         
                         # 4. Extraer las Predicciones
@@ -2771,7 +2770,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         color_btts = "#10B981" if pred_btts == 1 else "#EF4444"
                         
                         st.markdown("---")
-                        st.markdown("### 🔮 Veredicto del Oráculo (Multimercado)")
+                        st.markdown("### 🔮 Veredicto del Oráculo (Análisis Físico)")
                         
                         col_r1, col_r2, col_r3 = st.columns(3)
                         with col_r1:
