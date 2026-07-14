@@ -1419,42 +1419,58 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     
                                     diferencia_goles = linea_obj - goles_totales
                                     st.write(f"📊 **Métrica Global:** Velocidad del partido en **{apm_total:.1f} APM**.")
+                                    st.write(f"⏱️ **Contexto Espacio-Tiempo:** Faltan **{tiempo_restante} min** y tienes un margen de **{abs(diferencia_goles)} goles** respecto al límite.")
                                     
                                     if aposto_mas:
                                         if diferencia_goles < 0:
                                             msj_ia = f"🎉 **¡OBJETIVO CUMPLIDO!** Ya superaste la línea de {linea_obj} goles."
                                             ird = 0.0
+                                        # FILTRO DE ESPACIO TIEMPO EXTREMO
+                                        elif diferencia_goles >= 1.5 and tiempo_restante <= 25:
+                                            msj_ia = f"🚨 **RELOJ EN CONTRA:** Te faltan {int(diferencia_goles + 0.5)} goles y solo quedan {tiempo_restante} minutos. El asedio no importa si ya no hay tiempo. ¡HUYE YA!"
+                                            ird = 95.0
                                         else:
                                             if apm_total >= 1.3:
-                                                msj_ia = f"🔥 **PARTIDO ROTO:** Excelente volumen ofensivo. ¡Mantén la posición!"
+                                                msj_ia = f"🔥 **PARTIDO ROTO:** Excelente volumen ofensivo ({apm_total:.1f} APM). Faltan {int(diferencia_goles + 0.5)} goles en {tiempo_restante} min. ¡Mantén la posición!"
                                                 ird = 30.0 if tiempo_restante > 20 else 65.0
                                             elif apm_total >= 0.9:
-                                                msj_ia = f"⚖️ **RITMO ESTÁNDAR:** Velocidad normal. Los goles pueden llegar."
+                                                msj_ia = f"⚖️ **RITMO ESTÁNDAR:** Velocidad normal. Tienes {tiempo_restante} min para buscar los goles que necesitas."
                                                 ird = 55.0 if tiempo_restante > 20 else 80.0
                                             else:
-                                                msj_ia = f"📉 **PARTIDO MUERTO:** Ritmo muy lento ({apm_total:.1f} APM). Huye y caza cuota."
+                                                msj_ia = f"📉 **PARTIDO MUERTO:** Ritmo muy lento ({apm_total:.1f} APM) y el tiempo avanza. Huye y caza cuota."
                                                 ird = 90.0
+                                                
+                                            if diferencia_goles <= 0.5 and tiempo_restante <= 15:
+                                                msj_ia += f" ⏳ Estás a UN SOLO GOL, máxima tensión en los últimos {tiempo_restante} min."
+                                                
                                     else: # Apostó MENOS
                                         if diferencia_goles < 0:
-                                            msj_ia = f"❌ **SINIESTRO:** Perdiste el 'Menos de'."
+                                            msj_ia = f"❌ **SINIESTRO:** Superaron la línea. Perdiste el 'Menos de'."
                                             ird = 100.0
+                                        # FILTRO DE ESPACIO TIEMPO EXTREMO
+                                        elif diferencia_goles >= 2.5 and tiempo_restante <= 30:
+                                            msj_ia = f"✅ **BLINDAJE DE TIEMPO:** Tienes un colchón de {int(diferencia_goles)} goles de ventaja y faltan solo {tiempo_restante} min. Es estadísticamente casi imposible que te remonten."
+                                            ird = 10.0
                                         else:
                                             if diferencia_goles <= 1.0: 
                                                 if apm_total >= 1.2:
-                                                    msj_ia = f"🚨 **¡PÁNICO OFENSIVO!** Poco margen y partido FRENÉTICO ({apm_total:.1f} APM). ¡HUYE INMEDIATAMENTE!"
+                                                    msj_ia = f"🚨 **¡PÁNICO OFENSIVO!** A UN GOL de perder y el partido está FRENÉTICO ({apm_total:.1f} APM). ¡HUYE INMEDIATAMENTE!"
                                                     ird = 95.0
+                                                elif tiempo_restante <= 15:
+                                                    msj_ia = f"⏳ **RELOJ SALVADOR:** A 1 gol de perder, pero el ritmo es normal y solo faltan {tiempo_restante} min. El reloj es tu amigo."
+                                                    ird = 55.0
                                                 else:
-                                                    msj_ia = f"⚠️ **Alerta:** Poco margen. Vigila de cerca."
+                                                    msj_ia = f"⚠️ **Alerta:** A un gol de perder y quedan {tiempo_restante} min de riesgo. Vigila de cerca."
                                                     ird = 75.0
                                             else:
                                                 if apm_total >= 1.2:
-                                                    msj_ia = f"⚠️ **RITMO PELIGROSO:** Tienes margen de goles, pero atacan a un ritmo frenético ({apm_total:.1f} APM). Gran riesgo."
+                                                    msj_ia = f"⚠️ **RITMO PELIGROSO:** Tienes colchón de {int(diferencia_goles)} goles, pero atacan a ritmo frenético ({apm_total:.1f} APM) con {tiempo_restante} min por delante. Gran riesgo."
                                                     ird = 70.0
                                                 elif apm_total >= 0.9:
-                                                    msj_ia = f"⚖️ **RITMO MODERADO:** Velocidad normal ({apm_total:.1f} APM). Atento a cambios."
+                                                    msj_ia = f"⚖️ **RITMO MODERADO:** Velocidad normal ({apm_total:.1f} APM). Faltan {tiempo_restante} min. Atento a cambios."
                                                     ird = 55.0
                                                 else:
-                                                    msj_ia = f"✅ **CONTROL TOTAL:** Partido aburrido ({apm_total:.1f} APM). Apuesta segura."
+                                                    msj_ia = f"✅ **CONTROL TOTAL:** Partido aburrido ({apm_total:.1f} APM). Faltan {tiempo_restante} min y tienes margen. Apuesta segura."
                                                     ird = 15.0
                                     st.info(msj_ia)
 
