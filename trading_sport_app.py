@@ -1328,9 +1328,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.markdown("---")
                                 
                                 # 3. CÁLCULOS MATEMÁTICOS DE IA
-                                partido_str = str(op.get('partido', ''))
-                                is_ambos_anotan = "Ambos Anotan" in partido_str
-                                is_linea_goles = "Línea de Goles" in partido_str
+                                # Buscamos el mercado en AMBOS campos para que no se quede ciego
+                                texto_mercado = str(op.get('mercado', '')) + " " + str(op.get('partido', ''))
+                                is_ambos_anotan = "Ambos Anotan" in texto_mercado
+                                is_linea_goles = "Línea de Goles" in texto_mercado
                                 
                                 # Velocímetros Reales (APM)
                                 apm_local = atkp_local / max(1, minuto_actual)
@@ -1343,6 +1344,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 utilidad_original_maxima = retorno_bruto_esperado - op['stake_1']
                                 cuota_minima_rentable = retorno_bruto_esperado / utilidad_original_maxima if utilidad_original_maxima > 0 else 0
                                 cuota_sl = float(op.get('cuota_stop_loss') or 0.0)
+                                
+                                # Pre-calculamos la utilidad exacta para que el Dictamen nos hable con dinero real
+                                monto_a_inyectar = retorno_bruto_esperado / cuota_salida
+                                utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
                                 
                                 ird = 0.0
                                 msj_ia = ""
@@ -1361,135 +1366,134 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                 ird = 20.0
                                             else:
                                                 if apm_total >= 1.3 and apm_local >= 0.5 and apm_vis >= 0.5:
-                                                    msj_ia = f"🔥 **Ida y Vuelta (Frenético):** Velocímetro en {apm_total:.1f} APM. Ambos atacan, excelente escenario. Mantén posición."
+                                                    msj_ia = f"🔥 **Ida y Vuelta (Frenético):** Velocímetro en {apm_total:.1f} APM. Ambos atacan, excelente escenario."
                                                     ird = 25.0
                                                 elif apm_total < 0.9:
-                                                    msj_ia = f"📉 **Partido Trabado:** Velocidad muy lenta ({apm_total:.1f} APM). No pisan las áreas. Considera salir."
+                                                    msj_ia = f"📉 **Partido Trabado:** Velocidad muy lenta ({apm_total:.1f} APM). Considera salir."
                                                     ird = 85.0
                                                 else:
-                                                    msj_ia = f"⚠️ **Ritmo Lento/Inclinado:** Velocidad en {apm_total:.1f} APM. Faltan ataques claros. Precaución."
+                                                    msj_ia = f"⚠️ **Ritmo Lento/Inclinado:** Velocidad en {apm_total:.1f} APM. Precaución."
                                                     ird = 60.0
                                         else:
-                                            # Va 1-0 o 0-1
                                             if g_local == 0: 
                                                 eq_necesitado = eq_local; apm_necesitado = apm_local; eq_dominante = eq_vis; apm_dominante = apm_vis
                                             else: 
                                                 eq_necesitado = eq_vis; apm_necesitado = apm_vis; eq_dominante = eq_local; apm_dominante = apm_local
                                                 
-                                            # Cuota de Poder (Dominio)
                                             total_atkp_actual = (apm_necesitado + apm_dominante) * minuto_actual
                                             share_necesitado = ((apm_necesitado * minuto_actual) / total_atkp_actual) * 100 if total_atkp_actual > 0 else 0
                                             
-                                            st.write(f"🔍 **Auditoría:** {eq_necesitado} ataca a **{apm_necesitado:.1f} APM**, con un **{share_necesitado:.0f}%** del control ofensivo.")
+                                            st.write(f"🔍 **Auditoría:** {eq_necesitado} ataca a **{apm_necesitado:.1f} APM** ({share_necesitado:.0f}% del control).")
                                             
                                             if apm_necesitado >= 0.7 and share_necesitado >= 55:
-                                                msj_ia = f"⚔️ **ASEDIO TOTAL:** {eq_necesitado} ataca fuerte y domina al rival. El empate se está cocinando. ¡Aguanta!"
+                                                msj_ia = f"⚔️ **ASEDIO TOTAL:** {eq_necesitado} domina al rival. ¡Aguanta!"
                                                 ird = 35.0 if tiempo_restante > 20 else 60.0
                                             elif apm_necesitado >= 0.7 and share_necesitado < 50:
-                                                msj_ia = f"⚠️ **GOLPE A GOLPE:** {eq_necesitado} ataca bien, pero {eq_dominante} no le sede el control. No hay dominio claro. Alerta encendida."
+                                                msj_ia = f"⚠️ **GOLPE A GOLPE:** No hay dominio claro. Alerta encendida."
                                                 ird = 70.0
                                             elif apm_necesitado < 0.5:
-                                                msj_ia = f"🚨 **ASFIXIA TÁCTICA:** {eq_necesitado} no tiene velocidad ({apm_necesitado:.1f} APM) ni el balón. Milagro poco probable. ¡Sal de ahí!"
+                                                msj_ia = f"🚨 **ASFIXIA TÁCTICA:** {eq_necesitado} no tiene velocidad. ¡Sal de ahí!"
                                                 ird = 95.0
                                             else:
-                                                msj_ia = f"🛡️ **INTENTO TÍMIDO:** {eq_necesitado} intenta, pero sin la fuerza necesaria. Prepara cobertura."
+                                                msj_ia = f"🛡️ **INTENTO TÍMIDO:** Prepara cobertura."
                                                 ird = 80.0
                                                 
                                             if tiempo_restante <= 12 and (g_local == 0 or g_vis == 0):
-                                                msj_ia += " ⏳ **¡TIEMPO CRÍTICO!** Faltan menos de 12 min. Caza cuota AHORA."
+                                                msj_ia += " ⏳ **¡TIEMPO CRÍTICO!**"
                                                 ird = max(ird, 90.0)
-
                                     else:
-                                        # LÓGICA PARA EL "NO" (Simplificada)
                                         if g_local > 0 and g_vis > 0:
                                             msj_ia = "❌ **SINIESTRO:** Ambos marcaron. Perdiste el NO."
                                             ird = 100.0
                                         else:
-                                            msj_ia = f"✅ **Auditoría del NO:** Velocidad global de {apm_total:.1f} APM. Evalúa si el equipo que va perdiendo está atacando demasiado."
-                                            ird = 50.0 # (Aquí puedes aplicar tu propio criterio al leer el dictamen)
+                                            msj_ia = f"✅ **Auditoría del NO:** Velocidad de {apm_total:.1f} APM. Evalúa si el que pierde ataca mucho."
+                                            ird = 50.0 
                                     st.info(msj_ia)
 
                                 elif is_linea_goles:
                                     st.markdown("#### 🧠 Asesoría Táctica IA (Mercado 'Línea de Goles')")
                                     import re
-                                    # Extraer la línea de la apuesta (Ej: Más de 2.5)
                                     match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
                                     linea_obj = float(match_linea.group()) if match_linea else 2.5
                                     aposto_mas = "Más" in sel_ini or "Mas" in sel_ini
                                     
                                     diferencia_goles = linea_obj - goles_totales
-                                    
                                     st.write(f"📊 **Métrica Global:** Velocidad del partido en **{apm_total:.1f} APM**.")
                                     
                                     if aposto_mas:
                                         if diferencia_goles < 0:
-                                            msj_ia = f"🎉 **¡OBJETIVO CUMPLIDO!** Ya superaste la línea de {linea_obj} goles. ¡Liquida y cobra!"
+                                            msj_ia = f"🎉 **¡OBJETIVO CUMPLIDO!** Ya superaste la línea de {linea_obj} goles."
                                             ird = 0.0
                                         else:
                                             if apm_total >= 1.3:
-                                                msj_ia = f"🔥 **PARTIDO ROTO:** Excelente volumen ofensivo. Las defensas están abiertas. El gol es inminente. ¡Mantén la posición!"
+                                                msj_ia = f"🔥 **PARTIDO ROTO:** Excelente volumen ofensivo. ¡Mantén la posición!"
                                                 ird = 30.0 if tiempo_restante > 20 else 65.0
                                             elif apm_total >= 0.9:
-                                                msj_ia = f"⚖️ **RITMO ESTÁNDAR:** Velocidad normal. Los goles pueden llegar, evalúa si tienes margen de tiempo."
+                                                msj_ia = f"⚖️ **RITMO ESTÁNDAR:** Velocidad normal. Los goles pueden llegar."
                                                 ird = 55.0 if tiempo_restante > 20 else 80.0
                                             else:
-                                                msj_ia = f"📉 **PARTIDO MUERTO:** Ritmo muy lento ({apm_total:.1f} APM). Pelota en mitad de cancha. Huye y caza la cuota de salida."
+                                                msj_ia = f"📉 **PARTIDO MUERTO:** Ritmo muy lento ({apm_total:.1f} APM). Huye y caza cuota."
                                                 ird = 90.0
-                                                
-                                            if diferencia_goles <= 0.5 and tiempo_restante <= 15:
-                                                msj_ia += " ⏳ Estás a un solo gol, pero el tiempo se agota. Decide si aseguras pérdidas o vas hasta el final."
-                                                
                                     else: # Apostó MENOS
                                         if diferencia_goles < 0:
-                                            msj_ia = f"❌ **SINIESTRO:** Se rompieron los límites de goles. Perdiste el 'Menos de'."
+                                            msj_ia = f"❌ **SINIESTRO:** Perdiste el 'Menos de'."
                                             ird = 100.0
                                         else:
-                                            if diferencia_goles == 0.5: # Ej: Apostó Menos de 2.5 y van 2 goles
+                                            if diferencia_goles <= 1.0: 
                                                 if apm_total >= 1.2:
-                                                    msj_ia = f"🚨 **¡PÁNICO OFENSIVO!** Estás a un gol de perder y el partido está FRENÉTICO ({apm_total:.1f} APM). ¡SAL DE AHÍ INMEDIATAMENTE!"
+                                                    msj_ia = f"🚨 **¡PÁNICO OFENSIVO!** Poco margen y partido FRENÉTICO ({apm_total:.1f} APM). ¡HUYE INMEDIATAMENTE!"
                                                     ird = 95.0
                                                 else:
-                                                    msj_ia = f"⚠️ **Alerta Máxima:** Estás a un gol de perder, pero el ritmo es lento ({apm_total:.1f} APM). Vigila cada minuto."
+                                                    msj_ia = f"⚠️ **Alerta:** Poco margen. Vigila de cerca."
                                                     ird = 75.0
                                             else:
-                                                if apm_total < 0.9:
-                                                    msj_ia = f"✅ **CONTROL TOTAL:** Partido aburrido y sin llegadas ({apm_total:.1f} APM). Tu apuesta está segura."
-                                                    ird = 15.0
+                                                if apm_total >= 1.2:
+                                                    msj_ia = f"⚠️ **RITMO PELIGROSO:** Tienes margen de goles, pero atacan a un ritmo frenético ({apm_total:.1f} APM). Gran riesgo."
+                                                    ird = 70.0
+                                                elif apm_total >= 0.9:
+                                                    msj_ia = f"⚖️ **RITMO MODERADO:** Velocidad normal ({apm_total:.1f} APM). Atento a cambios."
+                                                    ird = 55.0
                                                 else:
-                                                    msj_ia = f"⚠️ **RITMO PELIGROSO:** Tienes margen de goles, pero están atacando mucho ({apm_total:.1f} APM). Prepara el seguro por si acaso."
-                                                    ird = 60.0
+                                                    msj_ia = f"✅ **CONTROL TOTAL:** Partido aburrido ({apm_total:.1f} APM). Apuesta segura."
+                                                    ird = 15.0
                                     st.info(msj_ia)
 
                                 else:
-                                    # Termómetro General de Asedio (Para otros Mercados no clasificados)
                                     st.markdown("#### 🌡️ Termómetro del Evento (IRD General)")
                                     ird = min(100.0, apm_total * 45.0) 
                                     st.info(f"🔎 El evento fluye a **{apm_total:.2f} Ataques Peligrosos por Minuto** totales.")
                                 
-                                color_barra = "#10B981" if ird < 40 else "#F59E0B" if ird < 70 else "#EF4444"
+                                # Escala de 3 colores para mayor precisión
+                                color_barra = "#10B981" if ird < 45 else "#F59E0B" if ird < 75 else "#EF4444"
                                 st.progress(int(ird) / 100)
                                 st.markdown(f"<h5 style='text-align: center; color: {color_barra};'>Alerta Táctica (IRD): {ird:.1f}%</h5>", unsafe_allow_html=True)
-                                
+
                                 # =====================================================================
-                                # 4. DICTAMEN INTEGRAL (Cruza Táctica + Stop Loss + Break-Even)
+                                # 4. DICTAMEN INTEGRAL CON 3 NIVELES DE ALERTA
                                 # =====================================================================
                                 dictamen_fin = ""
                                 if cuota_sl > 0 and cuota_salida <= cuota_sl:
-                                    dictamen_fin = f"🛑 **¡STOP LOSS ROTO!** La cuota actual ({cuota_salida:.2f}) ha tocado tu límite estructural ({cuota_sl:.2f}). **EVACUACIÓN OBLIGATORIA AHORA**."
+                                    dictamen_fin = f"🛑 **¡STOP LOSS ROTO!** La cuota actual ({cuota_salida:.2f}) ha tocado tu límite. **EVACUACIÓN OBLIGATORIA AHORA**."
                                     c_dict = "#FEF2F2"; b_dict = "#B91C1C"
                                 elif cuota_salida >= cuota_minima_rentable:
-                                    if ird >= 70:
-                                        dictamen_fin = f"⚖️ **TOMA DE BENEFICIOS:** El riesgo táctico es crítico (IRD {ird:.1f}%), PERO la cuota ({cuota_salida:.2f}) ya superó tu Break-Even ({cuota_minima_rentable:.2f}). **Caza la cuota y sal en verde.**"
+                                    if ird >= 75:
+                                        dictamen_fin = f"⚖️ **TOMA DE BENEFICIOS:** El riesgo es rojo (IRD {ird:.1f}%), PERO tienes **${utilidad_proyectada:,.0f} COP** de ganancia. **Caza la cuota y asegura.**"
                                         c_dict = "#FFFBEB"; b_dict = "#D97706"
+                                    elif ird >= 45: # La alerta amarilla que antes ignoraba
+                                        dictamen_fin = f"⚠️ **ALERTA AMARILLA (VIGILANCIA):** El partido está movido (Ritmo Peligroso). Tienes una utilidad de apenas **${utilidad_proyectada:,.0f} COP**. No te confíes, si el asedio no baja, toma los $70 y sal."
+                                        c_dict = "#FEFCE8"; b_dict = "#CA8A04"
                                     else:
-                                        dictamen_fin = f"🛡️ **ZONA DE CONFORT:** El partido está a tu favor (IRD bajo) y la cuota ({cuota_salida:.2f}) ya te da ganancias. Puedes asegurar utilidad o dejar correr sin miedo."
+                                        dictamen_fin = f"🛡️ **ZONA DE CONFORT:** El partido está tranquilo a tu favor. Estás ganando **${utilidad_proyectada:,.0f} COP**. Puedes dejar correr."
                                         c_dict = "#F0FDF4"; b_dict = "#15803D"
                                 else:
-                                    if ird >= 85:
-                                        dictamen_fin = f"🚨 **AMPUTACIÓN TÁCTICA:** Colapso en la cancha. Cubrir ahora implica pérdida financiera (Break-Even era {cuota_minima_rentable:.2f}), pero la IA sugiere amputar antes de perder el 100% de tu dinero."
+                                    if ird >= 75:
+                                        dictamen_fin = f"🚨 **AMPUTACIÓN TÁCTICA:** Colapso en la cancha. Cubrir implica pérdida de **${utilidad_proyectada:,.0f} COP**, pero la IA sugiere amputar antes de perderlo todo."
                                         c_dict = "#FEF2F2"; b_dict = "#DC2626"
+                                    elif ird >= 45:
+                                        dictamen_fin = f"⚠️ **INCERTIDUMBRE:** El partido tiene riesgo medio y vas perdiendo **${utilidad_proyectada:,.0f} COP**. Aguanta un poco, pero no quites los ojos de la pantalla."
+                                        c_dict = "#FFFBEB"; b_dict = "#D97706"
                                     else:
-                                        dictamen_fin = f"⏳ **AGUANTAR POSICIÓN:** Cazar ahora ({cuota_salida:.2f}) te daría pérdidas, y la lectura táctica dice que la situación no es grave (IRD {ird:.1f}%). Mantén la calma y espera."
+                                        dictamen_fin = f"⏳ **PACIENCIA ESTRATÉGICA:** Vas perdiendo **${utilidad_proyectada:,.0f} COP**, pero la lectura táctica dice que la situación está bajo control. Mantén la calma."
                                         c_dict = "#EFF6FF"; b_dict = "#1D4ED8"
                                         
                                 st.markdown(f"""
@@ -1498,10 +1502,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 </div>
                                 """, unsafe_allow_html=True)
 
-                                # 5. Ejecución Final de la Cobertura
-                                monto_a_inyectar = retorno_bruto_esperado / cuota_salida
-                                utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
-                                
                                 st.markdown(f"**Inversión para cazar a {cuota_salida:.2f}:** ${monto_a_inyectar:,.0f} COP ➡️ **Balance Consolidado:** ${utilidad_proyectada:,.0f} COP")
 
                                 # =====================================================================
