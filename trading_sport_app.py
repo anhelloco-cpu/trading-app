@@ -2716,18 +2716,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
     # ---------------------------------------------------------
     with tab_vivo:
         st.subheader("🧠 El Cerebro Táctico (Machine Learning)")
-        st.write("Ingresa los datos actuales. La IA cruzará estas 11 variables exactas con sus redes neuronales para darte una predicción integral.")
+        st.write("Ingresa tu Foto Táctica actual. La IA cruzará estas 7 variables para darte una predicción integral al instante.")
         
-        st.markdown("#### 1. Contexto del Mercado (Ojos iniciales de la IA)")
-        c_pre1, c_pre2, c_pre3 = st.columns(3)
-        c_base_sim = c_pre1.number_input("Cuota Inicial Local:", min_value=1.01, value=2.10, step=0.05)
-        c_emp_sim = c_pre2.number_input("Cuota Inicial Empate:", min_value=1.01, value=3.20, step=0.05)
-        c_vis_sim = c_pre3.number_input("Cuota Inicial Visita:", min_value=1.01, value=3.50, step=0.05)
-        
-        # Cálculo automático de Doble Oportunidad (La IA necesita este dato)
-        c_dc_sim = 1 / ((1/c_base_sim) + (1/c_emp_sim))
-        
-        st.markdown("#### 2. Foto Táctica En Vivo")
+        st.markdown("#### 📸 Foto Táctica En Vivo")
         c_vivo1, c_vivo2, c_vivo3 = st.columns(3)
         minuto_sim = c_vivo1.number_input("⏱️ Minuto Actual:", min_value=1, max_value=120, value=60)
         g_loc_sim = c_vivo2.number_input("⚽ Goles Local:", min_value=0, value=0)
@@ -2745,9 +2736,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             
             # Verificamos que los cerebros existan en la carpeta
             if not os.path.exists('modelo_1x2.pkl'):
-                st.error("🚨 Falta el archivo 'modelo_1x2.pkl'. Asegúrate de que los 3 cerebros estén en la misma carpeta que este archivo de Streamlit.")
+                st.error("🚨 Falta el archivo 'modelo_1x2.pkl'. Asegúrate de que los 3 cerebros estén en la misma carpeta.")
             else:
-                with st.spinner("Procesando millones de rutas en las redes neuronales..."):
+                with st.spinner("Procesando redes neuronales..."):
                     try:
                         # 1. Cargar los cerebros congelados
                         modelo_1x2 = joblib.load('modelo_1x2.pkl')
@@ -2758,12 +2749,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         apm_total = (atq_loc_sim + atq_vis_sim) / max(1, minuto_sim)
                         ird_sim = min(100.0, apm_total * 45.0)
                         
-                        # 3. Empaquetar los datos EXACTAMENTE como los estudió la IA
+                        # 3. Empaquetar las 7 variables tácticas EXACTAS
                         X_input = pd.DataFrame([{
-                            'cuota_base_audit': c_base_sim,
-                            'cuota_empate_audit': c_emp_sim,
-                            'cuota_dc_audit': c_dc_sim,
-                            'cuota_amenaza_audit': c_vis_sim,
                             'minuto_evaluado': minuto_sim,
                             'goles_local': g_loc_sim,
                             'goles_vis': g_vis_sim,
@@ -2792,7 +2779,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h4 style="margin-top:0; color:#475569;">🏆 Ganador Proyectado</h4>
                                 <h2 style="color:#0F172A; margin: 10px 0;">{ganador_str}</h2>
-                                <p style="margin:0; font-size: 0.8rem; color:#64748B;">Precisión del modelo: 86.11%</p>
                             </div>
                             """, unsafe_allow_html=True)
                             
@@ -2801,7 +2787,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h4 style="margin-top:0; color:#475569;">⚽ Goles Totales (Al final)</h4>
                                 <h2 style="color:#0EA5E9; margin: 10px 0;">{pred_goles:.1f} Goles</h2>
-                                <p style="margin:0; font-size: 0.8rem; color:#64748B;">Margen de error: ±0.49</p>
                             </div>
                             """, unsafe_allow_html=True)
                             
@@ -2810,7 +2795,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;">
                                 <h4 style="margin-top:0; color:#475569;">🔥 ¿Ambos Anotan?</h4>
                                 <h2 style="color:{color_btts}; margin: 10px 0;">{btts_str}</h2>
-                                <p style="margin:0; font-size: 0.8rem; color:#64748B;">Precisión del modelo: 83.33%</p>
                             </div>
                             """, unsafe_allow_html=True)
                             
