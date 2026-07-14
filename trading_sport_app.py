@@ -1447,10 +1447,16 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         if diferencia_goles < 0:
                                             msj_ia = f"❌ **SINIESTRO:** Superaron la línea. Perdiste el 'Menos de'."
                                             ird = 100.0
-                                        # FILTRO DE ESPACIO TIEMPO EXTREMO (Apostó Menos)
-                                        elif diferencia_goles >= 2.5 and tiempo_restante <= 30:
-                                            msj_ia = f"✅ **BLINDAJE DE TIEMPO:** Tienes un colchón de {int(diferencia_goles)} goles de ventaja y faltan solo {tiempo_restante} min. Es estadísticamente casi imposible que te remonten."
+                                        # FILTROS DE ESPACIO TIEMPO (BLINDAJES ESCALONADOS)
+                                        elif diferencia_goles >= 3.5:
+                                            msj_ia = f"✅ **BLINDAJE DE ACERO:** Tienes un colchón gigante de {diferencia_goles} goles. Tendrían que hacer un gol cada {tiempo_restante/max(1, diferencia_goles):.1f} minutos. Apuesta extremadamente segura, no importa el ritmo."
+                                            ird = 5.0
+                                        elif diferencia_goles >= 2.5 and tiempo_restante <= 45:
+                                            msj_ia = f"✅ **BLINDAJE DE SEGUNDO TIEMPO:** Colchón de {diferencia_goles} goles y ya pasamos la mitad del partido. Matemáticamente casi imposible que te remonten."
                                             ird = 10.0
+                                        elif diferencia_goles >= 1.5 and tiempo_restante <= 20:
+                                            msj_ia = f"✅ **BLINDAJE DE CIERRE:** Colchón de {diferencia_goles} goles y quedan {tiempo_restante} min. El reloj ya mató el partido."
+                                            ird = 15.0
                                         else:
                                             if diferencia_goles <= 1.0: 
                                                 if apm_total >= 1.2:
