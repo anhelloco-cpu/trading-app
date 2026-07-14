@@ -1425,7 +1425,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         if diferencia_goles < 0:
                                             msj_ia = f"🎉 **¡OBJETIVO CUMPLIDO!** Ya superaste la línea de {linea_obj} goles."
                                             ird = 0.0
-                                        # FILTRO DE ESPACIO TIEMPO EXTREMO
+                                        # FILTRO DE ESPACIO TIEMPO EXTREMO (Apostó Más)
                                         elif diferencia_goles >= 1.5 and tiempo_restante <= 25:
                                             msj_ia = f"🚨 **RELOJ EN CONTRA:** Te faltan {int(diferencia_goles + 0.5)} goles y solo quedan {tiempo_restante} minutos. El asedio no importa si ya no hay tiempo. ¡HUYE YA!"
                                             ird = 95.0
@@ -1447,7 +1447,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         if diferencia_goles < 0:
                                             msj_ia = f"❌ **SINIESTRO:** Superaron la línea. Perdiste el 'Menos de'."
                                             ird = 100.0
-                                        # FILTRO DE ESPACIO TIEMPO EXTREMO
+                                        # FILTRO DE ESPACIO TIEMPO EXTREMO (Apostó Menos)
                                         elif diferencia_goles >= 2.5 and tiempo_restante <= 30:
                                             msj_ia = f"✅ **BLINDAJE DE TIEMPO:** Tienes un colchón de {int(diferencia_goles)} goles de ventaja y faltan solo {tiempo_restante} min. Es estadísticamente casi imposible que te remonten."
                                             ird = 10.0
