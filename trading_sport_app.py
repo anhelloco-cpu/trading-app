@@ -2819,8 +2819,15 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     
                             else:
                                 # Mercado AMBOS ANOTAN
-                                # Aquí nos importa si el equipo que va perdiendo o en cero tiene fuerza
-                                df_gemelos = df_similares.copy()
+                                # Corregido: Ahora sí obligamos a la IA a buscar partidos donde el asedio 
+                                # INDIVIDUAL del Local y del Visitante sean estadísticamente gemelos al actual.
+                                df_gemelos = df_similares[
+                                    (df_similares['apm_hist_loc'] >= (apm_loc_sim - margen_apm)) & 
+                                    (df_similares['apm_hist_loc'] <= (apm_loc_sim + margen_apm)) &
+                                    (df_similares['apm_hist_vis'] >= (apm_vis_sim - margen_apm)) & 
+                                    (df_similares['apm_hist_vis'] <= (apm_vis_sim + margen_apm))
+                                ].copy()
+                                
                                 total_gemelos = len(df_gemelos)
                                 
                                 if total_gemelos < 3:
