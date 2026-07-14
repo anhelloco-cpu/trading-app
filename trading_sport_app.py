@@ -993,13 +993,21 @@ elif estrategia_activa == "3️⃣ Estrategia 3: Binario Personalizado":
     with col_n1:
         partido_base = st.text_input("⚽ Evento Principal:", placeholder="Ej: Real Madrid vs City")
     with col_n2:
-        tipo_mercado = st.selectbox("🎯 Selecciona el Mercado:", ["🔥 Ambos Anotan (BTTS)", "✍️ Otro Mercado Personalizado..."])
+        tipo_mercado = st.selectbox("🎯 Selecciona el Mercado:", ["🔥 Ambos Anotan (BTTS)", "⚽ Línea de Goles (Más/Menos)", "✍️ Otro Mercado Personalizado..."])
         
     if tipo_mercado == "🔥 Ambos Anotan (BTTS)":
         nombre_mercado = "Ambos Anotan"
         opcion_a = "Sí"
         opcion_b = "No"
         st.info("💡 **Mercado Automático:** Las opciones 'Sí' y 'No' han sido preconfiguradas. El Motor IA táctico se activará para este evento.")
+        
+    elif tipo_mercado == "⚽ Línea de Goles (Más/Menos)":
+        linea_goles = st.number_input("🎯 Ingresa la Línea de Goles (Ej: 2.5, 3.5):", min_value=0.5, step=0.5, value=2.5)
+        nombre_mercado = f"Línea de Goles {linea_goles}"
+        opcion_a = f"Más de {linea_goles}"
+        opcion_b = f"Menos de {linea_goles}"
+        st.info(f"💡 **Mercado Automático:** Opciones configuradas como '{opcion_a}' y '{opcion_b}'.")
+        
     else:
         nombre_mercado = st.text_input("🎯 Nombre del Mercado:", placeholder="Ej: Más de 10 Córners")
         st.markdown("**Define las dos únicas opciones posibles:**")
