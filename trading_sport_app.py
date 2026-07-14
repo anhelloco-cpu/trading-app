@@ -196,9 +196,10 @@ estrategia_activa = st.sidebar.radio(
         "🎯 Estrategia Libre (Apuesta Directa)",
         "⚡ Estrategia 1: eSports (Scalping)", 
         "2️⃣ Estrategia 2: Paz Mental (Fútbol)", 
-        "3️⃣ Estrategia 3: Binario Personalizado", # <--- NUEVA LÍNEA AQUÍ
+        "3️⃣ Estrategia 3: Binario Personalizado",
         "🔒 Seguimiento y Liquidación de Posiciones",
-        "🔬 Auditoría Cuantitativa (Reporte)"
+        "🔬 Auditoría Cuantitativa (Reporte)",
+        "🔮 Oráculo Predictivo (Machine Learning)" # <--- EL ORÁCULO AÑADIDO
     ]
 )
 
@@ -2657,3 +2658,188 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                             st.info("💡 Solo has operado en un único rango de riesgo. Intenta variar tus cuotas en las próximas simulaciones para construir este mapa.")
                     else:
                         st.info("Muestra insuficiente de coberturas para generar el mapa de efectividad.")
+
+# =====================================================================
+# MÓDULO 5: ORÁCULO PREDICTIVO (MACHINE LEARNING BÁSICO)
+# =====================================================================
+elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
+    st.markdown("## 🔮 Oráculo Predictivo")
+    st.write("Planifica tu entrada al mercado basándote en la estadística dura de tu base de datos, no en intuición.")
+
+    tab_pre, tab_vivo = st.tabs(["📋 Planificación Pre-Partido", "⏱️ Oráculo En Vivo (Foto Táctica)"])
+
+    # ---------------------------------------------------------
+    # PESTAÑA 1: PRE-PARTIDO (Expected Value - Valor Esperado)
+    # ---------------------------------------------------------
+    with tab_pre:
+        st.subheader("⚖️ Análisis de Valor Matemático (EV)")
+        st.info("Descubre si la cuota que te ofrece la casa tiene valor real a largo plazo o si es una trampa matemática.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            cuota_ofrecida = st.number_input("Cuota inicial ofrecida por la casa:", min_value=1.01, step=0.01, value=1.85)
+            stake_planeado = st.number_input("Stake a invertir ($ COP):", min_value=5000, step=5000, value=20000)
+        
+        with col2:
+            prob_historica = st.slider("¿Qué probabilidad REAL crees que tiene de suceder? (%)", 1, 100, 50)
+            
+        if st.button("🔮 Calcular Expected Value (EV)", use_container_width=True):
+            # Fórmula EV: (Probabilidad de Ganar * Ganancia Neta) - (Probabilidad de Perder * Stake)
+            prob_ganar = prob_historica / 100.0
+            prob_perder = 1.0 - prob_ganar
+            ganancia_neta = (stake_planeado * cuota_ofrecida) - stake_planeado
+            
+            ev = (prob_ganar * ganancia_neta) - (prob_perder * stake_planeado)
+            roi_ev = (ev / stake_planeado) * 100
+            
+            st.markdown("---")
+            if ev > 0:
+                st.markdown(f"""
+                <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 20px; border-radius: 8px;">
+                    <h3 style="margin-top:0; color: #166534;">✅ APUESTA CON VALOR (EV+)</h3>
+                    <h1 style="color: #15803D; margin: 10px 0;">+${ev:,.0f} COP <span style="font-size: 1rem;">de valor promedio por operación</span></h1>
+                    <p style="margin:0; color: #166534;">Si repites esta misma apuesta 100 veces, ganarás dinero a largo plazo. <b>(ROI Esperado: +{roi_ev:.1f}%)</b>. Tienes luz verde para entrar.</p>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 20px; border-radius: 8px;">
+                    <h3 style="margin-top:0; color: #991B1B;">🚨 TRAMPA MATEMÁTICA (EV-)</h3>
+                    <h1 style="color: #B91C1C; margin: 10px 0;">-${abs(ev):,.0f} COP <span style="font-size: 1rem;">de pérdida promedio por operación</span></h1>
+                    <p style="margin:0; color: #991B1B;">La cuota es demasiado baja para la probabilidad real. A largo plazo, esta apuesta quebrará tu banca <b>(ROI Esperado: {roi_ev:.1f}%)</b>. Aléjate.</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # ---------------------------------------------------------
+    # PESTAÑA 2: EN VIVO (Buscador de Patrones / K-NN)
+    # ---------------------------------------------------------
+    with tab_vivo:
+        st.subheader("🧠 El Cerebro Táctico (Machine Learning)")
+        st.write("Ingresa los datos actuales del partido. La IA buscará en tu historial partidos idénticos y te dirá qué pasó.")
+        
+        mercado_vivo = st.selectbox("¿Qué mercado estás analizando?", ["Línea de Goles (Total de Goles)", "Ambos Anotan (BTTS)"])
+        
+        colA, colB, colC = st.columns(3)
+        with colA:
+            minuto_sim = st.number_input("⏱️ Minuto Actual:", min_value=1, max_value=120, value=60)
+        with colB:
+            g_loc_sim = st.number_input("⚽ Goles Local:", min_value=0, value=0)
+            g_vis_sim = st.number_input("⚽ Goles Visitante:", min_value=0, value=0)
+        with colC:
+            atq_loc_sim = st.number_input("🔥 Atq. Pel. Local:", min_value=0, value=40)
+            atq_vis_sim = st.number_input("🔥 Atq. Pel. Visitante:", min_value=0, value=25)
+            
+        if st.button("🔮 Consultar Oráculo (Buscar Patrones Históricos)", use_container_width=True):
+            if supabase is None:
+                st.error("Conecta Supabase para acceder al cerebro de datos.")
+            else:
+                with st.spinner("Sumergiéndose en la base de datos..."):
+                    # 1. Cálculos de Entrada
+                    apm_loc_sim = atq_loc_sim / max(1, minuto_sim)
+                    apm_vis_sim = atq_vis_sim / max(1, minuto_sim)
+                    apm_total_sim = apm_loc_sim + apm_vis_sim
+                    
+                    st.markdown("---")
+                    st.markdown(f"**Velocímetro Actual:** Global **{apm_total_sim:.2f} APM** | Local **{apm_loc_sim:.2f}** | Visita **{apm_vis_sim:.2f}**")
+                    
+                    # 2. Extraer historial
+                    res_fotos = supabase.table("registro_fotos").select("*").execute()
+                    res_trading = supabase.table("historial_trading").select("codigo, resultado_final, goles_finales_seleccion, goles_finales_rival").eq("estado", "CERRADA").execute()
+                    
+                    if not res_fotos.data or not res_trading.data:
+                        st.info("No hay suficientes datos históricos (Fotos Tácticas + Operaciones Cerradas) para predecir.")
+                    else:
+                        import pandas as pd
+                        df_fotos = pd.DataFrame(res_fotos.data)
+                        df_trading = pd.DataFrame(res_trading.data)
+                        
+                        # Limpiar nulos para evitar errores
+                        df_trading['goles_finales_seleccion'] = pd.to_numeric(df_trading['goles_finales_seleccion'], errors='coerce').fillna(0)
+                        df_trading['goles_finales_rival'] = pd.to_numeric(df_trading['goles_finales_rival'], errors='coerce').fillna(0)
+                        
+                        # Unir las tablas por el código de operación
+                        df_master = pd.merge(df_fotos, df_trading, left_on="codigo_posicion", right_on="codigo", how="inner")
+                        
+                        if df_master.empty:
+                            st.warning("Aún no tienes operaciones cerradas que contengan Fotos Tácticas.")
+                        else:
+                            # 3. EL ALGORITMO K-NN (Filtro de Similitud)
+                            # Tolerancias: +/- 15 minutos, y +/- 0.4 APM de diferencia
+                            margen_minuto = 15
+                            margen_apm = 0.4
+                            
+                            # Calcular APMs históricos en el dataframe
+                            df_master['apm_hist_loc'] = df_master['atkp_local'] / df_master['minuto_evaluado'].clip(lower=1)
+                            df_master['apm_hist_vis'] = df_master['atkp_vis'] / df_master['minuto_evaluado'].clip(lower=1)
+                            df_master['apm_hist_total'] = df_master['apm_hist_loc'] + df_master['apm_hist_vis']
+                            
+                            # Filtrar por Fase del Partido (Tiempo)
+                            df_similares = df_master[
+                                (df_master['minuto_evaluado'] >= (minuto_sim - margen_minuto)) & 
+                                (df_master['minuto_evaluado'] <= (minuto_sim + margen_minuto))
+                            ].copy()
+                            
+                            if mercado_vivo == "Línea de Goles (Total de Goles)":
+                                # Para goles, nos importa la VELOCIDAD GLOBAL
+                                df_gemelos = df_similares[
+                                    (df_similares['apm_hist_total'] >= (apm_total_sim - margen_apm)) & 
+                                    (df_similares['apm_hist_total'] <= (apm_total_sim + margen_apm))
+                                ].copy()
+                                
+                                total_gemelos = len(df_gemelos)
+                                
+                                if total_gemelos < 3:
+                                    st.warning(f"Se encontraron solo {total_gemelos} escenarios similares. La muestra es muy pequeña para una predicción certera.")
+                                else:
+                                    # ¿Cuántos goles hubo al final en estos escenarios?
+                                    df_gemelos['goles_totales_finales'] = df_gemelos['goles_finales_seleccion'] + df_gemelos['goles_finales_rival']
+                                    df_gemelos['goles_marcados_despues'] = df_gemelos['goles_totales_finales'] - (df_gemelos['goles_local'] + df_gemelos['goles_vis'])
+                                    
+                                    # Asegurarnos de que no haya negativos extraños por errores de tipeo pasados
+                                    df_gemelos['goles_marcados_despues'] = df_gemelos['goles_marcados_despues'].clip(lower=0)
+                                    
+                                    # Estadísticas
+                                    casos_mas_05 = len(df_gemelos[df_gemelos['goles_marcados_despues'] >= 1])
+                                    casos_mas_15 = len(df_gemelos[df_gemelos['goles_marcados_despues'] >= 2])
+                                    
+                                    prob_05 = (casos_mas_05 / total_gemelos) * 100
+                                    prob_15 = (casos_mas_15 / total_gemelos) * 100
+                                    promedio_goles_extra = df_gemelos['goles_marcados_despues'].mean()
+                                    
+                                    st.markdown(f"""
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px;">
+                                        <h4 style="margin-top:0; color:#0F172A;">📊 Proyección: Mercado de Goles</h4>
+                                        <p style="color:#475569;">Basado en <b>{total_gemelos} partidos históricos</b> que tenían este mismo asedio ({apm_total_sim:.1f} APM) alrededor del minuto {minuto_sim}:</p>
+                                        <hr>
+                                        <h2 style="color:#0EA5E9; margin: 10px 0;">{prob_05:.0f}% <span style="font-size:1.1rem; color:#334155;">probabilidad de que anoten MÍNIMO 1 GOL MÁS.</span></h2>
+                                        <h2 style="color:#8B5CF6; margin: 10px 0;">{prob_15:.0f}% <span style="font-size:1.1rem; color:#334155;">probabilidad de que anoten MÍNIMO 2 GOLES MÁS.</span></h2>
+                                        <p style="margin-top:15px;"><b>Promedio de goles extra conseguidos:</b> {promedio_goles_extra:.1f} goles.</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                            else:
+                                # Mercado AMBOS ANOTAN
+                                # Aquí nos importa si el equipo que va perdiendo o en cero tiene fuerza
+                                df_gemelos = df_similares.copy()
+                                total_gemelos = len(df_gemelos)
+                                
+                                if total_gemelos < 3:
+                                    st.warning("Muestra histórica insuficiente para este mercado.")
+                                else:
+                                    # Contamos los casos donde ambos equipos terminaron con >0 goles finales
+                                    casos_btts = len(df_gemelos[(df_gemelos['goles_finales_seleccion'] > 0) & (df_gemelos['goles_finales_rival'] > 0)])
+                                    prob_btts = (casos_btts / total_gemelos) * 100
+                                    
+                                    color_btts = "#10B981" if prob_btts >= 60 else "#F59E0B" if prob_btts >= 40 else "#EF4444"
+                                    dictamen_btts = "Alta viabilidad" if prob_btts >= 60 else "Riesgo extremo" if prob_btts < 40 else "Incierto"
+                                    
+                                    st.markdown(f"""
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px;">
+                                        <h4 style="margin-top:0; color:#0F172A;">🔥 Proyección: Ambos Anotan</h4>
+                                        <p style="color:#475569;">Basado en <b>{total_gemelos} escenarios similares</b> analizados:</p>
+                                        <hr>
+                                        <h1 style="color:{color_btts}; text-align:center; font-size:3rem; margin:10px 0;">{prob_btts:.0f}%</h1>
+                                        <p style="text-align:center; font-weight:bold; color:#334155;">Probabilidad histórica de que el partido termine con goles de ambos lados.</p>
+                                        <p style="text-align:center; color:{color_btts};">Veredicto IA: <b>{dictamen_btts}</b></p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
