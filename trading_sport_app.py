@@ -1479,8 +1479,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     if ird >= 75:
                                         dictamen_fin = f"⚖️ **TOMA DE BENEFICIOS:** El riesgo es rojo (IRD {ird:.1f}%), PERO tienes **${utilidad_proyectada:,.0f} COP** de ganancia. **Caza la cuota y asegura.**"
                                         c_dict = "#FFFBEB"; b_dict = "#D97706"
-                                    elif ird >= 45: # La alerta amarilla que antes ignoraba
-                                        dictamen_fin = f"⚠️ **ALERTA AMARILLA (VIGILANCIA):** El partido está movido (Ritmo Peligroso). Tienes una utilidad de apenas **${utilidad_proyectada:,.0f} COP**. No te confíes, si el asedio no baja, toma los $70 y sal."
+                                    elif ird >= 45: # La alerta amarilla dinámica
+                                        dictamen_fin = f"⚠️ **ALERTA AMARILLA (VIGILANCIA):** El partido está movido (Ritmo Peligroso). Tienes una utilidad temporal de **${utilidad_proyectada:,.0f} COP**. No te confíes; si el asedio no baja, toma esos **${utilidad_proyectada:,.0f} COP** y sal antes de que se complique."
                                         c_dict = "#FEFCE8"; b_dict = "#CA8A04"
                                     else:
                                         dictamen_fin = f"🛡️ **ZONA DE CONFORT:** El partido está tranquilo a tu favor. Estás ganando **${utilidad_proyectada:,.0f} COP**. Puedes dejar correr."
