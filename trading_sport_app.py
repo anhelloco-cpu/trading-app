@@ -2674,7 +2674,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
     # ---------------------------------------------------------
     with tab_pre:
         st.subheader("⚖️ Escáner de Cuotas Gemelas (Valor Esperado)")
-        st.info("Ingresa las cuotas de apertura. El Oráculo buscará en tu historial partidos con cuotas idénticas para revelarte qué pasó realmente y si la apuesta tiene valor (EV+).")
+        st.info("Ingresa las cuotas de apertura. El Oráculo buscará en tu historial partidos con un contexto de precios similar para revelarte si la apuesta tiene valor matemático (EV+).")
         
         col_p1, col_p2, col_p3 = st.columns(3)
         with col_p1:
@@ -2685,19 +2685,28 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             c_vis_pre = st.number_input("Cuota Visita (2):", min_value=1.01, value=3.50, step=0.05)
             
         st.markdown("---")
-        col_ev1, col_ev2 = st.columns(2)
+        
+        # EL NUEVO RADAR DE FLEXIBILIDAD
+        margen = st.slider(
+            "🎯 Radar de Flexibilidad (± Rango de Cuotas):", 
+            min_value=0.05, max_value=1.50, value=0.30, step=0.05, 
+            help="Aumenta este rango si el Oráculo encuentra 0 partidos. Una flexibilidad de 0.30 buscará cuotas que estén 0.30 por encima o por debajo de las que ingresaste."
+        )
+        
+        st.markdown("---")
+        col_ev1, col_ev2, col_ev3 = st.columns(3)
         with col_ev1:
-            mercado_evaluar = st.selectbox("¿Qué mercado quieres auditar financieramente?", ["Gana Local", "Gana Visita", "Empate", "Ambos Anotan", "Línea de Goles (+2.5)"])
+            mercado_evaluar = st.selectbox("¿Qué auditarás?", ["Gana Local", "Gana Visita", "Empate", "Ambos Anotan", "Línea de Goles (+2.5)"])
         with col_ev2:
-            cuota_mercado = st.number_input(f"Cuota ofrecida para '{mercado_evaluar}':", min_value=1.01, value=1.90, step=0.05)
-            stake_pre = st.number_input("Stake a invertir ($ COP):", min_value=5000, value=20000, step=5000)
+            cuota_mercado = st.number_input(f"Cuota de '{mercado_evaluar}':", min_value=1.01, value=1.90, step=0.05)
+        with col_ev3:
+            stake_pre = st.number_input("Stake ($ COP):", min_value=5000, value=20000, step=5000)
 
-        if st.button("🔮 Auditar Cuotas Históricas", use_container_width=True):
+        if st.button("🔮 Auditar Rentabilidad Histórica", use_container_width=True):
             if supabase is None:
                 st.error("Conecta Supabase para acceder al historial de cuotas.")
             else:
-                with st.spinner("Buscando cuotas gemelas en el Libro Mayor..."):
-                    # Extraer solo las operaciones cerradas con sus cuotas y resultados
+                with st.spinner("Lanzando red de búsqueda en el Libro Mayor..."):
                     res_trading = supabase.table("historial_trading").select(
                         "cuota_base_audit, cuota_empate_audit, cuota_amenaza_audit, goles_finales_seleccion, goles_finales_rival"
                     ).eq("estado", "CERRADA").execute()
@@ -2708,15 +2717,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         import pandas as pd
                         df_pre = pd.DataFrame(res_trading.data)
                         
-                        # Limpiar datos nulos
                         df_pre = df_pre.fillna(0)
                         df_pre['goles_finales_seleccion'] = pd.to_numeric(df_pre['goles_finales_seleccion'], errors='coerce').fillna(0)
                         df_pre['goles_finales_rival'] = pd.to_numeric(df_pre['goles_finales_rival'], errors='coerce').fillna(0)
                         
-                        # Margen de tolerancia para considerar una cuota como "Gemela" (±0.15)
-                        margen = 0.15
-                        
-                        # Filtrar el historial buscando configuraciones de mercado idénticas
+                        # Filtrar el historial usando tu nuevo radar de flexibilidad
                         df_gemelas = df_pre[
                             (df_pre['cuota_base_audit'] >= c_loc_pre - margen) & (df_pre['cuota_base_audit'] <= c_loc_pre + margen) &
                             (df_pre['cuota_empate_audit'] >= c_emp_pre - margen) & (df_pre['cuota_empate_audit'] <= c_emp_pre + margen)
@@ -2725,31 +2730,28 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         total_gemelas = len(df_gemelas)
                         
                         if total_gemelas < 3:
-                            st.warning(f"Solo se encontraron {total_gemelas} partidos con estas cuotas exactas en tu historial. La muestra es muy baja para auditar.")
+                            st.warning(f"🚨 Solo se atraparon {total_gemelas} partidos en la red. Por favor, aumenta el 'Radar de Flexibilidad' arriba para capturar más datos históricos.")
                         else:
-                            # Calcular estadísticas de lo que ocurrió realmente en esos partidos
                             ganaron_local = len(df_gemelas[df_gemelas['goles_finales_seleccion'] > df_gemelas['goles_finales_rival']])
                             ganaron_visita = len(df_gemelas[df_gemelas['goles_finales_seleccion'] < df_gemelas['goles_finales_rival']])
                             empataron = len(df_gemelas[df_gemelas['goles_finales_seleccion'] == df_gemelas['goles_finales_rival']])
                             ambos_anotan = len(df_gemelas[(df_gemelas['goles_finales_seleccion'] > 0) & (df_gemelas['goles_finales_rival'] > 0)])
                             over_25 = len(df_gemelas[(df_gemelas['goles_finales_seleccion'] + df_gemelas['goles_finales_rival']) >= 3])
                             
-                            # Extraer la probabilidad real del mercado seleccionado
                             if mercado_evaluar == "Gana Local": prob_real = ganaron_local / total_gemelas
                             elif mercado_evaluar == "Gana Visita": prob_real = ganaron_visita / total_gemelas
                             elif mercado_evaluar == "Empate": prob_real = empataron / total_gemelas
                             elif mercado_evaluar == "Ambos Anotan": prob_real = ambos_anotan / total_gemelas
                             else: prob_real = over_25 / total_gemelas
                             
-                            # Matemática de Expected Value (EV)
                             prob_perder = 1.0 - prob_real
                             ganancia_neta = (stake_pre * cuota_mercado) - stake_pre
                             ev = (prob_real * ganancia_neta) - (prob_perder * stake_pre)
                             roi_ev = (ev / stake_pre) * 100 if stake_pre > 0 else 0
                             
                             st.markdown("---")
-                            st.markdown(f"### 📊 Radiografía de Cuotas Gemelas")
-                            st.write(f"Se encontraron **{total_gemelas} partidos** en tu historial donde la casa ofreció cuotas casi idénticas a estas. Esto fue lo que ocurrió en la realidad:")
+                            st.markdown(f"### 📊 Radiografía de Contexto Similar")
+                            st.write(f"Al lanzar la red con **±{margen:.2f}** de flexibilidad, atrapamos **{total_gemelas} partidos**. En ese tipo de escenarios, esto es lo que ocurrió en la realidad:")
                             
                             c_res1, c_res2, c_res3, c_res4 = st.columns(4)
                             c_res1.metric("Local Ganó", f"{(ganaron_local/total_gemelas)*100:.0f}%")
@@ -2762,17 +2764,17 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             if ev > 0:
                                 st.markdown(f"""
                                 <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 20px; border-radius: 8px;">
-                                    <h3 style="margin-top:0; color: #166534;">✅ APUESTA CON VALOR (EV+)</h3>
-                                    <h1 style="color: #15803D; margin: 10px 0;">+${ev:,.0f} COP <span style="font-size: 1rem;">de valor promedio esperado</span></h1>
-                                    <p style="margin:0; color: #166534;">La casa te está pagando <b>{cuota_mercado}</b>, pero según tu base de datos esto ocurre el <b>{prob_real*100:.1f}%</b> de las veces. A largo plazo, esta apuesta es rentable <b>(ROI: +{roi_ev:.1f}%)</b>. Tienes luz verde.</p>
+                                    <h3 style="margin-top:0; color: #166534;">✅ APUESTA RENTABLE (EV+)</h3>
+                                    <h1 style="color: #15803D; margin: 10px 0;">+${ev:,.0f} COP <span style="font-size: 1rem;">de valor promedio por apuesta</span></h1>
+                                    <p style="margin:0; color: #166534;">La cuota de <b>{cuota_mercado}</b> es excelente. Según tus datos, este evento ocurre el <b>{prob_real*100:.1f}%</b> de las veces en estas condiciones. A largo plazo ganarás <b>(ROI: +{roi_ev:.1f}%)</b>.</p>
                                 </div>
                                 """, unsafe_allow_html=True)
                             else:
                                 st.markdown(f"""
                                 <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 20px; border-radius: 8px;">
-                                    <h3 style="margin-top:0; color: #991B1B;">🚨 TRAMPA DE LA CASA (EV-)</h3>
-                                    <h1 style="color: #B91C1C; margin: 10px 0;">-${abs(ev):,.0f} COP <span style="font-size: 1rem;">de pérdida promedio esperada</span></h1>
-                                    <p style="margin:0; color: #991B1B;">La cuota de <b>{cuota_mercado}</b> no compensa el riesgo. En tu historial, este mercado solo acierta el <b>{prob_real*100:.1f}%</b> de las veces bajo estas cuotas. A largo plazo quebrarás la banca <b>(ROI: {roi_ev:.1f}%)</b>. Descarta esta operación.</p>
+                                    <h3 style="margin-top:0; color: #991B1B;">🚨 TRAMPA MATEMÁTICA (EV-)</h3>
+                                    <h1 style="color: #B91C1C; margin: 10px 0;">-${abs(ev):,.0f} COP <span style="font-size: 1rem;">de pérdida garantizada a largo plazo</span></h1>
+                                    <p style="margin:0; color: #991B1B;">Pagan a <b>{cuota_mercado}</b>, pero el riesgo real es altísimo (solo ocurre un <b>{prob_real*100:.1f}%</b> de las veces). Si apuestas esto repetidamente, quebrarás <b>(ROI: {roi_ev:.1f}%)</b>.</p>
                                 </div>
                                 """, unsafe_allow_html=True)
 
