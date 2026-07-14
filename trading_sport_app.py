@@ -2436,12 +2436,12 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                         except:
                             return "⚡ eSports: Histórico (Sin datos de cuota)"
                 elif "Binario" in est_original:
-                    # Unimos los campos igual que en el seguimiento para que no se quede ciego
-                    texto_mercado = str(row.get('mercado', '')) + " " + str(row.get('partido', ''))
+                    # Pasamos todo el texto a minúsculas para que no hayan errores de lectura
+                    texto_mercado = str(row.get('partido', '')).lower()
                     
-                    if "Ambos Anotan" in texto_mercado:
+                    if "ambos anotan" in texto_mercado:
                         return "🔥 Binario: Ambos Anotan"
-                    elif "Línea de Goles" in texto_mercado:
+                    elif "línea de goles" in texto_mercado or "linea de goles" in texto_mercado:
                         return "⚽ Binario: Línea de Goles"
                     else:
                         return "✍️ Binario: Otros Mercados Personalizados"
