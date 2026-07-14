@@ -2349,12 +2349,12 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
     if supabase is None:
         st.error("Conecta Supabase para acceder al motor estadístico.")
     else:
-        # Extraer registros cerrados solo de la simulación
-        res_sim = supabase.table("historial_trading").select("*").eq("tipo_banca", "SIMULACION").eq("estado", "CERRADA").execute()
-        df_sim = pd.DataFrame(res_sim.data)
+        # Extraer TODOS los registros cerrados (Simulación + Real) para maximizar la muestra estadística
+        res_audit = supabase.table("historial_trading").select("*").eq("estado", "CERRADA").execute()
+        df_sim = pd.DataFrame(res_audit.data) # Mantenemos la variable df_sim interna para no afectar el resto de tu código
         
         if df_sim.empty:
-            st.info("Aún no hay operaciones de simulación finalizadas para auditar.")
+            st.info("Aún no hay operaciones finalizadas para auditar.")
         else:
             # ---------------------------------------------------------
             # 1. CLASIFICADOR DINÁMICO DE SUB-ESTRATEGIAS
