@@ -2956,46 +2956,105 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 
                                 winner_tactico = "Empate" if pred_1x2_rad == 1 else ("Local" if pred_1x2_rad == 2 else "Visita")
                                 btts = "SÍ" if pred_btts_rad == 1 else "NO"
+                                color_btts = "#10B981" if pred_btts_rad == 1 else "#EF4444"
                                 
                                 # ------------------------------------------------------------------
-                                # ⚖️ EL CRUCE HÍBRIDO: CUOTAS GLOBALES VS TÁCTICA EN VIVO
+                                # ⚖️ 1. EL CRUCE HÍBRIDO: CUOTAS GLOBALES VS TÁCTICA EN VIVO
                                 # ------------------------------------------------------------------
                                 c_loc_hist = float(pr['cuota_base_audit'])
                                 c_vis_hist = float(pr['cuota_amenaza_audit'])
                                 
-                                # 1. Definir Favorito Global (Pre-partido)
-                                if c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3:
-                                    fav_global = "Local"
-                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3:
-                                    fav_global = "Visita"
-                                else:
-                                    fav_global = "Fuerzas Parejas"
+                                if c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: fav_global = "Local"
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: fav_global = "Visita"
+                                else: fav_global = "Fuerzas Parejas"
 
-                                # 2. Definir Dominador Táctico en Vivo
-                                if al_rad > av_rad and (al_rad - av_rad) > 10:
-                                    dom_vivo = "Local"
-                                elif av_rad > al_rad and (av_rad - al_rad) > 10:
-                                    dom_vivo = "Visita"
-                                else:
-                                    dom_vivo = "Asedio Dividido"
+                                if al_rad > av_rad and (al_rad - av_rad) > 10: dom_vivo = "Local"
+                                elif av_rad > al_rad and (av_rad - al_rad) > 10: dom_vivo = "Visita"
+                                else: dom_vivo = "Asedio Dividido"
 
-                                # 3. El Veredicto de la Fusión
-                                veredicto_hibrido = ""
                                 if fav_global == "Fuerzas Parejas":
-                                    veredicto_hibrido = f"⚖️ **Duelo Equilibrado:** Históricamente parejos. Confía 100% en la cancha: el dominador táctico es **{dom_vivo}**."
+                                    veredicto_hibrido = f"⚖️ **Duelo Equilibrado:** Históricamente parejos. Confía en la cancha: el dominador táctico es **{dom_vivo}**."
                                     color_hib = "#3B82F6"; bg_hib = "#EFF6FF"
                                 elif fav_global == dom_vivo:
-                                    veredicto_hibrido = f"🟢 **CONFIRMACIÓN ABSOLUTA:** El **{fav_global}** era el favorito global, y además está arrasando en la cancha. Predicción altamente segura."
+                                    veredicto_hibrido = f"🟢 **CONFIRMACIÓN ABSOLUTA:** El **{fav_global}** era favorito global, y además está arrasando. Predicción altamente segura."
                                     color_hib = "#15803D"; bg_hib = "#F0FDF4"
                                 elif dom_vivo == "Asedio Dividido":
-                                    veredicto_hibrido = f"⚠️ **Alerta de Jerarquía:** El partido está parejo en ataques, pero ojo, el **{fav_global}** es el favorito histórico y puede destrabarlo con jerarquía en cualquier momento."
+                                    veredicto_hibrido = f"⚠️ **Alerta de Jerarquía:** Ataques parejos, pero el **{fav_global}** es favorito histórico y puede destrabarlo por jerarquía."
                                     color_hib = "#B45309"; bg_hib = "#FFFBEB"
                                 else:
-                                    veredicto_hibrido = f"🚨 **CHOQUE DE TRENES (TRAMPA):** El **{fav_global}** es el favorito histórico (Cuota), pero el **{dom_vivo}** lo está sometiendo a puros ataques físicos. Es un escenario de alta varianza, cuidado."
+                                    veredicto_hibrido = f"🚨 **CHOQUE DE TRENES (TRAMPA):** El **{fav_global}** es favorito, pero el **{dom_vivo}** lo está sometiendo. Escenario de alta varianza."
                                     color_hib = "#B91C1C"; bg_hib = "#FEF2F2"
 
                                 # ------------------------------------------------------------------
-                                # RENDERIZADO DEL RESULTADO HÍBRIDO
+                                # 🎯 2. MOTOR DE TRIANGULACIÓN (MARCADOR EXACTO)
+                                # ------------------------------------------------------------------
+                                goles_actuales_totales = gl_rad + gv_rad
+                                goles_nuevos_esperados = max(0, round(pred_goles_rad) - goles_actuales_totales)
+                                
+                                calc_loc = gl_rad
+                                calc_vis = gv_rad
+
+                                if pred_1x2_rad == 1: 
+                                    if calc_loc > calc_vis: calc_vis = calc_loc 
+                                    elif calc_vis > calc_loc: calc_loc = calc_vis 
+                                    elif goles_nuevos_esperados >= 2:
+                                        calc_loc += 1
+                                        calc_vis += 1
+                                elif pred_1x2_rad == 2:
+                                    if calc_loc <= calc_vis: calc_loc = calc_vis + max(1, goles_nuevos_esperados)
+                                    else: calc_loc += goles_nuevos_esperados
+                                else:
+                                    if calc_vis <= calc_loc: calc_vis = calc_loc + max(1, goles_nuevos_esperados)
+                                    else: calc_vis += goles_nuevos_esperados
+
+                                if pred_btts_rad == 1:
+                                    if calc_loc == 0: calc_loc = 1
+                                    if calc_vis == 0: calc_vis = 1
+
+                                marcador_exacto = f"{calc_loc} - {calc_vis}"
+
+                                # ------------------------------------------------------------------
+                                # ⏱️ 3. ÁRBITRO DE TIEMPO (FILTRO ANTI-REMONTADAS)
+                                # ------------------------------------------------------------------
+                                minutos_restantes = 90 - m_rad
+                                diferencia_goles_real = abs(gl_rad - gv_rad) 
+                                lider_real = 1 if gl_rad == gv_rad else (2 if gl_rad > gv_rad else 3)
+                                
+                                arbitro_msg = ""
+                                if lider_real != 1 and pred_1x2_rad != lider_real:
+                                    if (diferencia_goles_real * 10) > minutos_restantes:
+                                        if lider_real == 2:
+                                            calc_loc = gl_rad
+                                            calc_vis = gv_rad + (1 if pred_btts_rad == 1 and gv_rad == 0 and minutos_restantes >= 5 else 0)
+                                            marcador_exacto = f"{calc_loc} - {calc_vis}"
+                                            winner_tactico = "Equipo Local (Corregido por Reloj)"
+                                        else:
+                                            calc_loc = gl_rad + (1 if pred_btts_rad == 1 and gl_rad == 0 and minutos_restantes >= 5 else 0)
+                                            calc_vis = gv_rad
+                                            marcador_exacto = f"{calc_loc} - {calc_vis}"
+                                            winner_tactico = "Equipo Visitante (Corregido por Reloj)"
+                                            
+                                        arbitro_msg = f"""
+                                        <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                                            <h4 style="margin-top:0; color:#B45309;">⏱️ ALERTA DEL ÁRBITRO DE TIEMPO</h4>
+                                            <p style="margin:0; color:#92400E;">La IA proyectó Remontada/Empate, pero la diferencia es de <b>{diferencia_goles_real} goles</b> y solo quedan <b>{minutos_restantes} minutos</b>. El Risk Manager ha bloqueado la predicción.</p>
+                                        </div>
+                                        """
+                                
+                                # Advertencia de Sentido Común BTTS
+                                apm_loc = al_rad / max(1, m_rad)
+                                apm_vis = av_rad / max(1, m_rad)
+                                btts_msg = ""
+                                if pred_btts_rad == 1 and (apm_loc < 0.5 or apm_vis < 0.5):
+                                    btts_msg = """
+                                    <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                                        <h4 style="margin-top:0; color:#B45309;">⚠️ ADVERTENCIA DE SENTIDO COMÚN</h4>
+                                        <p style="margin:0; color:#92400E;">La IA proyecta <b>SÍ (Ambos Anotan)</b> pero el volumen ofensivo actual es de <b>menos de 0.5 APM</b>. Sugerimos extrema cautela.</p>
+                                    </div>
+                                    """
+
+                                # ------------------------------------------------------------------
+                                # 🖼️ RENDERIZADO VISUAL GIGANTE
                                 # ------------------------------------------------------------------
                                 st.markdown(f"""
                                 <div style="background-color: {bg_hib}; padding: 15px; border-left: 6px solid {color_hib}; border-radius: 4px; margin-bottom: 15px;">
@@ -3004,16 +3063,25 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 </div>
                                 """, unsafe_allow_html=True)
 
+                                if arbitro_msg: st.markdown(arbitro_msg, unsafe_allow_html=True)
+                                if btts_msg: st.markdown(btts_msg, unsafe_allow_html=True)
+
                                 st.markdown(f"""
-                                <div style="background-color: #F8FAFC; padding: 15px; border-left: 5px solid #3B82F6; border-radius: 4px;">
-                                    <h5 style="margin-top:0;">📊 Salida Pura del Modelo Táctico</h5>
-                                    <p style="margin:0;"><b>Fuerza Ganadora Proyectada (IA Física):</b> {winner_tactico}</p>
-                                    <p style="margin:0;"><b>Goles Finales Esperados:</b> {pred_goles_rad:.2f}</p>
-                                    <p style="margin:0;"><b>¿Ambos Anotan?:</b> {btts}</p>
-                                    <hr style="margin:5px 0;">
-                                    <p style="margin:0; color:#B45309;"><b>Nivel de Presión IRD:</b> {ird_rad:.1f}%</p>
+                                <div style="background-color: #1E293B; border: 2px solid #3B82F6; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 15px;">
+                                    <h4 style="margin-top:0; color:#94A3B8;">🎯 MARCADOR EXACTO PROYECTADO</h4>
+                                    <h1 style="color:#FFFFFF; font-size: 3.5rem; margin: 10px 0; font-family: monospace;">{marcador_exacto}</h1>
+                                    <p style="margin:0; font-size: 0.9rem; color:#64748B;">Nivel de Asedio en Cancha (IRD): {ird_rad:.1f}%</p>
                                 </div>
                                 """, unsafe_allow_html=True)
+                                
+                                col_r1, col_r2, col_r3 = st.columns(3)
+                                with col_r1:
+                                    st.markdown(f"""<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;"><h4 style="margin-top:0; color:#475569;">🏆 Ganador</h4><h3 style="color:#0F172A; margin: 10px 0; font-size: 1.2rem;">{winner_tactico}</h3></div>""", unsafe_allow_html=True)
+                                with col_r2:
+                                    st.markdown(f"""<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;"><h4 style="margin-top:0; color:#475569;">⚽ Totales</h4><h3 style="color:#0EA5E9; margin: 10px 0; font-size: 1.2rem;">{pred_goles_rad:.1f}</h3></div>""", unsafe_allow_html=True)
+                                with col_r3:
+                                    st.markdown(f"""<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;"><h4 style="margin-top:0; color:#475569;">🔥 Ambos</h4><h3 style="color:{color_btts}; margin: 10px 0; font-size: 1.2rem;">{btts}</h3></div>""", unsafe_allow_html=True)
+
                             except Exception as e:
                                 st.error(f"Error procesando IA táctica: {e}")
                                 
