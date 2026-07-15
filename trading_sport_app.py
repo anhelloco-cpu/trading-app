@@ -2985,11 +2985,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     veredicto_hibrido = f"🚨 **CHOQUE DE TRENES (TRAMPA):** El **{fav_global}** es favorito, pero el **{dom_vivo}** lo está sometiendo. Escenario de alta varianza."
                                     color_hib = "#B91C1C"; bg_hib = "#FEF2F2"
 
-                                # -------------------------------------------------------------
-                                # 🎯 MOTOR DE TRIANGULACIÓN E INYECCIÓN FÍSICA
-                                # -------------------------------------------------------------
-                                goles_actuales_totales = gl_rad + gv_rad # Ojo: Usa g_loc_sim y g_vis_sim si estás en el Laboratorio
-                                minutos_restantes = 90 - m_rad # Ojo: Usa minuto_sim en Laboratorio
+                                # ------------------------------------------------------------------
+                                # 🎯 2. MOTOR DE TRIANGULACIÓN E INYECCIÓN FÍSICA
+                                # ------------------------------------------------------------------
+                                goles_actuales_totales = gl_rad + gv_rad
+                                minutos_restantes = 90 - m_rad
                                 
                                 apm_loc_crudo = al_rad / max(1, m_rad)
                                 apm_vis_crudo = av_rad / max(1, m_rad)
@@ -2997,9 +2997,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 # 1. MODO GOLEADA (Romper el conservadurismo de la IA)
                                 goles_esperados_ia = round(pred_goles_rad)
                                 
-                                # Si un equipo está masacrando (>1.5 APM) proyectamos goles por FÍSICA PURA, no por historia.
                                 if apm_loc_crudo >= 1.5 or apm_vis_crudo >= 1.5:
-                                    # 1 gol proyectado por cada 30 minutos de asedio a ese ritmo brutal
                                     goles_fisicos = goles_actuales_totales + int((minutos_restantes / 30) * max(apm_loc_crudo, apm_vis_crudo))
                                     goles_esperados_ia = max(goles_esperados_ia, goles_fisicos)
 
@@ -3022,12 +3020,30 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     if calc_vis <= calc_loc: calc_vis = calc_loc + max(1, goles_nuevos_esperados)
                                     else: calc_vis += goles_nuevos_esperados
 
-                                # 3. CANDADO DEL BTTS (¡Cero regalos!)
-                                # Solo se le fuerza un gol al equipo en cero SI Y SOLO SI está atacando lo mínimo decente (0.5 APM)
-                                if pred_btts_rad == 1:
-                                    if calc_loc == 0 and apm_loc_crudo >= 0.5: calc_loc = 1
-                                    if calc_vis == 0 and apm_vis_crudo >= 0.5: calc_vis = 1
-
+                                # 3. EL PIVOTE DINÁMICO (BTTS BASADO EN ASEDIO MUTUO)
+                                if apm_loc_crudo >= 0.6 and apm_vis_crudo >= 0.6:
+                                    # Ambos equipos están atacando peligrosamente: ES UN SÍ ROTUNDO
+                                    calc_loc = max(1, calc_loc)
+                                    calc_vis = max(1, calc_vis)
+                                    btts = "SÍ (Alta Prob. Física)"
+                                    color_btts = "#10B981"
+                                elif apm_loc_crudo < 0.4 or apm_vis_crudo < 0.4:
+                                    # Uno de los dos equipos está casi muerto: ES UN NO FÍSICO
+                                    btts = "NO (Falta Asedio)"
+                                    color_btts = "#EF4444"
+                                    if apm_loc_crudo < 0.4 and gl_rad == 0: calc_loc = 0
+                                    if apm_vis_crudo < 0.4 and gv_rad == 0: calc_vis = 0
+                                else:
+                                    # Zona media: Confiamos en lo que proyectó la IA inicialmente
+                                    if pred_btts_rad == 1:
+                                        calc_loc = max(1, calc_loc)
+                                        calc_vis = max(1, calc_vis)
+                                        btts = "SÍ (Proyectado IA)"
+                                        color_btts = "#10B981"
+                                    else:
+                                        btts = "NO (Proyectado IA)"
+                                        color_btts = "#EF4444"
+                                        
                                 marcador_exacto = f"{calc_loc} - {calc_vis}"
                                 # --- NUEVO: SINCRONIZAR LETRERO BTTS CON LA REALIDAD ---
                                 if calc_loc > 0 and calc_vis > 0:
