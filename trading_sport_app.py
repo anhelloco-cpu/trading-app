@@ -1541,50 +1541,92 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: fav_global = "Visita"
                                 else: fav_global = "Fuerzas Parejas"
 
-                                # C. CEREBRO PATRIMONIAL (Calculamos % de rescate usando el saldo real de la banca)
-                                saldo_banca_actual = obtener_saldo_banca(tipo_banca_operacion)
-                                pct_rescate_banca = (oferta_cashout / saldo_banca_actual) * 100 if saldo_banca_actual > 0 and oferta_cashout > 0 else 0
+                                # C. FUSIÓN PATRIMONIAL (Gestión de Riesgo)
+                                pct_rescate_banca = (oferta_cashout / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
                                 
-                                # Lógica de dominio a favor
+                                # -------------------------------------------------------------
+                                # D. LÓGICA DE COMPRENSIÓN DE MERCADO (El Bug de "A-no-tan")
+                                # -------------------------------------------------------------
+                                sel_lower = sel_ini.lower()
+                                palabras_sel = sel_lower.replace("(", "").replace(")", "").split()
+                                
+                                aposto_btts_si = "sí" in palabras_sel or "si" in palabras_sel or ("ambos" in sel_lower and ("sí" in sel_lower or "si" in palabras_sel))
+                                aposto_btts_no = "no" in palabras_sel or ("ambos" in sel_lower and "no" in palabras_sel)
+                                aposto_over = "más" in palabras_sel or "mas" in palabras_sel or "over" in palabras_sel
+                                aposto_under = "menos" in palabras_sel or "under" in palabras_sel
+                                aposto_local = "local" in sel_lower or "1" in palabras_sel
+                                aposto_visita = "visita" in sel_lower or "2" in palabras_sel
+                                aposto_empate = "empate" in sel_lower or "x" in palabras_sel
+
                                 estamos_dominando = False
-                                if "Local" in sel_ini and dom_vivo == "Local": estamos_dominando = True
-                                elif "Visita" in sel_ini and dom_vivo == "Visita": estamos_dominando = True
-                                elif "Sí" in sel_ini and apm_total >= 1.2: estamos_dominando = True
-                                elif "No" in sel_ini and apm_total < 0.6: estamos_dominando = True
+                                tipo_mercado = "1X2"
                                 
-                                dictamen_fin = ""
+                                if aposto_btts_si or aposto_over:
+                                    tipo_mercado = "GOLES"
+                                    if apm_total >= 1.2: estamos_dominando = True
+                                elif aposto_btts_no or aposto_under:
+                                    tipo_mercado = "GOLES"
+                                    if apm_total < 0.6: estamos_dominando = True
+                                else:
+                                    if aposto_local and dom_vivo == "Local": estamos_dominando = True
+                                    elif aposto_visita and dom_vivo == "Visita": estamos_dominando = True
+                                    elif aposto_empate and dom_vivo == "Empate/Asedio Dividido": estamos_dominando = True
+
+                                if tipo_mercado == "GOLES":
+                                    texto_fav = "La física proyecta el ritmo que necesitas." if (aposto_btts_si or aposto_over) else "El partido está trabado, ideal para ti."
+                                    texto_apoyo = "El ritmo del partido te respalda."
+                                    texto_trampa = "El ritmo de la cancha va totalmente en contra de tu pronóstico."
+                                    eres_favorito = False
+                                else:
+                                    eres_favorito = True if (fav_global == "Local" and aposto_local) or (fav_global == "Visita" and aposto_visita) else False
+                                    texto_fav = f"Tienes jerarquía ({fav_global})." if eres_favorito else "La táctica en cancha compensa no ser favorito."
+                                    texto_apoyo = "Tu equipo domina físicamente."
+                                    texto_trampa = f"Eres Favorito ({fav_global}), pero te están sometiendo físicamente."
+
+                                # =====================================================================
+                                # DICTAMEN MAESTRO INSTITUCIONAL
+                                # =====================================================================
+                                veredicto_titulo = ""
+                                veredicto_desc = ""
+                                color_alerta = "#E2E8F0"
+                                bg_alerta = "#F8FAFC"
+
                                 if cuota_sl > 0 and cuota_salida <= cuota_sl:
-                                    dictamen_fin = f"🛑 **¡STOP LOSS ROTO!** La cuota actual ({cuota_salida:.2f}) perforó tu límite. El riesgo sube. **EVACUACIÓN OBLIGATORIA AHORA**."
-                                    c_dict = "#FEF2F2"; b_dict = "#B91C1C"
+                                    veredicto_titulo = "🛑 STOP LOSS ESTRUCTURAL ROTO"
+                                    veredicto_desc = f"La cuota ({cuota_salida:.2f}) perforó tu límite operativo. Ejecuta la cobertura o toma el Cashout para evitar pérdida total."
+                                    color_alerta = "#B91C1C"; bg_alerta = "#FEF2F2"
                                 elif pct_rescate_banca < 0.5 and oferta_cashout > 0:
-                                    dictamen_fin = f"🛡️ **RIESGO CERO (Marginal):** La casa te ofrece migajas (${oferta_cashout:,.0f}). No salves centavos. Deja que muera o suceda un milagro estadístico."
-                                    c_dict = "#F1F5F9"; b_dict = "#64748B"
+                                    veredicto_titulo = "🛡️ RIESGO CERO (Marginalidad Absoluta)"
+                                    veredicto_desc = f"La casa te ofrece migajas (${oferta_cashout:,.0f}, {pct_rescate_banca:.2f}% de tu banca). No salves centavos. Deja correr."
+                                    color_alerta = "#64748B"; bg_alerta = "#F1F5F9"
                                 elif estamos_dominando:
-                                    if cuota_salida >= cuota_minima_rentable:
-                                        dictamen_fin = f"⚖️ **TOMA DE BENEFICIOS:** Tienes el dominio físico Y lograste Break-Even (Utilidad: **${utilidad_proyectada:,.0f}**). Caza la cuota y asegura ya."
-                                        c_dict = "#FFFBEB"; b_dict = "#D97706"
-                                    else:
-                                        texto_fav = f"Tienes jerarquía ({fav_global})." if fav_global in sel_ini else "La táctica compensa no ser favorito."
-                                        dictamen_fin = f"🟢 **MANTENER POSICIÓN:** Tu equipo domina físicamente. {texto_fav} El asedio te respalda. ¡Deja correr la operación!"
-                                        c_dict = "#F0FDF4"; b_dict = "#15803D"
-                                elif not estamos_dominando and fav_global not in sel_ini:
+                                    veredicto_titulo = "🟢 MANTENER POSICIÓN (Respaldo Táctico IA)"
+                                    veredicto_desc = f"{texto_apoyo} {texto_fav} No regales la posición. Dejar correr maximiza tu ROI a largo plazo."
+                                    color_alerta = "#10B981"; bg_alerta = "#ECFDF5"
+                                elif not estamos_dominando and not eres_favorito:
                                     if pct_rescate_banca >= 2.0:
-                                        dictamen_fin = f"🚨 **AMPUTACIÓN VITAL:** Muerte táctica. La IA no te apoya ni eres favorito. Recupera esos ${oferta_cashout:,.0f} INMEDIATAMENTE (Salvas {pct_rescate_banca:.1f}% de liquidez)."
-                                        c_dict = "#FEF2F2"; b_dict = "#DC2626"
+                                        veredicto_titulo = "🚨 EVACUACIÓN DE EMERGENCIA (Amputación Vital)"
+                                        veredicto_desc = f"Muerte táctica confirmada. {texto_trampa} Toma los ${oferta_cashout:,.0f} de inmediato para salvar el {pct_rescate_banca:.1f}% de tu banca líquida."
+                                        color_alerta = "#EF4444"; bg_alerta = "#FEF2F2"
                                     else:
-                                        dictamen_fin = f"🟡 **COBERTURA ESTRATÉGICA:** El partido luce oscuro frente al favorito ({fav_global}). Considera tomar Cashout o cazar cuota para frenar la sangría."
-                                        c_dict = "#FFFBEB"; b_dict = "#D97706"
-                                elif not estamos_dominando and fav_global in sel_ini:
-                                    if ird >= 75:
-                                        dictamen_fin = f"⚠️ **ALERTA DE TRAMPA:** Eres Favorito, pero el asedio en contra es letal (IRD: {ird:.1f}%). Ejecuta el seguro ahora mismo."
-                                        c_dict = "#FEF2F2"; b_dict = "#DC2626"
-                                    else:
-                                        dictamen_fin = f"⏳ **PACIENCIA TÁCTICA:** Eres Favorito. Aunque no domines, el asedio rival está controlado. Aguanta sin quitar los ojos del partido."
-                                        c_dict = "#EFF6FF"; b_dict = "#1D4ED8"
-                                        
+                                        veredicto_titulo = "🟡 COBERTURA ESTRATÉGICA (Mitigación)"
+                                        veredicto_desc = f"El partido luce oscuro frente al favorito ({fav_global}). Protege capital. Inyectar ${monto_a_inyectar:,.0f} limita tu pérdida a ${abs(utilidad_proyectada):,.0f} si rompes Break-Even."
+                                        color_alerta = "#F59E0B"; bg_alerta = "#FFFBEB"
+                                elif not estamos_dominando and eres_favorito:
+                                    veredicto_titulo = "⚠️ ALERTA DE TRAMPA (Jerarquía vs Física)"
+                                    veredicto_desc = f"{texto_trampa} Mantén con precaución extrema. Si el asedio te quema (IRD > 75%), busca la puerta de salida."
+                                    color_alerta = "#3B82F6"; bg_alerta = "#EFF6FF"
+
                                 st.markdown(f"""
-                                <div style="background-color: {c_dict}; border-left: 5px solid {b_dict}; padding: 15px; border-radius: 4px; margin-top: 15px; margin-bottom: 15px;">
-                                    <p style="margin: 0; font-size: 0.95rem; color: {b_dict};">{dictamen_fin}</p>
+                                <div style="background-color: {bg_alerta}; border-left: 8px solid {color_alerta}; padding: 20px; border-radius: 8px; margin: 15px 0;">
+                                    <h3 style="margin-top:0; color:{color_alerta}; font-size:1.3rem;">{veredicto_titulo}</h3>
+                                    <p style="font-size: 1.05rem; color:#334155; margin-bottom:15px;">{veredicto_desc}</p>
+                                    <hr style="border-color:{color_alerta}; opacity:0.3; margin: 10px 0;">
+                                    <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
+                                        <span style="color:#0F172A;"><b>Táctica (IA):</b> {dom_vivo} ({ird:.1f}% IRD)</span>
+                                        <span style="color:#0F172A;"><b>Historia:</b> Favorito {fav_global}</span>
+                                        <span style="color:#0F172A;"><b>Impacto Riesgo:</b> {pct_rescate_banca:.2f}% Banca</span>
+                                    </div>
                                 </div>
                                 """, unsafe_allow_html=True)
 
@@ -1863,7 +1905,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             if es_apuesta_libre:
                                 st.write("### 🏁 Resolución de Apuesta Directa")
                                 with st.form(f"gestion_libre_{op['codigo']}"):
-                                    # 🛑 CORRECCIÓN: Opciones binarias reales para Apuesta Libre
                                     resultado_libre = st.radio(
                                         "¿Se cumplió tu pronóstico?", 
                                         ["✅ Apuesta Acertada (Cobrar Ganancia)", "❌ Apuesta Fallada (Pérdida de Stake)"], 
@@ -2029,6 +2070,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     cuota_input_ft = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"cuota_live_{op['codigo']}")
                                     cuota_ingresada = cuota_input_ft if cuota_input_ft is not None else 1.01
                                     
+                                    oferta_cashout_ft = st.number_input("💰 Oferta Cashout ($):", min_value=0.0, step=1000.0, value=0.0, key=f"cash_ft_{op['codigo']}")
+                                    
                                     if st.button("📸 Guardar Foto y Cerrar Ventana", key=f"btn_foto_{op['codigo']}", use_container_width=True):
                                         try:
                                             nueva_foto = {
@@ -2042,7 +2085,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                 "cuota_ofrecida": float(cuota_ingresada)
                                             }
                                             supabase.table("registro_fotos").insert(nueva_foto).execute()
-                                            st.success(f"✅ Registro de auditoría (Táctica + Precio) completado para el min {minuto_actual}.")
+                                            st.success(f"✅ Registro de auditoría completado para el min {minuto_actual}.")
                                             st.rerun()
                                         except Exception as e:
                                             st.error(f"❌ Error al guardar en Supabase: {str(e)}")
@@ -2123,102 +2166,128 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     </div>
                                     """, unsafe_allow_html=True)
 
+                                    # =====================================================================
+                                    # 4. ORÁCULO TRI-FACTOR (IA + HISTORIA + RIESGO PATRIMONIAL)
+                                    # =====================================================================
+                                    import joblib
+                                    import pandas as pd
+                                    
+                                    try:
+                                        X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird}])
+                                        m1x2_liq = joblib.load('modelo_1x2.pkl')
+                                        pred_1x2 = m1x2_liq.predict(X_liq)[0]
+                                        dom_vivo = "Local" if pred_1x2 == 2 else ("Visita" if pred_1x2 == 3 else "Empate/Asedio Dividido")
+                                    except:
+                                        dom_vivo = "Local" if apm_nuestros > apm_rival and (atkp_nuestros - atkp_rival) > 10 else ("Visita" if apm_rival > apm_nuestros and (atkp_rival - atkp_nuestros) > 10 else "Empate/Asedio Dividido")
+
+                                    c_loc_hist = float(op.get('cuota_base_audit', 2.0))
+                                    c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
+                                    if c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: fav_global = "Local"
+                                    elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: fav_global = "Visita"
+                                    else: fav_global = "Fuerzas Parejas"
+
+                                    saldo_banca_actual = obtener_saldo_banca(tipo_banca_operacion)
+                                    pct_rescate_banca = (oferta_cashout_ft / saldo_banca_actual) * 100 if saldo_banca_actual > 0 and oferta_cashout_ft > 0 else 0
+                                    
+                                    # Filtro Inteligente de Mercado (Para evitar el bug de "A-no-tan")
+                                    sel_lower = sel_ini.lower()
+                                    palabras_sel = sel_lower.replace("(", "").replace(")", "").split()
+                                    
+                                    aposto_btts_si = "sí" in palabras_sel or "si" in palabras_sel or ("ambos" in sel_lower and ("sí" in sel_lower or "si" in palabras_sel))
+                                    aposto_btts_no = "no" in palabras_sel or ("ambos" in sel_lower and "no" in palabras_sel)
+                                    aposto_over = "más" in palabras_sel or "mas" in palabras_sel or "over" in palabras_sel
+                                    aposto_under = "menos" in palabras_sel or "under" in palabras_sel
+                                    aposto_local = "local" in sel_lower or "1" in palabras_sel
+                                    aposto_visita = "visita" in sel_lower or "2" in palabras_sel
+                                    aposto_empate = "empate" in sel_lower or "x" in palabras_sel
+
+                                    estamos_dominando = False
+                                    tipo_mercado = "1X2"
+                                    
+                                    if aposto_btts_si or aposto_over:
+                                        tipo_mercado = "GOLES"
+                                        if apm_total >= 1.2: estamos_dominando = True
+                                    elif aposto_btts_no or aposto_under:
+                                        tipo_mercado = "GOLES"
+                                        if apm_total < 0.6: estamos_dominando = True
+                                    else:
+                                        if aposto_local and dom_vivo == "Local": estamos_dominando = True
+                                        elif aposto_visita and dom_vivo == "Visita": estamos_dominando = True
+                                        elif aposto_empate and dom_vivo == "Empate/Asedio Dividido": estamos_dominando = True
+
+                                    if tipo_mercado == "GOLES":
+                                        texto_fav = "La física proyecta el ritmo que necesitas." if (aposto_btts_si or aposto_over) else "El partido está trabado, ideal para tu lectura."
+                                        texto_apoyo = "El ritmo del partido te respalda totalmente."
+                                        texto_trampa = "El ritmo de la cancha va en contra de tu pronóstico."
+                                        eres_favorito = False
+                                    else:
+                                        eres_favorito = True if (fav_global == "Local" and aposto_local) or (fav_global == "Visita" and aposto_visita) else False
+                                        texto_fav = f"Tienes jerarquía ({fav_global})." if eres_favorito else "La táctica en cancha compensa no ser favorito."
+                                        texto_apoyo = "Tu equipo domina físicamente."
+                                        texto_trampa = f"Eres Favorito ({fav_global}), pero te están sometiendo."
+
                                     dictamen_html = ""
-                                    va_empatado = (diferencia_goles == 0)
                                     
                                     if cuota_sl > 0.0 and cuota_ingresada <= cuota_sl:
                                         dictamen_html = f"""
                                         <div style='background-color: #FEF2F2; border-left: 6px solid #B91C1C; padding: 15px; margin-top: 15px; border-radius: 4px; color: #7F1D1D;'>
-                                            <h5 style='margin-top:0; color:#991B1B;'>🛑 DICTAMEN: STOP LOSS ESTRUCTURAL ALCANZADO</h5>
-                                            <p style='margin:0; font-size:0.95rem;'>La cuota del mercado (<b>{cuota_ingresada:.2f}</b>) ha perforado tu límite. Quema la reserva ahora mismo.</p>
+                                            <h5 style='margin-top:0; color:#991B1B;'>🛑 DICTAMEN: STOP LOSS ESTRUCTURAL ROTO</h5>
+                                            <p style='margin:0; font-size:0.95rem;'>La cuota ({cuota_ingresada:.2f}) perforó tu límite. Quema la reserva ahora mismo.</p>
                                         </div>
                                         """
-                                    elif ird >= 85.0:
-                                        if ratio_eficiencia < 1.0:
+                                    elif pct_rescate_banca < 0.5 and oferta_cashout_ft > 0:
+                                        dictamen_html = f"""
+                                        <div style='background-color: #F1F5F9; border-left: 6px solid #64748B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #334155;'>
+                                            <h5 style='margin-top:0; color:#475569;'>🛡️ DICTAMEN: RIESGO CERO (Marginalidad Absoluta)</h5>
+                                            <p style='margin:0; font-size:0.95rem;'>La casa te ofrece migajas (${oferta_cashout_ft:,.0f}). No salves centavos. Deja correr la posición.</p>
+                                        </div>
+                                        """
+                                    elif estamos_dominando:
+                                        if cuota_ingresada >= cuota_be and cuota_be > 0:
                                             dictamen_html = f"""
-                                            <div style='background-color: #FEF2F2; border-left: 6px solid #B91C1C; padding: 15px; margin-top: 15px; border-radius: 4px; color: #7F1D1D;'>
-                                                <h5 style='margin-top:0; color:#991B1B;'>🚨 DICTAMEN: RIESGO CRÍTICO + SEGURO EXTORSIVO</h5>
-                                                <p style='margin:0; font-size:0.95rem;'>Colapso inminente (IRD: {ird:.1f}%), pero la cuota es usurera. Decisión a discreción del Trader.</p>
+                                            <div style='background-color: #FFFBEB; border-left: 6px solid #D97706; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;'>
+                                                <h5 style='margin-top:0; color:#B45309;'>⚖️ DICTAMEN: TOMA DE BENEFICIOS LÓGICA</h5>
+                                                <p style='margin:0; font-size:0.95rem;'>Tienes dominio físico Y lograste Break-Even. Caza la cuota y asegura ya.</p>
                                             </div>
                                             """
                                         else:
                                             dictamen_html = f"""
-                                            <div style='background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;'>
-                                                <h5 style='margin-top:0; color:#991B1B;'>🚨 DICTAMEN: ORDEN DE EVACUACIÓN INMEDIATA</h5>
-                                                <p style='margin:0; font-size:0.95rem;'>Ejecuta la cobertura de inmediato para salvaguardar el capital residual.</p>
+                                            <div style='background-color: #F0FDF4; border-left: 6px solid #10B981; padding: 15px; margin-top: 15px; border-radius: 4px; color: #064E3B;'>
+                                                <h5 style='margin-top:0; color:#047857;'>🟢 DICTAMEN: MANTENER POSICIÓN (Respaldo IA)</h5>
+                                                <p style='margin:0; font-size:0.95rem;'>{texto_apoyo} {texto_fav} ¡Deja correr la operación!</p>
                                             </div>
                                             """
-                                    elif diferencia_goles >= 2 or (diferencia_goles == 1 and tiempo_restante <= 10 and ird < 60.0):
-                                        dictamen_html = f"""
-                                        <div style='background-color: #F8FAFC; border-left: 6px solid #8B5CF6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #4C1D95;'>
-                                            <h5 style='margin-top:0; color:#5B21B6;'>🔮 DICTAMEN: REVOCAR COBERTURA (VENTAJA CONCLUYENTE)</h5>
-                                            <p style='margin:0; font-size:0.95rem;'>Retén tu reserva intacta y maximiza el rendimiento.</p>
-                                        </div>
-                                        """
-                                    elif (diferencia_goles <= 0) and (share_nuestro > 50.0) and (ird < 85.0):
-                                        dictamen_html = f"""
-                                        <div style='background-color: #F0FDF4; border-left: 6px solid #059669; padding: 15px; margin-top: 15px; border-radius: 4px; color: #064E3B;'>
-                                            <h5 style='margin-top:0; color:#047857;'>🔍 DICTAMEN: PACIENCIA TÁCTICA (MOMENTUM A FAVOR)</h5>
-                                            <p style='margin:0; font-size:0.95rem;'>La tendencia estadística te ampara (IRD: {ird:.1f}%). Mantén la posición.</p>
-                                        </div>
-                                        """
-                                    elif util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
-                                        dictamen_html = """
-                                        <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
-                                            <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: ARBITRAJE PERFECTO DETECTADO</h5>
-                                            <p style="margin: 0; font-size: 0.95rem;">La cuota liquida en verde en ambos escenarios. Asegura utilidades.</p>
-                                        </div>
-                                        """
-                                    elif cuota_ingresada >= op.get('cuota_objetivo', 0):
-                                        dictamen_html = """
-                                        <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
-                                            <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: EQUILIBRIO OPERATIVO VIGENTE</h5>
-                                        </div>
-                                        """
-                                    elif ratio_eficiencia >= 1.0:
-                                        if va_empatado:
-                                            if ird > 70:
-                                                dictamen_html = f"""
-                                                <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
-                                                    <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: ALERTA DE QUIEBRE (SALVATAJE DEL EMPATE)</h5>
-                                                </div>
-                                                """
-                                            else:
-                                                dictamen_html = f"""
-                                                <div style="background-color: #F8FAFC; border-left: 6px solid #94A3B8; padding: 15px; margin-top: 15px; border-radius: 4px; color: #334155;">
-                                                    <h5 style="margin: 0 0 5px 0; color: #334155;">💡 DICTAMEN: PACIENCIA TÁCTICA (EMPATE BAJO CONTROL)</h5>
-                                                </div>
-                                                """
+                                    elif not estamos_dominando and not eres_favorito:
+                                        if pct_rescate_banca >= 2.0:
+                                            dictamen_html = f"""
+                                            <div style='background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; margin-top: 15px; border-radius: 4px; color: #7F1D1D;'>
+                                                <h5 style='margin-top:0; color:#991B1B;'>🚨 DICTAMEN: AMPUTACIÓN VITAL (Evacuación)</h5>
+                                                <p style='margin:0; font-size:0.95rem;'>Muerte táctica confirmada. {texto_trampa} Recupera esos ${oferta_cashout_ft:,.0f} INMEDIATAMENTE.</p>
+                                            </div>
+                                            """
                                         else:
-                                            if ird > 60:
-                                                dictamen_html = f"""
-                                                <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
-                                                    <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: MITIGACIÓN URGENTE</h5>
-                                                </div>
-                                                """
-                                            else:
-                                                dictamen_html = f"""
-                                                <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
-                                                    <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: MANTENER POSICIÓN CON CAUTELA</h5>
-                                                </div>
-                                                """
-                                    elif ratio_eficiencia > 0:
-                                        dictamen_html = f"""
-                                        <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
-                                            <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: SEGURO INEFICIENTE (INFLACIÓN DE PRECIO)</h5>
-                                        </div>
-                                        """
-                                    else:
-                                        dictamen_html = """
-                                        <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
-                                            <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: EJECUCIÓN INVIABLE</h5>
-                                        </div>
-                                        """
-                                    
-                                    saldo_banca_actual = saldo_real if banca_op == "REAL" else saldo_simulacion
-                                    exposicion_pct = (cap_total_seguro / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
-                                    pct_rescate_banca = (capital_rescatado / saldo_banca_actual) * 100 if saldo_banca_actual > 0 and capital_rescatado > 0 else 0
-                                    
+                                            dictamen_html = f"""
+                                            <div style='background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;'>
+                                                <h5 style='margin-top:0; color:#B45309;'>🟡 DICTAMEN: COBERTURA ESTRATÉGICA</h5>
+                                                <p style='margin:0; font-size:0.95rem;'>El partido luce oscuro. {texto_trampa} Protege capital ejecutando la cobertura.</p>
+                                            </div>
+                                            """
+                                    elif not estamos_dominando and eres_favorito:
+                                        if ird >= 75:
+                                            dictamen_html = f"""
+                                            <div style='background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; margin-top: 15px; border-radius: 4px; color: #7F1D1D;'>
+                                                <h5 style='margin-top:0; color:#991B1B;'>⚠️ DICTAMEN: ALERTA DE TRAMPA LETAL</h5>
+                                                <p style='margin:0; font-size:0.95rem;'>{texto_trampa} El asedio en contra te está quemando (IRD: {ird:.1f}%). Busca la salida.</p>
+                                            </div>
+                                            """
+                                        else:
+                                            dictamen_html = f"""
+                                            <div style='background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;'>
+                                                <h5 style='margin-top:0; color:#1D4ED8;'>⏳ DICTAMEN: PACIENCIA TÁCTICA</h5>
+                                                <p style='margin:0; font-size:0.95rem;'>Eres Favorito. Aunque no domines, el asedio rival no es letal aún. Aguanta con precaución.</p>
+                                            </div>
+                                            """
+
                                     if pct_rescate_banca >= 5.0:
                                         impacto_str = "🛑 ALTAMENTE CONSIDERABLE (Vital para la supervivencia de la banca)"
                                         color_impacto = "#BE123C"; bg_impacto = "#FFF1F2"
@@ -2241,6 +2310,46 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     """
                                     
                                     st.markdown(dictamen_html + alerta_patrimonial_html, unsafe_allow_html=True)
+                                    
+                                    # =====================================================================
+                                    # ALERTA DE ROBO CASHOUT VS COBERTURA MANUAL
+                                    # =====================================================================
+                                    if oferta_cashout_ft > 0:
+                                        utilidad_cashout = oferta_cashout_ft - op['stake_1']
+                                        diferencia_cashout = util_cobertura_con_cob - utilidad_cashout
+                                        
+                                        if diferencia_cashout > 0:
+                                            st.markdown(f"""
+                                            <div style="background-color: #F0FDF4; border-left: 5px solid #22C55E; padding: 12px; border-radius: 4px; margin-top: 10px;">
+                                                <span style="font-size: 1.05em; color: #166534;">🛡️ <b>¡NO USES EL BOTÓN DE LA CASA!</b></span><br>
+                                                <span style="font-size: 0.95em; color: #15803D;">El botón te deja un balance de <b>${utilidad_cashout:,.0f}</b>. Cubrir matemáticamente la cuota te deja en <b>${util_cobertura_con_cob:,.0f}</b>.</span><br>
+                                                <span style="font-weight: bold; color: #16A34A;">👉 Cazar la cuota tú mismo te salva ${diferencia_cashout:,.0f} COP adicionales.</span>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                        elif diferencia_cashout < 0:
+                                            st.markdown(f"""
+                                            <div style="background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 12px; border-radius: 4px; margin-top: 10px;">
+                                                <span style="font-size: 1.05em; color: #991B1B;">🚨 <b>¡TOMA EL CASHOUT DE LA CASA INMEDIATAMENTE!</b></span><br>
+                                                <span style="font-size: 0.95em; color: #B91C1C;">Cubrir matemáticamente te deja en <b>${util_cobertura_con_cob:,.0f}</b>. El botón de la casa es más generoso y te deja en <b>${utilidad_cashout:,.0f}</b>.</span><br>
+                                                <span style="font-weight: bold; color: #DC2626;">👉 Usar el botón de la casa te salva ${abs(diferencia_cashout):,.0f} COP. ¡Tómalo ya!</span>
+                                            </div>
+                                            """, unsafe_allow_html=True)
+                                            
+                                        es_mejor_cashout = True if (util_cobertura_con_cob - utilidad_cashout) < 0 else False
+                                        
+                                        if es_mejor_cashout:
+                                            if st.button("✅ LIQUIDAR POR CASHOUT", key=f"btn_cash_ft_{op['codigo']}", use_container_width=True):
+                                                hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                                supabase.table("historial_trading").update({
+                                                    "estado": "CERRADA",
+                                                    "resultado_final": "Cashout (Cierre Anticipado)",
+                                                    "utilidad_neta_real": float(utilidad_cashout),
+                                                    "roi_real": float((utilidad_cashout / op['stake_1']) * 100),
+                                                    "hora_cobertura": hora_actual,
+                                                    "plataforma_cobertura": "Misma (Cashout)"
+                                                }).eq("codigo", op['codigo']).execute()
+                                                st.success(f"¡Cashout registrado! Has cerrado la operación con retorno de ${oferta_cashout_ft:,.0f}.")
+                                                st.rerun()
                                     
                                     st.markdown("<br>", unsafe_allow_html=True)
                                     if st.button("🔒 Confirmar y Registrar Cobertura en Libro Mayor", key=f"btn_sub_cob_{op['codigo']}"):
