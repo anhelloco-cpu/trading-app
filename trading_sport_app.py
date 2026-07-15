@@ -2865,29 +2865,45 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             st.error("Debes ponerle un nombre al partido.")
                         else:
                             if supabase is not None:
-                                nuevo_codigo = f"RAD-{generar_codigo()}"
+                                # ESCUDO 1: Código corto de 5 caracteres para evitar romper límites VARCHAR
+                                nuevo_codigo = generar_codigo() 
+                                
+                                # ESCUDO 2: Diccionario con TODOS los campos obligatorios del esquema mapeados
                                 datos_radar = {
                                     "codigo": nuevo_codigo,
                                     "partido": nombre_partido_radar,
                                     "estrategia": "Estrategia Libre Directa", 
                                     "seleccion_inicial": mercado_display,
+                                    "seleccion_cobertura": "N/A (Radar)", # Blindaje NOT NULL
                                     "plataforma_inicial": plataforma_radar,
-                                    "capital_total": stake_pre,
-                                    "cuota_inicial": cuota_mercado,
-                                    "stake_1": stake_pre,
-                                    "estado": "RADAR",
+                                    "plataforma_dutch_secundaria": "",
+                                    "plataforma_cobertura": "",
+                                    "capital_total": float(stake_pre),
+                                    "cuota_inicial": float(cuota_mercado),
+                                    "stake_1": float(stake_pre),
+                                    "reserva_stake_2": 0.0, # Blindaje NOT NULL
+                                    "cuota_objetivo": 0.0, # Blindaje NOT NULL
+                                    "cuota_stop_loss": 0.0, # Blindaje NOT NULL
+                                    "estado": "RADAR", # Sello de tracking
                                     "tipo_banca": "SIMULACION",
-                                    "cuota_base_audit": c_loc_pre, 
-                                    "cuota_empate_audit": c_emp_pre,
-                                    "cuota_amenaza_audit": c_vis_pre
+                                    "cuota_base_audit": float(c_loc_pre), 
+                                    "cuota_empate_audit": float(c_emp_pre),
+                                    "cuota_dc_audit": 0.0,
+                                    "cuota_amenaza_audit": float(c_vis_pre),
+                                    "es_dutching": False,
+                                    "stake_dutch_base": 0.0,
+                                    "stake_dutch_empate": 0.0
                                 }
-                                supabase.table("historial_trading").insert(datos_radar).execute()
                                 
-                                # Limpiamos la memoria para que se cierre el panel e inicie una nueva búsqueda limpia
-                                st.session_state.ia_activa = False 
-                                
-                                st.success(f"✅ Partido '{nombre_partido_radar}' guardado. Búscalo en la pestaña 'Radar En Vivo'.")
-                                st.rerun()
+                                try:
+                                    supabase.table("historial_trading").insert(datos_radar).execute()
+                                    
+                                    # Limpiamos la memoria interna y refrescamos
+                                    st.session_state.ia_activa = False 
+                                    st.success(f"✅ ¡Partido '{nombre_partido_radar}' guardado con éxito! Ref: {nuevo_codigo}")
+                                    st.rerun()
+                                except Exception as db_err:
+                                    st.error(f"❌ Error en la estructura de base de datos: {str(db_err)}")
                             else:
                                 st.error("Conecta Supabase primero.")
 
