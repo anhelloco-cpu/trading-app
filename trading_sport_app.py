@@ -580,7 +580,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
     st.markdown("### 🏢 3. Enrutamiento de Capital (Plataformas)")
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-        plat_1 = st.selectbox(f"🏦 Plataforma para {str_selec_1 if usar_dutching else str_dc}:", ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Otra"], key="plat1")
+        plat_1 = st.selectbox(f"🏦 Plataforma para {str_selec_1 if usar_dutching else str_dc}:", ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "1xBet", "Otra"], key="plat1")
         if plat_1 == "Otra": plat_1 = st.text_input("Especifica plataforma 1:", key="otra1")
     
     with col_p2:
