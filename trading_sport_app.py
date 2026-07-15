@@ -2836,32 +2836,49 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         btts_str = "SÍ" if pred_btts == 1 else "NO"
                         color_btts = "#10B981" if pred_btts == 1 else "#EF4444"
                         # -------------------------------------------------------------
-                        # 🎯 MOTOR DE TRIANGULACIÓN (MARCADOR EXACTO)
+                        # 🎯 MOTOR DE TRIANGULACIÓN (MARCADOR EXACTO REALISTA)
                         # -------------------------------------------------------------
-                        goles_redondeados = round(pred_goles)
+                        # Calculamos cuántos goles NUEVOS cree la IA que van a caer
+                        goles_actuales_totales = g_loc_sim + g_vis_sim
+                        goles_nuevos_esperados = max(0, round(pred_goles) - goles_actuales_totales)
                         
-                        if pred_1x2 == 1: # Empate
-                            if pred_btts == 0 or goles_redondeados < 2:
-                                marcador_exacto = "0 - 0"
+                        # Partimos desde la realidad de la cancha
+                        calc_loc = g_loc_sim
+                        calc_vis = g_vis_sim
+
+                        if pred_1x2 == 1: # La IA proyecta EMPATE
+                            # Si proyecta empate, debe igualar los marcadores
+                            if calc_loc > calc_vis:
+                                calc_vis = calc_loc # Visitante empata
+                            elif calc_vis > calc_loc:
+                                calc_loc = calc_vis # Local empata
+                            # Si ya van empatados y predice más goles, suma 1 a cada uno
+                            elif goles_nuevos_esperados >= 2:
+                                calc_loc += 1
+                                calc_vis += 1
+
+                        elif pred_1x2 == 2: # La IA proyecta GANA LOCAL
+                            if calc_loc <= calc_vis:
+                                # El local tiene que remontar o desempatar
+                                calc_loc = calc_vis + max(1, goles_nuevos_esperados)
                             else:
-                                mitad = max(1, goles_redondeados // 2)
-                                marcador_exacto = f"{mitad} - {mitad}"
-                        
-                        elif pred_1x2 == 2: # Gana Local
-                            if pred_btts == 0:
-                                gl = max(1, goles_redondeados)
-                                marcador_exacto = f"{gl} - 0"
+                                # Ya va ganando, le suma los goles esperados si los hay
+                                calc_loc += goles_nuevos_esperados
+
+                        else: # La IA proyecta GANA VISITA
+                            if calc_vis <= calc_loc:
+                                # El visitante tiene que remontar o desempatar
+                                calc_vis = calc_loc + max(1, goles_nuevos_esperados)
                             else:
-                                gl = max(2, goles_redondeados - 1)
-                                marcador_exacto = f"{gl} - 1"
-                                
-                        else: # Gana Visita
-                            if pred_btts == 0:
-                                gv = max(1, goles_redondeados)
-                                marcador_exacto = f"0 - {gv}"
-                            else:
-                                gv = max(2, goles_redondeados - 1)
-                                marcador_exacto = f"1 - {gv}"
+                                # Ya va ganando, le suma los goles esperados si los hay
+                                calc_vis += goles_nuevos_esperados
+
+                        # Aseguramos la condición del BTTS (Si dice SÍ, nadie puede tener 0 goles)
+                        if pred_btts == 1:
+                            if calc_loc == 0: calc_loc = 1
+                            if calc_vis == 0: calc_vis = 1
+
+                        marcador_exacto = f"{calc_loc} - {calc_vis}"
                         # -------------------------------------------------------------
                         # ---> ¡ESTAS DOS LÍNEAS SON VITALES! <---
                         apm_loc = atq_loc_sim / max(1, minuto_sim)
