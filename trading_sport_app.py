@@ -2838,85 +2838,62 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         # -------------------------------------------------------------
                         # 🎯 MOTOR DE TRIANGULACIÓN (MARCADOR EXACTO REALISTA)
                         # -------------------------------------------------------------
-                        # Calculamos cuántos goles NUEVOS cree la IA que van a caer
                         goles_actuales_totales = g_loc_sim + g_vis_sim
                         goles_nuevos_esperados = max(0, round(pred_goles) - goles_actuales_totales)
                         
-                        # Partimos desde la realidad de la cancha
                         calc_loc = g_loc_sim
                         calc_vis = g_vis_sim
 
-                        if pred_1x2 == 1: # La IA proyecta EMPATE
-                            # Si proyecta empate, debe igualar los marcadores
-                            if calc_loc > calc_vis:
-                                calc_vis = calc_loc # Visitante empata
-                            elif calc_vis > calc_loc:
-                                calc_loc = calc_vis # Local empata
-                            # Si ya van empatados y predice más goles, suma 1 a cada uno
+                        if pred_1x2 == 1: 
+                            if calc_loc > calc_vis: calc_vis = calc_loc 
+                            elif calc_vis > calc_loc: calc_loc = calc_vis 
                             elif goles_nuevos_esperados >= 2:
                                 calc_loc += 1
                                 calc_vis += 1
+                        elif pred_1x2 == 2:
+                            if calc_loc <= calc_vis: calc_loc = calc_vis + max(1, goles_nuevos_esperados)
+                            else: calc_loc += goles_nuevos_esperados
+                        else:
+                            if calc_vis <= calc_loc: calc_vis = calc_loc + max(1, goles_nuevos_esperados)
+                            else: calc_vis += goles_nuevos_esperados
 
-                        elif pred_1x2 == 2: # La IA proyecta GANA LOCAL
-                            if calc_loc <= calc_vis:
-                                # El local tiene que remontar o desempatar
-                                calc_loc = calc_vis + max(1, goles_nuevos_esperados)
-                            else:
-                                # Ya va ganando, le suma los goles esperados si los hay
-                                calc_loc += goles_nuevos_esperados
-
-                        else: # La IA proyecta GANA VISITA
-                            if calc_vis <= calc_loc:
-                                # El visitante tiene que remontar o desempatar
-                                calc_vis = calc_loc + max(1, goles_nuevos_esperados)
-                            else:
-                                # Ya va ganando, le suma los goles esperados si los hay
-                                calc_vis += goles_nuevos_esperados
-
-                        # Aseguramos la condición del BTTS (Si dice SÍ, nadie puede tener 0 goles)
                         if pred_btts == 1:
                             if calc_loc == 0: calc_loc = 1
                             if calc_vis == 0: calc_vis = 1
 
                         marcador_exacto = f"{calc_loc} - {calc_vis}"
+
                         # -------------------------------------------------------------
-                        # -------------------------------------------------------------
-                        # ⏱️ ÁRBITRO DE TIEMPO (FILTRO ANTI-REMOTADAS IMPOSIBLES)
+                        # ⏱️ ÁRBITRO DE TIEMPO (FILTRO ANTI-REMONTADAS IMPOSIBLES)
                         # -------------------------------------------------------------
                         minutos_restantes = 90 - minuto_sim
-                        diferencia_goles = abs(calc_loc - calc_vis)
+                        diferencia_goles_real = abs(g_loc_sim - g_vis_sim) # <--- AHORA SÍ MIRA LA REALIDAD
                         
-                        # Regla física: En promedio, un equipo bajo máxima presión puede hacer 1 gol cada 8-10 minutos.
-                        # Si necesitan hacer más goles que el tiempo que queda permite, bloqueamos la remontada.
-                        if minutos_restantes > 0 and diferencia_goles > 0:
-                            goles_necesarios_para_remontar = abs(g_loc_sim - g_vis_sim)
-                            
-                            if (goles_necesarios_para_remontar * 10) > minutos_restantes:
-                                # Es físicamente imposible remontar. Forzamos la victoria del que ya va ganando.
-                                if g_loc_sim > g_vis_sim:
+                        # Definimos quién va ganando en la vida real (1=Empate, 2=Local, 3=Visita)
+                        lider_real = 1 if g_loc_sim == g_vis_sim else (2 if g_loc_sim > g_vis_sim else 3)
+                        
+                        # El Árbitro SOLO interviene si alguien ya va ganando y la IA predice que lo van a empatar o remontar
+                        if lider_real != 1 and pred_1x2 != lider_real:
+                            # Regla física: 1 gol requiere en promedio 10 minutos de asedio
+                            if (diferencia_goles_real * 10) > minutos_restantes:
+                                # ¡Físicamente imposible! Restauramos el marcador a favor del líder real.
+                                if lider_real == 2:
                                     calc_loc = g_loc_sim
-                                    calc_vis = g_vis_sim + (1 if pred_btts == 1 and g_vis_sim == 0 else 0)
+                                    calc_vis = g_vis_sim + (1 if pred_btts == 1 and g_vis_sim == 0 and minutos_restantes >= 5 else 0)
                                     marcador_exacto = f"{calc_loc} - {calc_vis}"
                                     ganador_str = "Equipo Local (Corregido por Reloj)"
-                                    
-                                    st.markdown("""
-                                    <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                                        <h4 style="margin-top:0; color:#B45309;">⏱️ ALERTA DEL ÁRBITRO DE TIEMPO</h4>
-                                        <p style="margin:0; color:#92400E;">La IA proyectó un Empate/Remontada por la alta presión ofensiva, pero <b>quedan menos de 10 minutos por cada gol necesario para empatar.</b> Físicamente imposible. El sistema asume que el marcador se congelará a favor del ganador actual.</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
                                 else:
-                                    calc_loc = g_loc_sim + (1 if pred_btts == 1 and g_loc_sim == 0 else 0)
+                                    calc_loc = g_loc_sim + (1 if pred_btts == 1 and g_loc_sim == 0 and minutos_restantes >= 5 else 0)
                                     calc_vis = g_vis_sim
                                     marcador_exacto = f"{calc_loc} - {calc_vis}"
                                     ganador_str = "Equipo Visitante (Corregido por Reloj)"
                                     
-                                    st.markdown("""
-                                    <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                                        <h4 style="margin-top:0; color:#B45309;">⏱️ ALERTA DEL ÁRBITRO DE TIEMPO</h4>
-                                        <p style="margin:0; color:#92400E;">La IA proyectó un Empate/Remontada por la alta presión ofensiva, pero <b>quedan menos de 10 minutos por cada gol necesario para empatar.</b> Físicamente imposible. El sistema asume que el marcador se congelará a favor del ganador actual.</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
+                                st.markdown(f"""
+                                <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                                    <h4 style="margin-top:0; color:#B45309;">⏱️ ALERTA DEL ÁRBITRO DE TIEMPO</h4>
+                                    <p style="margin:0; color:#92400E;">La IA proyectó un Empate/Remontada por la alta presión ofensiva, pero la diferencia es de <b>{diferencia_goles_real} goles</b> y solo quedan <b>{minutos_restantes} minutos</b>. El Risk Manager ha bloqueado la predicción por ser físicamente imposible.</p>
+                                </div>
+                                """, unsafe_allow_html=True)
                         # -------------------------------------------------------------
                         # ---> ¡ESTAS DOS LÍNEAS SON VITALES! <---
                         apm_loc = atq_loc_sim / max(1, minuto_sim)
