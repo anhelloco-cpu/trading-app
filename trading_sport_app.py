@@ -2975,7 +2975,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         # ------------------------------------------------------------------
                         st.markdown("---")
                         st.markdown("#### ⚙️ Configurar Ejecución y Riesgo")
-                        st.info("Ajusta tu punto de entrada real, la casa de apuestas y la cuota de la amenaza.")
                         
                         sel_ini_rad = pr['seleccion_inicial']
                         if "Sí" in sel_ini_rad: am_def = sel_ini_rad.replace("Sí", "No")
@@ -2987,22 +2986,21 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         elif "Empate" in sel_ini_rad: am_def = "Cualquiera Gana"
                         else: am_def = "Opción Contraria"
                         
-                        # --- FILA 1: NOMBRES Y AMENAZA ---
+                        # --- FILA 1: NOMBRES INFORMATIVOS (BLOQUEADOS) ---
                         col_nom1, col_nom2 = st.columns(2)
                         with col_nom1:
-                            st.text_input("Tu Selección (Pre-definida):", value=sel_ini_rad, disabled=True, key=f"sel_{pr['codigo']}")
+                            st.text_input("Tu Selección (Fijada):", value=sel_ini_rad, disabled=True, key=f"sel_{pr['codigo']}")
                         with col_nom2:
-                            amenaza_rad = st.text_input("Amenaza a Cubrir:", value=am_def, key=f"am_{pr['codigo']}")
+                            st.text_input("La Amenaza (Detectada):", value=am_def, disabled=True, key=f"am_info_{pr['codigo']}")
 
-                        # --- FILA 2: CUOTAS Y CAPITAL ---
+                        # --- FILA 2: LAS CUOTAS PURAS Y EL CAPITAL ---
                         col_ent1, col_ent2, col_ent3 = st.columns(3)
                         with col_ent1:
-                            cuota_ent_rad = st.number_input("Cuota Entrada (Tu Selección):", min_value=1.01, value=float(pr['cuota_inicial']), step=0.05, key=f"c_ent_{pr['codigo']}")
+                            cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, value=float(pr['cuota_inicial']), step=0.05, key=f"c_ent_{pr['codigo']}")
                         with col_ent2:
-                            # Evita que falle si guardó un valor extraño en auditoría
                             val_amenaza = float(pr.get('cuota_amenaza_audit') or 1.90)
                             if val_amenaza < 1.01: val_amenaza = 1.90
-                            cuota_amenaza_rad = st.number_input("Cuota Actual Amenaza:", min_value=1.01, value=val_amenaza, step=0.05, key=f"c_am_{pr['codigo']}")
+                            cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, value=val_amenaza, step=0.05, key=f"c_am_{pr['codigo']}")
                         with col_ent3:
                             stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=int(pr['stake_1']), step=5000, key=f"stk_ent_{pr['codigo']}")
                         
@@ -3019,7 +3017,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 plat_rad_final = st.text_input("Especifica la plataforma:", key=f"otra_{pr['codigo']}")
                             else:
                                 plat_rad_final = plat_rad_sel
-                                st.write("") # Espacio para balancear el diseño
+                                st.write("")
 
                         # Matemática Financiera para el Radar
                         retorno_bruto_esperado = stake_ent_rad * cuota_ent_rad
@@ -3062,12 +3060,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 if cuota_cazar_rad > 0 and plat_rad_final:
                                     import datetime
                                     try:
-                                        # 🎯 TRUCO ESTRUCTURAL: Reconstruimos el texto exacto para la pestaña de seguimiento
                                         if "Ambos Anotan" in sel_ini_rad: mdo_str = "Ambos Anotan"
                                         elif "Goles" in sel_ini_rad: mdo_str = "Línea de Goles"
                                         else: mdo_str = "Mercado 1X2"
                                             
-                                        partido_formateado = f"🏟️ {pr['partido']} | [{mdo_str}] {sel_ini_rad} vs {amenaza_rad}"
+                                        partido_formateado = f"🏟️ {pr['partido']} | [{mdo_str}] {sel_ini_rad} vs {am_def}"
                                         hora_actual = datetime.datetime.now().strftime("%H:%M")
                                         
                                         supabase.table("historial_trading").update({
@@ -3076,7 +3073,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             "estrategia": "Estrategia 3: Binario Personalizado", 
                                             "partido": partido_formateado, 
                                             "seleccion_inicial": sel_ini_rad,
-                                            "seleccion_cobertura": amenaza_rad,
+                                            "seleccion_cobertura": am_def, # Inyectamos la amenaza detectada
                                             "plataforma_inicial": plat_rad_final,
                                             "cuota_inicial": float(cuota_ent_rad),
                                             "cuota_amenaza_audit": float(cuota_amenaza_rad),
