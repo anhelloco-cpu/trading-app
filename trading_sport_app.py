@@ -2971,13 +2971,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 st.error(f"Error procesando IA táctica: {e}")
                                 
                         # ------------------------------------------------------------------
-                        # NUEVO: LÓGICA DE ENTRADA Y CÁLCULO DE RIESGO (ESTILO BINARIO)
+                        # LÓGICA DE ENTRADA Y CÁLCULO DE RIESGO
                         # ------------------------------------------------------------------
                         st.markdown("---")
                         st.markdown("#### ⚙️ Configurar Ejecución y Riesgo")
-                        st.info("Ajusta tu punto de entrada real. La IA calculará los puntos de salida (Take Profit / Stop Loss) para hacer el seguimiento.")
+                        st.info("Ajusta tu punto de entrada real. La IA calculará los puntos de salida para hacer el seguimiento.")
                         
-                        # Deducir la amenaza automáticamente según el mercado seleccionado
                         sel_ini_rad = pr['seleccion_inicial']
                         if "Sí" in sel_ini_rad: am_def = sel_ini_rad.replace("Sí", "No")
                         elif "No" in sel_ini_rad: am_def = sel_ini_rad.replace("No", "Sí")
@@ -2996,7 +2995,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         with col_ent3:
                             stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=int(pr['stake_1']), step=5000, key=f"stk_ent_{pr['codigo']}")
                         
-                        # Matemática Financiera para el Radar
                         retorno_bruto_esperado = stake_ent_rad * cuota_ent_rad
                         utilidad_max_posible = retorno_bruto_esperado - stake_ent_rad
                         max_roi_pct = (utilidad_max_posible / stake_ent_rad) * 100 if stake_ent_rad > 0 else 0
@@ -3035,21 +3033,35 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         with col_disp1:
                             if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
                                 if cuota_cazar_rad > 0:
-                                    supabase.table("historial_trading").update({
-                                        "estado": "EN VIVO",
-                                        "tipo_banca": banca_activa_rad,
-                                        # EL TRUCO MAESTRO: Engañamos a la app diciendo que es Estrategia 3
-                                        # Para que active el cockpit táctico dinámico de seguimiento.
-                                        "estrategia": "Estrategia 3: Binario Personalizado", 
-                                        "seleccion_cobertura": amenaza_rad,
-                                        "cuota_inicial": float(cuota_ent_rad),
-                                        "capital_total": float(stake_ent_rad),
-                                        "stake_1": float(stake_ent_rad),
-                                        "cuota_objetivo": float(cuota_cazar_rad),
-                                        "cuota_stop_loss": float(cuota_sl_rad)
-                                    }).eq("codigo", pr['codigo']).execute()
-                                    st.success("¡Operación transferida al mercado En Vivo! Ve a la pestaña 'Seguimiento y Liquidación'.")
-                                    st.rerun()
+                                    import datetime
+                                    try:
+                                        # 🎯 TRUCO ESTRUCTURAL: Reconstruimos el texto exacto para la pestaña de seguimiento
+                                        if "Ambos Anotan" in sel_ini_rad: mdo_str = "Ambos Anotan"
+                                        elif "Goles" in sel_ini_rad: mdo_str = "Línea de Goles"
+                                        else: mdo_str = "Mercado 1X2"
+                                            
+                                        partido_formateado = f"🏟️ {pr['partido']} | [{mdo_str}] {sel_ini_rad} vs {amenaza_rad}"
+                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                        
+                                        supabase.table("historial_trading").update({
+                                            "estado": "EN VIVO",
+                                            "tipo_banca": banca_activa_rad,
+                                            "estrategia": "Estrategia 3: Binario Personalizado", 
+                                            "partido": partido_formateado, 
+                                            "seleccion_inicial": sel_ini_rad,
+                                            "seleccion_cobertura": amenaza_rad,
+                                            "cuota_inicial": float(cuota_ent_rad),
+                                            "capital_total": float(stake_ent_rad),
+                                            "stake_1": float(stake_ent_rad),
+                                            "cuota_objetivo": float(cuota_cazar_rad),
+                                            "cuota_stop_loss": float(cuota_sl_rad),
+                                            "hora_inicio_partido": hora_actual # <-- ES VITAL PARA QUE APAREZCA
+                                        }).eq("codigo", pr['codigo']).execute()
+                                        
+                                        st.success("✅ ¡Disparo exitoso! Operación inyectada al mercado en vivo. Ve a la pestaña 'Seguimiento'.")
+                                        st.rerun()
+                                    except Exception as err_db:
+                                        st.error(f"❌ Error crítico de Supabase: {str(err_db)}")
                                 else:
                                     st.error("Error matemático en las cuotas. Ajusta tu entrada.")
                         with col_disp2:
