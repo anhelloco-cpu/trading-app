@@ -2711,7 +2711,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             else:
                 with st.spinner("Buceando en la base de datos de Kaunitz..."):
                     try:
-                        # Pandas lee el .gz directamente con compression='gzip'
+                        # Pandas lee el .gz directamente
                         df_global = pd.read_csv(nombre_archivo, compression='gzip')
                         
                         # Limpiar datos nulos
@@ -2729,12 +2729,18 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         if total_gemelas < 50:
                             st.warning(f"🚨 La red solo atrapó {total_gemelas} partidos. Amplía el 'Margen de Tolerancia' para tener una muestra estadística válida (ideal > 100).")
                         else:
-                            # Calcular resultados reales de esos partidos históricos
+                            # Calcular resultados reales de esos partidos históricos (1X2)
                             ganaron_local = len(df_gemelas[df_gemelas['home_score'] > df_gemelas['away_score']])
                             ganaron_visita = len(df_gemelas[df_gemelas['home_score'] < df_gemelas['away_score']])
                             empataron = len(df_gemelas[df_gemelas['home_score'] == df_gemelas['away_score']])
                             
-                            # Probabilidades reales
+                            # --- NUEVO: CÁLCULOS DE GOLES Y AMBOS ANOTAN ---
+                            btts_count = len(df_gemelas[(df_gemelas['home_score'] > 0) & (df_gemelas['away_score'] > 0)])
+                            over25_count = len(df_gemelas[(df_gemelas['home_score'] + df_gemelas['away_score']) > 2.5])
+                            promedio_goles = (df_gemelas['home_score'] + df_gemelas['away_score']).mean()
+                            # -----------------------------------------------
+                            
+                            # Probabilidades reales para el EV
                             if mercado_evaluar == "Gana Local": prob_real = ganaron_local / total_gemelas
                             elif mercado_evaluar == "Gana Visita": prob_real = ganaron_visita / total_gemelas
                             else: prob_real = empataron / total_gemelas
@@ -2746,13 +2752,22 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             roi_ev = (ev / stake_pre) * 100 if stake_pre > 0 else 0
                             
                             st.markdown("---")
-                            st.markdown(f"### 📊 Auditoría del Mercado Mundial")
-                            st.write(f"De casi 500,000 partidos, se aislaron **{total_gemelas} juegos** donde el consenso global de casas de apuestas ofrecía este mismo bloque de cuotas. Esto fue lo que ocurrió:")
+                            st.markdown(f"### 📊 Auditoría del Mercado Mundial ({total_gemelas} Partidos)")
                             
+                            # Tarjetas 1X2
                             c_res1, c_res2, c_res3 = st.columns(3)
                             c_res1.metric("Local Ganó", f"{(ganaron_local/total_gemelas)*100:.1f}%")
                             c_res2.metric("Empataron", f"{(empataron/total_gemelas)*100:.1f}%")
                             c_res3.metric("Visita Ganó", f"{(ganaron_visita/total_gemelas)*100:.1f}%")
+                            
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            
+                            # Tarjetas Goles y Ambos Anotan
+                            st.markdown("### ⚽ Comportamiento de Goles")
+                            c_gol1, c_gol2, c_gol3 = st.columns(3)
+                            c_gol1.metric("Promedio de Goles", f"{promedio_goles:.2f}")
+                            c_gol2.metric("Ambos Anotan (SÍ)", f"{(btts_count/total_gemelas)*100:.1f}%")
+                            c_gol3.metric("Más de 2.5 Goles", f"{(over25_count/total_gemelas)*100:.1f}%")
                             
                             st.markdown("---")
                             st.markdown("### ⚖️ Veredicto de Valor (EV)")
@@ -2761,7 +2776,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 20px; border-radius: 8px;">
                                     <h3 style="margin-top:0; color: #166534;">✅ ERROR DE LA CASA (EV+)</h3>
                                     <h1 style="color: #15803D; margin: 10px 0;">+${ev:,.0f} COP <span style="font-size: 1rem;">de valor puro</span></h1>
-                                    <p style="margin:0; color: #166534;">La probabilidad real global es del <b>{prob_real*100:.1f}%</b>. A cuota <b>{cuota_mercado}</b>, tienes una ventaja matemática sobre la casa. Dispara. <b>(ROI Proyectado: +{roi_ev:.1f}%)</b>.</p>
+                                    <p style="margin:0; color: #166534;">La probabilidad real global de tu mercado es <b>{prob_real*100:.1f}%</b>. A cuota <b>{cuota_mercado}</b>, tienes una ventaja matemática sobre la casa. Dispara. <b>(ROI Proyectado: +{roi_ev:.1f}%)</b>.</p>
                                 </div>
                                 """, unsafe_allow_html=True)
                             else:
