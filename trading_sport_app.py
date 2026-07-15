@@ -2835,7 +2835,17 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         ganador_str = "Empate" if pred_1x2 == 1 else "Equipo Local" if pred_1x2 == 2 else "Equipo Visitante"
                         btts_str = "SÍ" if pred_btts == 1 else "NO"
                         color_btts = "#10B981" if pred_btts == 1 else "#EF4444"
-                        
+                       # Si la IA predice que "Ambos Anotan" (SÍ)
+                        if pred_btts == 1:
+                            if apm_loc < 0.5 or apm_vis < 0.5:
+                                st.markdown("""
+                                <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                                    <h4 style="margin-top:0; color:#B45309;">⚠️ ADVERTENCIA DE SENTIDO COMÚN</h4>
+                                    <p style="margin:0; color:#92400E;">La IA proyecta <b>SÍ (Ambos Anotan)</b> basándose en estadística, pero el volumen ofensivo actual es de <b>menos de 0.5 APM</b>.<br>
+                                    El Oráculo tiene autonomía, pero el Risk Manager sugiere extrema cautela en esta entrada.</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                # AQUÍ QUITAMOS LA SOBREESCRITURA. La IA mantiene su respuesta original. 
                         st.markdown("---")
                         st.markdown("### 🔮 Veredicto del Oráculo (Análisis Físico)")
                         
