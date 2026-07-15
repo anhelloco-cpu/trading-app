@@ -1520,31 +1520,66 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.markdown(f"<h5 style='text-align: center; color: {color_barra};'>Alerta Táctica (IRD): {ird:.1f}%</h5>", unsafe_allow_html=True)
 
                                 # =====================================================================
-                                # 4. DICTAMEN INTEGRAL CON 3 NIVELES DE ALERTA
+                                # 4. ORÁCULO TRI-FACTOR (IA + HISTORIA + RIESGO PATRIMONIAL)
                                 # =====================================================================
+                                import joblib
+                                import pandas as pd
+                                
+                                # A. CEREBRO FÍSICO (IA)
+                                try:
+                                    X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird}])
+                                    m1x2_liq = joblib.load('modelo_1x2.pkl')
+                                    pred_1x2 = m1x2_liq.predict(X_liq)[0]
+                                    dom_vivo = "Local" if pred_1x2 == 2 else ("Visita" if pred_1x2 == 3 else "Empate/Asedio Dividido")
+                                except:
+                                    dom_vivo = "Local" if apm_local > apm_vis and (atkp_local - atkp_vis) > 10 else ("Visita" if apm_vis > apm_local and (atkp_vis - atkp_local) > 10 else "Empate/Asedio Dividido")
+
+                                # B. CEREBRO HISTÓRICO
+                                c_loc_hist = float(op.get('cuota_base_audit', 2.0))
+                                c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
+                                if c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: fav_global = "Local"
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: fav_global = "Visita"
+                                else: fav_global = "Fuerzas Parejas"
+
+                                # C. CEREBRO PATRIMONIAL (Calculamos % de rescate usando el saldo real de la banca)
+                                saldo_banca_actual = obtener_saldo_banca(tipo_banca_operacion)
+                                pct_rescate_banca = (oferta_cashout / saldo_banca_actual) * 100 if saldo_banca_actual > 0 and oferta_cashout > 0 else 0
+                                
+                                # Lógica de dominio a favor
+                                estamos_dominando = False
+                                if "Local" in sel_ini and dom_vivo == "Local": estamos_dominando = True
+                                elif "Visita" in sel_ini and dom_vivo == "Visita": estamos_dominando = True
+                                elif "Sí" in sel_ini and apm_total >= 1.2: estamos_dominando = True
+                                elif "No" in sel_ini and apm_total < 0.6: estamos_dominando = True
+                                
                                 dictamen_fin = ""
                                 if cuota_sl > 0 and cuota_salida <= cuota_sl:
-                                    dictamen_fin = f"🛑 **¡STOP LOSS ROTO!** La cuota actual ({cuota_salida:.2f}) ha tocado tu límite. **EVACUACIÓN OBLIGATORIA AHORA**."
+                                    dictamen_fin = f"🛑 **¡STOP LOSS ROTO!** La cuota actual ({cuota_salida:.2f}) perforó tu límite. El riesgo sube. **EVACUACIÓN OBLIGATORIA AHORA**."
                                     c_dict = "#FEF2F2"; b_dict = "#B91C1C"
-                                elif cuota_salida >= cuota_minima_rentable:
-                                    if ird >= 75:
-                                        dictamen_fin = f"⚖️ **TOMA DE BENEFICIOS:** El riesgo es rojo (IRD {ird:.1f}%), PERO tienes **${utilidad_proyectada:,.0f} COP** de ganancia. **Caza la cuota y asegura.**"
+                                elif pct_rescate_banca < 0.5 and oferta_cashout > 0:
+                                    dictamen_fin = f"🛡️ **RIESGO CERO (Marginal):** La casa te ofrece migajas (${oferta_cashout:,.0f}). No salves centavos. Deja que muera o suceda un milagro estadístico."
+                                    c_dict = "#F1F5F9"; b_dict = "#64748B"
+                                elif estamos_dominando:
+                                    if cuota_salida >= cuota_minima_rentable:
+                                        dictamen_fin = f"⚖️ **TOMA DE BENEFICIOS:** Tienes el dominio físico Y lograste Break-Even (Utilidad: **${utilidad_proyectada:,.0f}**). Caza la cuota y asegura ya."
                                         c_dict = "#FFFBEB"; b_dict = "#D97706"
-                                    elif ird >= 45: # La alerta amarilla dinámica
-                                        dictamen_fin = f"⚠️ **ALERTA AMARILLA (VIGILANCIA):** El partido está movido (Ritmo Peligroso). Tienes una utilidad temporal de **${utilidad_proyectada:,.0f} COP**. No te confíes; si el asedio no baja, toma esos **${utilidad_proyectada:,.0f} COP** y sal antes de que se complique."
-                                        c_dict = "#FEFCE8"; b_dict = "#CA8A04"
                                     else:
-                                        dictamen_fin = f"🛡️ **ZONA DE CONFORT:** El partido está tranquilo a tu favor. Estás ganando **${utilidad_proyectada:,.0f} COP**. Puedes dejar correr."
+                                        texto_fav = f"Tienes jerarquía ({fav_global})." if fav_global in sel_ini else "La táctica compensa no ser favorito."
+                                        dictamen_fin = f"🟢 **MANTENER POSICIÓN:** Tu equipo domina físicamente. {texto_fav} El asedio te respalda. ¡Deja correr la operación!"
                                         c_dict = "#F0FDF4"; b_dict = "#15803D"
-                                else:
-                                    if ird >= 75:
-                                        dictamen_fin = f"🚨 **AMPUTACIÓN TÁCTICA:** Colapso en la cancha. Cubrir implica pérdida de **${utilidad_proyectada:,.0f} COP**, pero la IA sugiere amputar antes de perderlo todo."
+                                elif not estamos_dominando and fav_global not in sel_ini:
+                                    if pct_rescate_banca >= 2.0:
+                                        dictamen_fin = f"🚨 **AMPUTACIÓN VITAL:** Muerte táctica. La IA no te apoya ni eres favorito. Recupera esos ${oferta_cashout:,.0f} INMEDIATAMENTE (Salvas {pct_rescate_banca:.1f}% de liquidez)."
                                         c_dict = "#FEF2F2"; b_dict = "#DC2626"
-                                    elif ird >= 45:
-                                        dictamen_fin = f"⚠️ **INCERTIDUMBRE:** El partido tiene riesgo medio y vas perdiendo **${utilidad_proyectada:,.0f} COP**. Aguanta un poco, pero no quites los ojos de la pantalla."
-                                        c_dict = "#FFFBEB"; b_dict = "#D97706"
                                     else:
-                                        dictamen_fin = f"⏳ **PACIENCIA ESTRATÉGICA:** Vas perdiendo **${utilidad_proyectada:,.0f} COP**, pero la lectura táctica dice que la situación está bajo control. Mantén la calma."
+                                        dictamen_fin = f"🟡 **COBERTURA ESTRATÉGICA:** El partido luce oscuro frente al favorito ({fav_global}). Considera tomar Cashout o cazar cuota para frenar la sangría."
+                                        c_dict = "#FFFBEB"; b_dict = "#D97706"
+                                elif not estamos_dominando and fav_global in sel_ini:
+                                    if ird >= 75:
+                                        dictamen_fin = f"⚠️ **ALERTA DE TRAMPA:** Eres Favorito, pero el asedio en contra es letal (IRD: {ird:.1f}%). Ejecuta el seguro ahora mismo."
+                                        c_dict = "#FEF2F2"; b_dict = "#DC2626"
+                                    else:
+                                        dictamen_fin = f"⏳ **PACIENCIA TÁCTICA:** Eres Favorito. Aunque no domines, el asedio rival está controlado. Aguanta sin quitar los ojos del partido."
                                         c_dict = "#EFF6FF"; b_dict = "#1D4ED8"
                                         
                                 st.markdown(f"""
@@ -1751,7 +1786,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         "utilidad_neta_real": utilidad,
                                         "roi_real": (utilidad / op['capital_total']) * 100,
                                         "goles_finales_seleccion": goles_finales_seleccion, 
-                                        "goles_finales_rival": goles_finales_rival          
+                                        "goles_finales_rival": goles_finales_rival         
                                     }).eq("codigo", op['codigo']).execute()
                                     
                                     st.success(f"Libro cerrado. Balance neto transferido a PNL: ${utilidad:,.0f} COP.")
@@ -2230,7 +2265,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         goles_finales_rival = st.number_input(f"🚀 Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_{op['codigo']}")
                                         
                                         if st.form_submit_button("Registrar Liquidación Directa"):
-                                            # Inteligencia Contable
                                             gano_fase1 = False
                                             plat_win = ""
                                             
@@ -2247,7 +2281,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                     plat_win = p_dutch if es_dutching_op else p_ini
                                             
                                             if gano_fase1:
-                                                # Gana la inversión base, pero la reserva no se tocó, por lo que el ROI se hace sobre el Stake 1 gastado
                                                 utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
                                                 texto_cierre = f"Directo: ✅ Ganancia en [{plat_win}] ({resultado_directo})"
                                             else:
@@ -2277,7 +2310,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 goles_finales_rival = st.number_input(f"🚀 Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_cob_{op['codigo']}")
                                 
                                 if st.form_submit_button("Cerrar Libro Mayor"):
-                                    # Inteligencia Contable para CUBIERTA
                                     gano_fase1 = False
                                     gano_cobertura = False
                                     plat_win = ""
@@ -2303,7 +2335,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     if gano_fase1:
                                         utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
                                         texto_db = f"✅ Utilidad Base en [{plat_win}] ({resultado_final_ui})"
-                                    else: # Por fuerza matemática, si no ganó Fase 1, ganó la Cobertura (porque cubriste todo el mercado)
+                                    else: 
                                         utilidad = (op['reserva_stake_2'] * op['cuota_cazada_real']) - op['capital_total']
                                         texto_db = f"🛡️ Utilidad Seguro en [{plat_win}] ({resultado_final_ui})"
                                         
