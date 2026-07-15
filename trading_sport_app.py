@@ -585,7 +585,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
     
     with col_p2:
         if usar_dutching:
-            plat_2 = st.selectbox(f"🏦 Plataforma para {str_selec_2}:", ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Otra"], key="plat2")
+            plat_2 = st.selectbox(f"🏦 Plataforma para {str_selec_2}:", ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "1xBet", "Otra"], key="plat2")
             if plat_2 == "Otra": plat_2 = st.text_input("Especifica plataforma 2:", key="otra2")
         else:
             st.info("🔒 Al usar Doble Oportunidad, todo el Ticket de Fase 1 pertenece a la misma plataforma.")
