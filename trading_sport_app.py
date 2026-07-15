@@ -2912,7 +2912,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
     # ---------------------------------------------------------
     with tab_radar:
         st.subheader("📡 Tu Radar de Seguimiento")
-        st.write("Partidos aprobados por el Escáner. Inyecta la foto táctica del partido en curso y la IA confirmará si mantienes el disparo o abortas.")
+        st.write("Partidos aprobados por el Escáner. Inyecta la foto táctica del partido en curso, configura tus límites de ganancia/pérdida, y ejecuta la posición.")
         
         if supabase is not None:
             res_radar = supabase.table("historial_trading").select("*").eq("estado", "RADAR").execute()
@@ -2922,7 +2922,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                 st.info("Tu radar está vacío. Escanea partidos en la pestaña 'Escáner Pre-Partido' y mándalos para acá.")
             else:
                 for pr in partidos_radar:
-                    with st.expander(f"📌 {pr['partido']} | Mdo: {pr['seleccion_inicial']} | Cuota: {pr['cuota_inicial']} | Stake Planeado: ${pr['stake_1']:,.0f}"):
+                    with st.expander(f"📌 {pr['partido']} | Mdo: {pr['seleccion_inicial']} | Cuota Plan: {pr['cuota_inicial']} | Stake: ${pr['stake_1']:,.0f}"):
                         st.write(f"**Cuotas Base Iniciales:** Local ({pr['cuota_base_audit']}) | Empate ({pr['cuota_empate_audit']}) | Visita ({pr['cuota_amenaza_audit']})")
                         st.markdown("---")
                         st.markdown("#### 📸 Foto Táctica En Vivo")
@@ -2970,24 +2970,92 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             except Exception as e:
                                 st.error(f"Error procesando IA táctica: {e}")
                                 
+                        # ------------------------------------------------------------------
+                        # NUEVO: LÓGICA DE ENTRADA Y CÁLCULO DE RIESGO (ESTILO BINARIO)
+                        # ------------------------------------------------------------------
                         st.markdown("---")
-                        st.markdown("#### 🚀 Confirmar Entrada")
+                        st.markdown("#### ⚙️ Configurar Ejecución y Riesgo")
+                        st.info("Ajusta tu punto de entrada real. La IA calculará los puntos de salida (Take Profit / Stop Loss) para hacer el seguimiento.")
+                        
+                        # Deducir la amenaza automáticamente según el mercado seleccionado
+                        sel_ini_rad = pr['seleccion_inicial']
+                        if "Sí" in sel_ini_rad: am_def = sel_ini_rad.replace("Sí", "No")
+                        elif "No" in sel_ini_rad: am_def = sel_ini_rad.replace("No", "Sí")
+                        elif "Más" in sel_ini_rad: am_def = sel_ini_rad.replace("Más", "Menos")
+                        elif "Menos" in sel_ini_rad: am_def = sel_ini_rad.replace("Menos", "Más")
+                        elif "Local" in sel_ini_rad: am_def = "Empate / Visita"
+                        elif "Visita" in sel_ini_rad: am_def = "Local / Empate"
+                        elif "Empate" in sel_ini_rad: am_def = "Cualquiera Gana"
+                        else: am_def = "Opción Contraria"
+                        
+                        col_ent1, col_ent2, col_ent3 = st.columns(3)
+                        with col_ent1:
+                            amenaza_rad = st.text_input("Amenaza a Cubrir:", value=am_def, key=f"am_{pr['codigo']}")
+                        with col_ent2:
+                            cuota_ent_rad = st.number_input("Cuota Actual (Entrada):", min_value=1.01, value=float(pr['cuota_inicial']), step=0.05, key=f"c_ent_{pr['codigo']}")
+                        with col_ent3:
+                            stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=int(pr['stake_1']), step=5000, key=f"stk_ent_{pr['codigo']}")
+                        
+                        # Matemática Financiera para el Radar
+                        retorno_bruto_esperado = stake_ent_rad * cuota_ent_rad
+                        utilidad_max_posible = retorno_bruto_esperado - stake_ent_rad
+                        max_roi_pct = (utilidad_max_posible / stake_ent_rad) * 100 if stake_ent_rad > 0 else 0
+                        
+                        if max_roi_pct > 0:
+                            col_lim1, col_lim2 = st.columns(2)
+                            with col_lim1:
+                                tp_rad = st.slider("Utilidad Deseada (Take Profit):", min_value=1.0, max_value=max(1.0, float(max_roi_pct - 0.5)), value=min(5.0, max(1.0, float(max_roi_pct / 2))), step=0.5, format="%.1f%%", key=f"tp_{pr['codigo']}")
+                            with col_lim2:
+                                sl_rad = st.slider("Pérdida Máxima (Stop Loss):", min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
+                            
+                            utilidad_objetivo_dinero = stake_ent_rad * (tp_rad / 100.0)
+                            inyeccion_necesaria_tp = utilidad_max_posible - utilidad_objetivo_dinero
+                            cuota_cazar_rad = retorno_bruto_esperado / inyeccion_necesaria_tp if inyeccion_necesaria_tp > 0 else 0
+                            
+                            perdida_maxima = stake_ent_rad * (sl_rad / 100.0)
+                            inyeccion_necesaria_sl = utilidad_max_posible + perdida_maxima
+                            cuota_sl_rad = retorno_bruto_esperado / inyeccion_necesaria_sl
+                            
+                            st.markdown(f"""
+                            <div style="display:flex; justify-content:space-around; background-color: #F8FAFC; padding: 10px; border-radius: 5px;">
+                                <span style="color:#15803D;">🟢 <b>Take Profit:</b> Cuota {cuota_cazar_rad:.2f}</span>
+                                <span style="color:#B91C1C;">🔴 <b>Stop Loss:</b> Cuota {cuota_sl_rad:.2f}</span>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.warning("La cuota de entrada no permite generar utilidades.")
+                            cuota_cazar_rad = 0
+                            cuota_sl_rad = 0
+                        
+                        st.markdown("<br>", unsafe_allow_html=True)
                         banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
                         banca_activa_rad = "REAL" if "Real" in banca_ejecutar else "SIMULACION"
                         
                         col_disp1, col_disp2 = st.columns(2)
                         with col_disp1:
-                            if st.button("🔥 DISPARAR (Aprobar)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
-                                supabase.table("historial_trading").update({
-                                    "estado": "EN VIVO",
-                                    "tipo_banca": banca_activa_rad
-                                }).eq("codigo", pr['codigo']).execute()
-                                st.success("¡Operación en juego! Ve a 'Seguimiento y Liquidación' para gestionarla.")
-                                st.rerun()
+                            if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
+                                if cuota_cazar_rad > 0:
+                                    supabase.table("historial_trading").update({
+                                        "estado": "EN VIVO",
+                                        "tipo_banca": banca_activa_rad,
+                                        # EL TRUCO MAESTRO: Engañamos a la app diciendo que es Estrategia 3
+                                        # Para que active el cockpit táctico dinámico de seguimiento.
+                                        "estrategia": "Estrategia 3: Binario Personalizado", 
+                                        "seleccion_cobertura": amenaza_rad,
+                                        "cuota_inicial": float(cuota_ent_rad),
+                                        "capital_total": float(stake_ent_rad),
+                                        "stake_1": float(stake_ent_rad),
+                                        "cuota_objetivo": float(cuota_cazar_rad),
+                                        "cuota_stop_loss": float(cuota_sl_rad)
+                                    }).eq("codigo", pr['codigo']).execute()
+                                    st.success("¡Operación transferida al mercado En Vivo! Ve a la pestaña 'Seguimiento y Liquidación'.")
+                                    st.rerun()
+                                else:
+                                    st.error("Error matemático en las cuotas. Ajusta tu entrada.")
                         with col_disp2:
-                            if st.button("🗑️ ABORTAR (Borrar)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
+                            if st.button("🗑️ ABORTAR (Descartar Partido)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
                                 supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
-                                st.warning("Partido descartado.")
+                                st.warning("Partido descartado del Radar.")
                                 st.rerun()
 
     # ---------------------------------------------------------
