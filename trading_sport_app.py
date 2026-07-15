@@ -3029,7 +3029,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     if calc_vis == 0 and apm_vis_crudo >= 0.5: calc_vis = 1
 
                                 marcador_exacto = f"{calc_loc} - {calc_vis}"
-
+                                # --- NUEVO: SINCRONIZAR LETRERO BTTS CON LA REALIDAD ---
+                                if calc_loc > 0 and calc_vis > 0:
+                                    btts = "SÍ"
+                                    color_btts = "#10B981"
+                                else:
+                                    # Si la IA decía SÍ, pero el sistema físico lo bloqueó, te avisa.
+                                    btts = "NO (Bloqueado por Táctica)" if pred_btts_rad == 1 else "NO"
+                                    color_btts = "#EF4444"
                                 # ------------------------------------------------------------------
                                 # ⏱️ 3. ÁRBITRO DE TIEMPO (FILTRO ANTI-REMONTADAS)
                                 # ------------------------------------------------------------------
@@ -3118,12 +3125,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         elif "Empate" in sel_ini_rad: am_def = "Cualquiera Gana"
                         else: am_def = "Opción Contraria"
                         
-                        # --- FILA 1: NOMBRES INFORMATIVOS (BLOQUEADOS) ---
+                        # --- FILA 1: PIVOTE TÁCTICO (NOMBRES EDITABLES) ---
                         col_nom1, col_nom2 = st.columns(2)
                         with col_nom1:
-                            st.text_input("Tu Selección (Fijada):", value=sel_ini_rad, disabled=True, key=f"sel_{pr['codigo']}")
+                            st.info("💡 Puedes cambiar tu selección si el asedio en vivo te hizo cambiar de opinión.")
+                            seleccion_final_rad = st.text_input("Tu Selección (Editable):", value=sel_ini_rad, key=f"sel_{pr['codigo']}")
                         with col_nom2:
-                            st.text_input("La Amenaza (Detectada):", value=am_def, disabled=True, key=f"am_info_{pr['codigo']}")
+                            st.info("💡 Asegúrate de que la amenaza sea la contraria exacta.")
+                            amenaza_final_rad = st.text_input("La Amenaza a Cubrir:", value=am_def, key=f"am_info_{pr['codigo']}")
 
                         # --- FILA 2: LAS CUOTAS PURAS Y EL CAPITAL ---
                         col_ent1, col_ent2, col_ent3 = st.columns(3)
@@ -3248,8 +3257,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             "estrategia": "Estrategia 3: Binario Personalizado", 
                                             "partido": partido_formateado, 
                                             "prediccion_ia": marcador_ia_testigo, # 🎯 AQUÍ ALIMENTAMOS TU NUEVA COLUMNA
-                                            "seleccion_inicial": sel_ini_rad,
-                                            "seleccion_cobertura": am_def,
+                                            "seleccion_inicial": seleccion_final_rad,
+                                            "seleccion_cobertura": amenaza_final_rad,
                                             "plataforma_inicial": plat_rad_final,
                                             "cuota_inicial": float(cuota_ent_rad),
                                             "cuota_amenaza_audit": float(cuota_amenaza_rad),
