@@ -1667,7 +1667,70 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 </div>
                                 """, unsafe_allow_html=True)
 
-                                st.markdown(f"**Inversión para cazar a {cuota_salida:.2f}:** ${monto_a_inyectar:,.0f} COP ➡️ **Balance Consolidado:** ${utilidad_proyectada:,.0f} COP")
+                                # =====================================================================
+                                # 🔍 MATRIZ FINANCIERA DE LA OPERACIÓN (Adaptada para Binario/eSports)
+                                # =====================================================================
+                                st.markdown("#### 🔍 Matriz Financiera de la Operación")
+                                
+                                if cuota_minima_rentable > 0:
+                                    if cuota_salida >= cuota_minima_rentable:
+                                        st.markdown(f"<div style='background-color: #F0FDF4; padding: 10px; border-left: 4px solid #16A34A; border-radius: 4px; margin-bottom: 10px; color: #166534; font-size: 0.9rem;'>⚖️ <b>Estado Break-Even:</b> La cuota actual ({cuota_salida:.2f}) ya superó tu Punto de Equilibrio ({cuota_minima_rentable:.2f}). Estás operando en zona libre de pérdida de capital.</div>", unsafe_allow_html=True)
+                                    else:
+                                        st.markdown(f"<div style='background-color: #FEF2F2; padding: 10px; border-left: 4px solid #EF4444; border-radius: 4px; margin-bottom: 10px; color: #991B1B; font-size: 0.9rem;'>⚖️ <b>Estado Break-Even:</b> La cuota actual ({cuota_salida:.2f}) está por debajo del Punto de Equilibrio ({cuota_minima_rentable:.2f}). Cubrir ahora consolidará una pérdida matemática.</div>", unsafe_allow_html=True)
+                                
+                                util_inicial_con_cob = utilidad_proyectada
+                                util_cobertura_con_cob = utilidad_proyectada
+                                util_inicial_sin_cob = utilidad_original_maxima
+                                util_perdida_sin_cob = -op['stake_1']
+                                
+                                col_sc1, col_sc2 = st.columns(2)
+                                with col_sc1:
+                                    st.markdown(f"""
+                                    <div style="background-color: #F8FAFC; padding: 15px; border-radius: 6px; border: 1px solid #CBD5E1;">
+                                        <b style="color: #1E293B;">OPCIÓN A: Cobertura Activa (Cuota {cuota_salida:.2f})</b><br>
+                                        • Inversión Extra: <b>${monto_a_inyectar:,.0f} COP</b><br>
+                                        • Balance Consolidado: <span style="color:{'#10B981' if util_cobertura_con_cob >= 0 else '#EF4444'}; font-weight:bold;">${util_cobertura_con_cob:,.0f} COP</span>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                with col_sc2:
+                                    st.markdown(f"""
+                                    <div style="background-color: #FFFBEB; padding: 15px; border-radius: 6px; border: 1px solid #FDE68A;">
+                                        <b style="color: #78350F;">OPCIÓN B: Abandono de Seguro</b><br>
+                                        • Consolidación Inicial: <b>${util_inicial_sin_cob:,.0f} COP</b> (Si ganas)<br>
+                                        • Consolidación Pérdida: <span style="color:#EF4444; font-weight:bold;">-${op['stake_1']:,.0f} COP</span> (Si pierdes)
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                
+                                costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
+                                capital_rescatado = util_cobertura_con_cob - util_perdida_sin_cob
+                                
+                                if costo_seguro > 0:
+                                    ratio_eficiencia = capital_rescatado / costo_seguro
+                                else:
+                                    ratio_eficiencia = 999.0 
+                                
+                                color_ratio = "#10B981" if ratio_eficiencia >= 1.0 else "#EF4444"
+                                estado_ratio = "SEGURO EFICIENTE" if ratio_eficiencia >= 1.0 else "SEGURO EXTORSIVO (Pagas más de lo que salvas)"
+                                
+                                st.markdown(f"""
+                                <div style="background-color: #F1F5F9; padding: 15px; border-radius: 6px; border-left: 5px solid {color_ratio}; margin-top: 15px;">
+                                    <h5 style="margin-top: 0; color: #334155;">⚖️ Auditoría de Costo-Beneficio (La Póliza)</h5>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                        <span>📉 <b>Costo de la Prima (Sacrificio si ganas):</b></span>
+                                        <span style="color: #EF4444; font-weight: bold;">${costo_seguro:,.0f} COP</span>
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                        <span>🛡️ <b>Capital Rescatado (Salvamento si pierdes):</b></span>
+                                        <span style="color: #10B981; font-weight: bold;">${capital_rescatado:,.0f} COP</span>
+                                    </div>
+                                    <hr style="margin: 10px 0; border-top: 1px solid #CBD5E1;">
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>📊 <b>Veredicto Financiero:</b></span>
+                                        <span style="color: {color_ratio}; font-weight: bold;">{estado_ratio} (Ratio: {ratio_eficiencia:.2f}x)</span>
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
 
                                 # =====================================================================
                                 # ⚖️ RADAR DE EFICIENCIA CASHOUT VS. COBERTURA MANUAL
