@@ -3174,11 +3174,54 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
                                 if cuota_cazar_rad > 0 and plat_rad_final:
                                     import datetime
+                                    import joblib
+                                    import pandas as pd
                                     try:
+                                        # -------------------------------------------------------------
+                                        # 🧠 RE-CÁLCULO SILENCIOSO (TESTIGO DE LA IA PARA AUDITORÍA)
+                                        # -------------------------------------------------------------
+                                        # Como Streamlit borra la memoria al oprimir un botón, 
+                                        # obligamos a la IA a calcular de nuevo en este microsegundo.
+                                        m1x2_rad = joblib.load('modelo_1x2.pkl')
+                                        mgoles_rad = joblib.load('modelo_goles.pkl')
+                                        mbtts_rad = joblib.load('modelo_btts.pkl')
+                                        
+                                        apm_rad = (al_rad + av_rad) / max(1, m_rad)
+                                        ird_rad = min(100.0, apm_rad * 45.0)
+                                        
+                                        X_rad = pd.DataFrame([{'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad}])
+                                        
+                                        pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
+                                        pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
+                                        pred_btts_testigo = mbtts_rad.predict(X_rad)[0]
+                                        
+                                        g_totales_actuales = gl_rad + gv_rad
+                                        g_nuevos_esp = max(0, round(pred_goles_testigo) - g_totales_actuales)
+                                        
+                                        c_loc, c_vis = gl_rad, gv_rad
+                                        if pred_1x2_testigo == 1: 
+                                            if c_loc > c_vis: c_vis = c_loc 
+                                            elif c_vis > c_loc: c_loc = c_vis 
+                                            elif g_nuevos_esp >= 2: c_loc += 1; c_vis += 1
+                                        elif pred_1x2_testigo == 2:
+                                            if c_loc <= c_vis: c_loc = c_vis + max(1, g_nuevos_esp)
+                                            else: c_loc += g_nuevos_esp
+                                        else:
+                                            if c_vis <= c_loc: c_vis = c_loc + max(1, g_nuevos_esp)
+                                            else: c_vis += g_nuevos_esp
+
+                                        if pred_btts_testigo == 1:
+                                            if c_loc == 0: c_loc = 1
+                                            if c_vis == 0: c_vis = 1
+
+                                        marcador_ia_testigo = f"{c_loc}-{c_vis}"
+                                        # -------------------------------------------------------------
+
                                         if "Ambos Anotan" in sel_ini_rad: mdo_str = "Ambos Anotan"
                                         elif "Goles" in sel_ini_rad: mdo_str = "Línea de Goles"
                                         else: mdo_str = "Mercado 1X2"
                                             
+                                        # 1. El título vuelve a quedar profesional y limpio
                                         partido_formateado = f"🏟️ {pr['partido']} | [{mdo_str}] {sel_ini_rad} vs {am_def}"
                                         hora_actual = datetime.datetime.now().strftime("%H:%M")
                                         
@@ -3187,8 +3230,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             "tipo_banca": banca_activa_rad,
                                             "estrategia": "Estrategia 3: Binario Personalizado", 
                                             "partido": partido_formateado, 
+                                            "prediccion_ia": marcador_ia_testigo, # 🎯 AQUÍ ALIMENTAMOS TU NUEVA COLUMNA
                                             "seleccion_inicial": sel_ini_rad,
-                                            "seleccion_cobertura": am_def, # Inyectamos la amenaza detectada
+                                            "seleccion_cobertura": am_def,
                                             "plataforma_inicial": plat_rad_final,
                                             "cuota_inicial": float(cuota_ent_rad),
                                             "cuota_amenaza_audit": float(cuota_amenaza_rad),
@@ -3199,10 +3243,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             "hora_inicio_partido": hora_actual
                                         }).eq("codigo", pr['codigo']).execute()
                                         
-                                        st.success("✅ ¡Disparo exitoso! Operación inyectada al mercado en vivo. Ve a la pestaña 'Seguimiento'.")
+                                        st.success("✅ ¡Disparo exitoso! Predicción guardada. Ve a la pestaña 'Seguimiento'.")
                                         st.rerun()
                                     except Exception as err_db:
-                                        st.error(f"❌ Error crítico de Supabase: {str(err_db)}")
+                                        st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
                                 else:
                                     st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
                         with col_disp2:
