@@ -1606,7 +1606,11 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 # REGLA DE ORO 3: MUERTE POR RELOJ (Tiempo)
                                 elif tiempo_restante <= 10 and not ganando_actualmente:
                                     veredicto_titulo = "⏳ MUERTE TÁCTICA POR RELOJ"
-                                    veredicto_desc = f"Faltan {tiempo_restante} minutos. No importa si los ataques están en 100 (APM: {apm_total:.1f}), el tiempo se acabó y vas perdiendo. Toma los ${oferta_cashout:,.0f} de inmediato antes de que se vuelva $0."
+                                    if oferta_cashout > 0:
+                                        texto_rescate = f"Toma los ${oferta_cashout:,.0f} de inmediato antes de que caiga a $0."
+                                    else:
+                                        texto_rescate = "Ejecuta la cobertura o cierra la operación de inmediato asumiendo la pérdida."
+                                    veredicto_desc = f"Faltan {tiempo_restante} minutos. No importa si los ataques están en {apm_total:.1f} APM, el tiempo se acabó y vas perdiendo. {texto_rescate}"
                                     color_alerta = "#DC2626"; bg_alerta = "#FEF2F2"
                                     
                                 # REGLA DE ORO 4: RELOJ A FAVOR
@@ -2212,7 +2216,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     else: fav_global = "Fuerzas Parejas"
 
                                     # C. CEREBRO PATRIMONIAL (Cálculos de Riesgo)
-                                    saldo_banca_actual = obtener_saldo_banca(banca_op)
+                                    saldo_banca_actual = obtener_saldo_banca(tipo_banca_operacion)
                                     umbral_permitido = max_riesgo_real if banca_op == 'REAL' else max_riesgo_simulacion
                                     pct_rescate_banca = (oferta_cashout_ft / saldo_banca_actual) * 100 if saldo_banca_actual > 0 and oferta_cashout_ft > 0 else 0
                                     exposicion_pct = (cap_total_seguro / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
@@ -2240,12 +2244,16 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             <p style='margin:0; font-size:0.95rem;'>La cuota del mercado (<b>{cuota_ingresada:.2f}</b>) ha perforado tu límite. Ejecuta el botón de salida.</p>
                                         </div>
                                         """
-                                    # 3. MUERTE POR RELOJ (Tiempo)
+                                    # 3. MUERTE POR RELOJ (Tiempo) - CORREGIDO
                                     elif tiempo_restante <= 10 and not ganando_actualmente:
+                                        if oferta_cashout_ft > 0:
+                                            texto_rescate = f"Toma el rescate de ${oferta_cashout_ft:,.0f} de inmediato antes de que caiga a $0."
+                                        else:
+                                            texto_rescate = "Ejecuta la cobertura o cierra la operación de inmediato asumiendo la pérdida."
                                         dictamen_html = f"""
                                         <div style='background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;'>
                                             <h5 style='margin-top:0; color:#991B1B;'>⏳ MUERTE TÁCTICA POR RELOJ</h5>
-                                            <p style='margin:0; font-size:0.95rem;'>Faltan {tiempo_restante} minutos. No importa si los ataques están en {apm_total:.1f} APM, el tiempo se acabó y vas perdiendo. Toma el rescate de inmediato antes de que el árbitro pite el final.</p>
+                                            <p style='margin:0; font-size:0.95rem;'>Faltan {tiempo_restante} minutos. No importa si los ataques están en {apm_total:.1f} APM, el tiempo se acabó y vas perdiendo. {texto_rescate}</p>
                                         </div>
                                         """
                                     # 4. RELOJ A FAVOR (Tiempo)
