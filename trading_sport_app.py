@@ -125,6 +125,7 @@ def obtener_saldos_por_plataforma(tipo_banca: str) -> pd.DataFrame:
             if p_dutch not in saldos and p_dutch != 'Sin Especificar': saldos[p_dutch] = 0.0
             
             estado = str(op.get('estado') or '')
+            if estado == "RADAR": continue # <--- NUEVO: Ignora los partidos en seguimiento
             res_fin = str(op.get('resultado_final') or '')
             estrategia = str(op.get('estrategia') or '')
             es_dutching = op.get('es_dutching', False)
@@ -2691,16 +2692,17 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
 # =====================================================================
 elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
     st.markdown("## 🔮 Oráculo Predictivo")
-    st.write("Planifica tu entrada al mercado basándote en la estadística dura de tu base de datos, no en intuición.")
+    st.write("Planifica tu entrada al mercado y déjala en el Radar para ejecutarla en vivo basándote en la táctica real.")
 
-    tab_pre, tab_vivo = st.tabs(["📋 Planificación Pre-Partido", "⏱️ Oráculo En Vivo (Foto Táctica)"])
+    # 🚨 AQUÍ AGREGAMOS LA TERCERA PESTAÑA: EL RADAR
+    tab_pre, tab_radar, tab_vivo = st.tabs(["📋 Escáner Pre-Partido", "📡 Radar En Vivo (Watchlist)", "⏱️ Laboratorio Táctico (Libre)"])
 
     # ---------------------------------------------------------
     # PESTAÑA 1: PRE-PARTIDO (Oráculo Machine Learning + Contexto)
     # ---------------------------------------------------------
     with tab_pre:
         st.markdown("<h3 style='color: #1E3A8A;'>🧠 Oráculo Predictivo (Machine Learning + Contexto)</h3>", unsafe_allow_html=True)
-        st.info("Ingresa las cuotas principales (1X2) para que la IA entienda el contexto. Luego, elige tu mercado (incluyendo líneas de goles personalizadas).")
+        st.info("Ingresa las cuotas principales (1X2) para que la IA entienda el contexto. Luego, elige tu mercado.")
 
         if not modelos_cargados or df_global is None:
             st.error("🚨 Modelos o datos no encontrados. Por favor, asegúrate de que se cargaron correctamente en la parte superior del código.")
@@ -2724,15 +2726,13 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                                "Ambos Anotan (Sí)", "Ambos Anotan (No)", 
                                                "Más de X Goles", "Menos de X Goles"])
             with col_cfg2:
-                # Si el usuario elige goles, mostramos la opción para elegir la línea (1.5, 2.5, etc.)
                 if "X Goles" in mercado_evaluar:
                     linea_goles = st.number_input("¿Línea de Goles (X)?", min_value=0.5, max_value=8.5, value=2.5, step=1.0)
                 else:
-                    linea_goles = 2.5 # Mantenemos 2.5 por defecto en la memoria para el radar
-                    st.write("") # Espacio en blanco para no romper el diseño
+                    linea_goles = 2.5 
+                    st.write("") 
                     
             with col_cfg3:
-                # Determinar un valor por defecto lógico
                 if mercado_evaluar == "Gana Local": val_defecto = float(c_loc_pre)
                 elif mercado_evaluar == "Empate": val_defecto = float(c_emp_pre)
                 elif mercado_evaluar == "Gana Visita": val_defecto = float(c_vis_pre)
@@ -2744,7 +2744,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             with col_m1:
                 margen = st.slider("🎯 Margen de Búsqueda (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
             with col_m2:
-                stake_pre = st.number_input("Stake ($ COP):", min_value=5000, value=20000, step=5000)
+                stake_pre = st.number_input("Stake Planeado ($ COP):", min_value=5000, value=20000, step=5000)
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -2753,7 +2753,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                     
                     df_clean = df_global.dropna(subset=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win'])
                     
-                    # 1. Buscar el clúster de partidos (Contexto)
                     df_gemelas = df_clean[
                         (df_clean['avg_odds_home_win'] >= c_loc_pre - margen) & (df_clean['avg_odds_home_win'] <= c_loc_pre + margen) &
                         (df_clean['avg_odds_draw'] >= c_emp_pre - margen) & (df_clean['avg_odds_draw'] <= c_emp_pre + margen) &
@@ -2765,7 +2764,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                     if total_gemelas < 10:
                         st.warning(f"🚨 Solo se encontraron {total_gemelas} partidos similares. Sube el 'Margen de Búsqueda'.")
                     else:
-                        # 2. Promedios mundiales e Ineficiencias
                         avg_h = df_gemelas['avg_odds_home_win'].mean()
                         avg_d = df_gemelas['avg_odds_draw'].mean()
                         avg_a = df_gemelas['avg_odds_away_win'].mean()
@@ -2775,7 +2773,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         inef_d = c_emp_pre - avg_d
                         inef_a = c_vis_pre - avg_a
                         
-                        # 3. Predicciones IA (1X2 y BTTS)
                         input_data = pd.DataFrame([[avg_h, avg_d, avg_a, c_loc_pre, c_emp_pre, c_vis_pre, inef_h, inef_d, inef_a, n_odds, n_odds, n_odds]], 
                             columns=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win', 'max_odds_home_win', 'max_odds_draw', 'max_odds_away_win', 'ineficiencia_local', 'ineficiencia_empate', 'ineficiencia_visita', 'n_odds_home_win', 'n_odds_draw', 'n_odds_away_win'])
                         
@@ -2786,15 +2783,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         prob_btts_si = modelo_btts.predict_proba(input_data)[0][1] 
                         prob_btts_no = 1.0 - prob_btts_si
                         
-                        # 4. Probabilidades dinámicas de Goles Over/Under basadas en tu línea
                         total_goles_hist = df_gemelas['home_score'] + df_gemelas['away_score']
                         prob_over_x_hist = len(df_gemelas[total_goles_hist > linea_goles]) / total_gemelas
                         prob_under_x_hist = len(df_gemelas[total_goles_hist < linea_goles]) / total_gemelas
                         
-                        # Nombre dinámico del mercado para la interfaz
                         mercado_display = mercado_evaluar.replace("X", str(linea_goles))
                         
-                        # 5. Asignar probabilidad real al mercado seleccionado
                         if mercado_evaluar == "Gana Local": prob_real = prob_local
                         elif mercado_evaluar == "Gana Visita": prob_real = prob_visita
                         elif mercado_evaluar == "Empate": prob_real = prob_empate
@@ -2803,22 +2797,15 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         elif mercado_evaluar == "Más de X Goles": prob_real = prob_over_x_hist
                         elif mercado_evaluar == "Menos de X Goles": prob_real = prob_under_x_hist
                             
-                        # 6. Matemática de Valor (EV)
                         prob_perder = 1.0 - prob_real
                         ganancia_neta = (stake_pre * cuota_mercado) - stake_pre
                         ev = (prob_real * ganancia_neta) - (prob_perder * stake_pre)
                         roi_ev = (ev / stake_pre) * 100 if stake_pre > 0 else 0
                         
-                        # --------------------------------------------------
-                        # INTERFAZ DE RESULTADOS (DISEÑO LIMPIO Y ORDENADO)
-                        # --------------------------------------------------
                         st.markdown("---")
-                        st.markdown(f"<h3 style='text-align: center; color: #1E293B;'>🤖 RESULTADOS DEL ORÁCULO ({total_gemelas} Partidos Analizados)</h3>", unsafe_allow_html=True)
-                        st.markdown("<br>", unsafe_allow_html=True)
+                        st.markdown(f"<h3 style='text-align: center; color: #1E293B;'>🤖 RESULTADOS DEL ORÁCULO ({total_gemelas} Partidos)</h3>", unsafe_allow_html=True)
                         
-                        # Cajas de Datos (1X2 y Goles) distribuidas elegantemente
                         col_r1, col_r2 = st.columns(2)
-                        
                         with col_r1:
                             st.markdown("#### 🏆 Probabilidades 1X2 (IA)")
                             st.metric("Gana Local", f"{prob_local*100:.1f}%")
@@ -2827,46 +2814,156 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             
                         with col_r2:
                             st.markdown("#### ⚽ Mercado de Goles")
-                            st.metric("Goles Esperados (Promedio IA)", f"{pred_goles:.2f} ⚽")
-                            
-                            # Sub-columnas para que los datos de goles queden bien alineados
+                            st.metric("Goles Esperados (IA)", f"{pred_goles:.2f} ⚽")
                             g1, g2 = st.columns(2)
-                            g1.metric("Ambos Anotan (SÍ)", f"{prob_btts_si*100:.1f}%")
-                            g1.metric("Ambos Anotan (NO)", f"{prob_btts_no*100:.1f}%")
-                            
+                            g1.metric("BTTS (SÍ)", f"{prob_btts_si*100:.1f}%")
+                            g1.metric("BTTS (NO)", f"{prob_btts_no*100:.1f}%")
                             g2.metric(f"Más de {linea_goles}", f"{prob_over_x_hist*100:.1f}%")
                             g2.metric(f"Menos de {linea_goles}", f"{prob_under_x_hist*100:.1f}%")
 
-                        st.markdown("<br><br>", unsafe_allow_html=True)
-                        
-                        # Veredicto de Valor
                         if ev > 0:
                             st.markdown(f"""
-                            <div style="background-color: #ECFDF5; border: 2px solid #10B981; padding: 30px; border-radius: 15px; text-align: center;">
-                                <h2 style="color: #047857; margin-top:0;">✅ ALERTA DE VALOR (EV+)</h2>
-                                <h4 style="color: #065F46; font-weight: normal;">Mercado: <b>{mercado_display}</b> a cuota <b>{cuota_mercado}</b></h4>
-                                <h1 style="color: #10B981; font-size: 3.5rem; margin: 15px 0;">+${ev:,.0f} COP</h1>
-                                <h3 style="color: #047857; margin-bottom: 10px;">ROI Proyectado: <b>+{roi_ev:.1f}%</b></h3>
-                                <p style="color: #064E3B; font-size: 1.1rem; margin-top: 10px; margin-bottom:0;">La máquina determina que tienes un <b>{prob_real*100:.1f}%</b> de probabilidad real. Tienes ventaja matemática. <b>¡Dispara!</b></p>
+                            <div style="background-color: #ECFDF5; border: 2px solid #10B981; padding: 20px; border-radius: 10px; text-align: center;">
+                                <h3 style="color: #047857; margin-top:0;">✅ ALERTA DE VALOR (EV+)</h3>
+                                <h1 style="color: #10B981; margin: 10px 0;">+${ev:,.0f} COP</h1>
+                                <p style="color: #064E3B; margin-bottom:0;">La máquina determina que tienes ventaja matemática (ROI: +{roi_ev:.1f}%). <b>¡Guárdalo en el Radar!</b></p>
                             </div>
                             """, unsafe_allow_html=True)
                         else:
                             st.markdown(f"""
-                            <div style="background-color: #FEF2F2; border: 2px solid #EF4444; padding: 30px; border-radius: 15px; text-align: center;">
-                                <h2 style="color: #B91C1C; margin-top:0;">🚨 TRAMPA DE LA CASA (EV-)</h2>
-                                <h4 style="color: #991B1B; font-weight: normal;">Mercado: <b>{mercado_display}</b> a cuota <b>{cuota_mercado}</b></h4>
-                                <h1 style="color: #EF4444; font-size: 3.5rem; margin: 15px 0;">-${abs(ev):,.0f} COP</h1>
-                                <h3 style="color: #B91C1C; margin-bottom: 10px;">ROI Proyectado: <b>{roi_ev:.1f}%</b></h3>
-                                <p style="color: #7F1D1D; font-size: 1.1rem; margin-top: 10px; margin-bottom:0;">Esta cuota no tiene valor. La probabilidad real es solo del <b>{prob_real*100:.1f}%</b>. Si apuestas esto a largo plazo, perderás dinero. <b>Aléjate.</b></p>
+                            <div style="background-color: #FEF2F2; border: 2px solid #EF4444; padding: 20px; border-radius: 10px; text-align: center;">
+                                <h3 style="color: #B91C1C; margin-top:0;">🚨 TRAMPA DE LA CASA (EV-)</h3>
+                                <h1 style="color: #EF4444; margin: 10px 0;">-${abs(ev):,.0f} COP</h1>
+                                <p style="color: #7F1D1D; margin-bottom:0;">Esta cuota no tiene valor (ROI: {roi_ev:.1f}%). Descartar.</p>
                             </div>
                             """, unsafe_allow_html=True)
 
+                        # --- NUEVO: GUARDAR EN EL RADAR ---
+                        st.markdown("---")
+                        st.markdown("### 📡 Guardar en Radar En Vivo")
+                        st.write("¿La apuesta tiene valor? Guárdala en tu lista de seguimiento sin arriesgar capital. En vivo, inyectarás la foto táctica para confirmar el disparo.")
+                        
+                        rp1, rp2 = st.columns(2)
+                        with rp1:
+                            nombre_partido_radar = st.text_input("Nombre del Partido:", placeholder="Ej: Real Madrid vs Man City")
+                        with rp2:
+                            plataforma_radar = st.selectbox("Plataforma a usar:", todas_las_plataformas, key="plat_radar")
+                        
+                        if st.button("📌 Mandar al Radar", use_container_width=True):
+                            if not nombre_partido_radar:
+                                st.error("Debes ponerle un nombre al partido.")
+                            else:
+                                if supabase is not None:
+                                    nuevo_codigo = f"RAD-{generar_codigo()}"
+                                    datos_radar = {
+                                        "codigo": nuevo_codigo,
+                                        "partido": nombre_partido_radar,
+                                        "estrategia": "Estrategia Libre Directa", # Se pone Libre para que el Liquidador lo entienda cuando pase a EN VIVO
+                                        "seleccion_inicial": mercado_display,
+                                        "plataforma_inicial": plataforma_radar,
+                                        "capital_total": stake_pre,
+                                        "cuota_inicial": cuota_mercado,
+                                        "stake_1": stake_pre,
+                                        "estado": "RADAR", # ESTADO MAGICO: No resta saldo
+                                        "tipo_banca": "SIMULACION", # Por seguridad, arranca en simulación
+                                        "cuota_base_audit": c_loc_pre, 
+                                        "cuota_empate_audit": c_emp_pre,
+                                        "cuota_amenaza_audit": c_vis_pre
+                                    }
+                                    supabase.table("historial_trading").insert(datos_radar).execute()
+                                    st.success(f"✅ Partido '{nombre_partido_radar}' guardado en el Radar. Búscalo en la siguiente pestaña cuando ruede el balón.")
+                                else:
+                                    st.error("Conecta Supabase primero.")
+
     # ---------------------------------------------------------
-    # PESTAÑA 2: EN VIVO (Oráculo Táctico Puro)
+    # PESTAÑA 2: RADAR EN VIVO (Watchlist y Ejecución)
+    # ---------------------------------------------------------
+    with tab_radar:
+        st.subheader("📡 Tu Radar de Seguimiento")
+        st.write("Partidos aprobados por el Escáner. Inyecta la foto táctica del partido en curso y la IA confirmará si mantienes el disparo o abortas.")
+        
+        if supabase is not None:
+            res_radar = supabase.table("historial_trading").select("*").eq("estado", "RADAR").execute()
+            partidos_radar = res_radar.data
+            
+            if not partidos_radar:
+                st.info("Tu radar está vacío. Escanea partidos en la pestaña 'Escáner Pre-Partido' y mándalos para acá.")
+            else:
+                for pr in partidos_radar:
+                    with st.expander(f"📌 {pr['partido']} | Mdo: {pr['seleccion_inicial']} | Cuota: {pr['cuota_inicial']} | Stake Planeado: ${pr['stake_1']:,.0f}"):
+                        st.write(f"**Cuotas Base Iniciales:** Local ({pr['cuota_base_audit']}) | Empate ({pr['cuota_empate_audit']}) | Visita ({pr['cuota_amenaza_audit']})")
+                        st.markdown("---")
+                        st.markdown("#### 📸 Foto Táctica En Vivo")
+                        
+                        cr1, cr2, cr3 = st.columns(3)
+                        m_rad = cr1.number_input("⏱️ Minuto:", min_value=1, max_value=120, value=60, key=f"mr_{pr['codigo']}")
+                        gl_rad = cr2.number_input("⚽ Goles Loc:", min_value=0, value=0, key=f"glr_{pr['codigo']}")
+                        gv_rad = cr3.number_input("⚽ Goles Vis:", min_value=0, value=0, key=f"gvr_{pr['codigo']}")
+                        
+                        cr4, cr5 = st.columns(2)
+                        al_rad = cr4.number_input("🔥 Atq. Pel. Local:", min_value=0, value=40, key=f"alr_{pr['codigo']}")
+                        av_rad = cr5.number_input("🔥 Atq. Pel. Visita:", min_value=0, value=25, key=f"avr_{pr['codigo']}")
+                        
+                        if st.button("🧠 Validar con Oráculo Táctico", key=f"btn_ev_{pr['codigo']}", use_container_width=True):
+                            try:
+                                m1x2_rad = joblib.load('modelo_1x2.pkl')
+                                mgoles_rad = joblib.load('modelo_goles.pkl')
+                                mbtts_rad = joblib.load('modelo_btts.pkl')
+                                
+                                apm_rad = (al_rad + av_rad) / max(1, m_rad)
+                                ird_rad = min(100.0, apm_rad * 45.0)
+                                
+                                X_rad = pd.DataFrame([{
+                                    'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad,
+                                    'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad
+                                }])
+                                
+                                pred_1x2_rad = m1x2_rad.predict(X_rad)[0]
+                                pred_goles_rad = mgoles_rad.predict(X_rad)[0]
+                                pred_btts_rad = mbtts_rad.predict(X_rad)[0]
+                                
+                                winner = "Empate" if pred_1x2_rad == 1 else ("Local" if pred_1x2_rad == 2 else "Visita")
+                                btts = "SÍ" if pred_btts_rad == 1 else "NO"
+                                
+                                st.markdown(f"""
+                                <div style="background-color: #F8FAFC; padding: 15px; border-left: 5px solid #3B82F6; border-radius: 4px;">
+                                    <h5 style="margin-top:0;">📊 Veredicto Táctico Actual (Sin mirar cuotas)</h5>
+                                    <p style="margin:0;"><b>Fuerza Ganadora Proyectada:</b> {winner}</p>
+                                    <p style="margin:0;"><b>Goles Finales Esperados:</b> {pred_goles_rad:.2f}</p>
+                                    <p style="margin:0;"><b>¿Ambos Anotan?:</b> {btts}</p>
+                                    <hr style="margin:5px 0;">
+                                    <p style="margin:0; color:#B45309;"><b>Nivel de Presión IRD:</b> {ird_rad:.1f}%</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            except Exception as e:
+                                st.error(f"Error procesando IA táctica: {e}")
+                                
+                        st.markdown("---")
+                        st.markdown("#### 🚀 Confirmar Entrada")
+                        banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
+                        banca_activa_rad = "REAL" if "Real" in banca_ejecutar else "SIMULACION"
+                        
+                        col_disp1, col_disp2 = st.columns(2)
+                        with col_disp1:
+                            if st.button("🔥 DISPARAR (Aprobar)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
+                                supabase.table("historial_trading").update({
+                                    "estado": "EN VIVO",
+                                    "tipo_banca": banca_activa_rad
+                                }).eq("codigo", pr['codigo']).execute()
+                                st.success("¡Operación en juego! Ve a 'Seguimiento y Liquidación' para gestionarla.")
+                                st.rerun()
+                        with col_disp2:
+                            if st.button("🗑️ ABORTAR (Borrar)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
+                                supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
+                                st.warning("Partido descartado.")
+                                st.rerun()
+
+    # ---------------------------------------------------------
+    # PESTAÑA 3: LABORATORIO TÁCTICO (El código original que ya tenías)
     # ---------------------------------------------------------
     with tab_vivo:
-        st.subheader("🧠 El Cerebro Táctico (Machine Learning)")
-        st.write("Ingresa tu Foto Táctica actual. La IA, operando como un analista puro (ciega a las cuotas de la casa), cruzará el asedio en cancha para darte una predicción integral al instante.")
+        st.subheader("🧠 Laboratorio Táctico (Machine Learning)")
+        st.write("Ingresa tu Foto Táctica actual de cualquier partido. La IA, operando como un analista puro (ciega a las cuotas), cruzará el asedio en cancha para darte una predicción integral al instante sin guardar nada en base de datos.")
         
         st.markdown("#### 📸 Foto Táctica En Vivo")
         c_vivo1, c_vivo2, c_vivo3 = st.columns(3)
@@ -2877,96 +2974,75 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
         c_vivo4, c_vivo5, c_vivo6 = st.columns(3)
         atq_loc_sim = c_vivo4.number_input("🔥 Atq. Pel. Local:", min_value=0, value=40)
         atq_vis_sim = c_vivo5.number_input("🔥 Atq. Pel. Visitante:", min_value=0, value=25)
-        # La caja de "Cuota Ofrecida" ha sido eliminada por completo.
         
         if st.button("🧠 Despertar Oráculo (Proyectar Escenario)", use_container_width=True):
             import joblib
             import pandas as pd
             import os
             
-            # Verificamos que los cerebros existan en la carpeta
             if not os.path.exists('modelo_1x2.pkl'):
                 st.error("🚨 Falta el archivo 'modelo_1x2.pkl'. Asegúrate de que los 3 cerebros estén en la misma carpeta.")
             else:
                 with st.spinner("Procesando redes neuronales tácticas..."):
                     try:
-                        # 1. Cargar los cerebros congelados
-                        modelo_1x2 = joblib.load('modelo_1x2.pkl')
-                        modelo_goles = joblib.load('modelo_goles.pkl')
-                        modelo_btts = joblib.load('modelo_btts.pkl')
+                        modelo_1x2_v = joblib.load('modelo_1x2.pkl')
+                        modelo_goles_v = joblib.load('modelo_goles.pkl')
+                        modelo_btts_v = joblib.load('modelo_btts.pkl')
                         
-                        # 2. Calcular el IRD para la IA
                         apm_total = (atq_loc_sim + atq_vis_sim) / max(1, minuto_sim)
                         ird_sim = min(100.0, apm_total * 45.0)
                         
-                        # 3. Empaquetar las 6 variables tácticas EXACTAS
                         X_input = pd.DataFrame([{
-                            'minuto_evaluado': minuto_sim,
-                            'goles_local': g_loc_sim,
-                            'goles_vis': g_vis_sim,
-                            'atkp_local': atq_loc_sim,
-                            'atkp_vis': atq_vis_sim,
-                            'ird_calculado': ird_sim
+                            'minuto_evaluado': minuto_sim, 'goles_local': g_loc_sim, 'goles_vis': g_vis_sim,
+                            'atkp_local': atq_loc_sim, 'atkp_vis': atq_vis_sim, 'ird_calculado': ird_sim
                         }])
                         
-                        # 4. Extraer las Predicciones
-                        pred_1x2 = modelo_1x2.predict(X_input)[0]
-                        pred_goles = modelo_goles.predict(X_input)[0]
-                        pred_btts = modelo_btts.predict(X_input)[0]
+                        pred_1x2_v = modelo_1x2_v.predict(X_input)[0]
+                        pred_goles_v = modelo_goles_v.predict(X_input)[0]
+                        pred_btts_v = modelo_btts_v.predict(X_input)[0]
                         
-                        # 5. Traducción de resultados de máquina a humano
-                        ganador_str = "Empate" if pred_1x2 == 1 else "Equipo Local" if pred_1x2 == 2 else "Equipo Visitante"
-                        btts_str = "SÍ" if pred_btts == 1 else "NO"
-                        color_btts = "#10B981" if pred_btts == 1 else "#EF4444"
-                        # -------------------------------------------------------------
-                        # 🎯 MOTOR DE TRIANGULACIÓN (MARCADOR EXACTO REALISTA)
-                        # -------------------------------------------------------------
+                        ganador_str = "Empate" if pred_1x2_v == 1 else "Equipo Local" if pred_1x2_v == 2 else "Equipo Visitante"
+                        btts_str = "SÍ" if pred_btts_v == 1 else "NO"
+                        color_btts = "#10B981" if pred_btts_v == 1 else "#EF4444"
+                        
                         goles_actuales_totales = g_loc_sim + g_vis_sim
-                        goles_nuevos_esperados = max(0, round(pred_goles) - goles_actuales_totales)
+                        goles_nuevos_esperados = max(0, round(pred_goles_v) - goles_actuales_totales)
                         
                         calc_loc = g_loc_sim
                         calc_vis = g_vis_sim
 
-                        if pred_1x2 == 1: 
+                        if pred_1x2_v == 1: 
                             if calc_loc > calc_vis: calc_vis = calc_loc 
                             elif calc_vis > calc_loc: calc_loc = calc_vis 
                             elif goles_nuevos_esperados >= 2:
                                 calc_loc += 1
                                 calc_vis += 1
-                        elif pred_1x2 == 2:
+                        elif pred_1x2_v == 2:
                             if calc_loc <= calc_vis: calc_loc = calc_vis + max(1, goles_nuevos_esperados)
                             else: calc_loc += goles_nuevos_esperados
                         else:
                             if calc_vis <= calc_loc: calc_vis = calc_loc + max(1, goles_nuevos_esperados)
                             else: calc_vis += goles_nuevos_esperados
 
-                        if pred_btts == 1:
+                        if pred_btts_v == 1:
                             if calc_loc == 0: calc_loc = 1
                             if calc_vis == 0: calc_vis = 1
 
                         marcador_exacto = f"{calc_loc} - {calc_vis}"
 
-                        # -------------------------------------------------------------
-                        # ⏱️ ÁRBITRO DE TIEMPO (FILTRO ANTI-REMONTADAS IMPOSIBLES)
-                        # -------------------------------------------------------------
                         minutos_restantes = 90 - minuto_sim
-                        diferencia_goles_real = abs(g_loc_sim - g_vis_sim) # <--- AHORA SÍ MIRA LA REALIDAD
-                        
-                        # Definimos quién va ganando en la vida real (1=Empate, 2=Local, 3=Visita)
+                        diferencia_goles_real = abs(g_loc_sim - g_vis_sim) 
                         lider_real = 1 if g_loc_sim == g_vis_sim else (2 if g_loc_sim > g_vis_sim else 3)
                         
-                        # El Árbitro SOLO interviene si alguien ya va ganando y la IA predice que lo van a empatar o remontar
-                        if lider_real != 1 and pred_1x2 != lider_real:
-                            # Regla física: 1 gol requiere en promedio 10 minutos de asedio
+                        if lider_real != 1 and pred_1x2_v != lider_real:
                             if (diferencia_goles_real * 10) > minutos_restantes:
-                                # ¡Físicamente imposible! Restauramos el marcador a favor del líder real.
                                 if lider_real == 2:
                                     calc_loc = g_loc_sim
-                                    calc_vis = g_vis_sim + (1 if pred_btts == 1 and g_vis_sim == 0 and minutos_restantes >= 5 else 0)
+                                    calc_vis = g_vis_sim + (1 if pred_btts_v == 1 and g_vis_sim == 0 and minutos_restantes >= 5 else 0)
                                     marcador_exacto = f"{calc_loc} - {calc_vis}"
                                     ganador_str = "Equipo Local (Corregido por Reloj)"
                                 else:
-                                    calc_loc = g_loc_sim + (1 if pred_btts == 1 and g_loc_sim == 0 and minutos_restantes >= 5 else 0)
+                                    calc_loc = g_loc_sim + (1 if pred_btts_v == 1 and g_loc_sim == 0 and minutos_restantes >= 5 else 0)
                                     calc_vis = g_vis_sim
                                     marcador_exacto = f"{calc_loc} - {calc_vis}"
                                     ganador_str = "Equipo Visitante (Corregido por Reloj)"
@@ -2974,59 +3050,38 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 st.markdown(f"""
                                 <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
                                     <h4 style="margin-top:0; color:#B45309;">⏱️ ALERTA DEL ÁRBITRO DE TIEMPO</h4>
-                                    <p style="margin:0; color:#92400E;">La IA proyectó un Empate/Remontada por la alta presión ofensiva, pero la diferencia es de <b>{diferencia_goles_real} goles</b> y solo quedan <b>{minutos_restantes} minutos</b>. El Risk Manager ha bloqueado la predicción por ser físicamente imposible.</p>
+                                    <p style="margin:0; color:#92400E;">La IA proyectó un Empate/Remontada por la alta presión ofensiva, pero la diferencia es de <b>{diferencia_goles_real} goles</b> y solo quedan <b>{minutos_restantes} minutos</b>. Bloqueado por límite físico.</p>
                                 </div>
                                 """, unsafe_allow_html=True)
-                        # -------------------------------------------------------------
-                        # ---> ¡ESTAS DOS LÍNEAS SON VITALES! <---
+                        
                         apm_loc = atq_loc_sim / max(1, minuto_sim)
                         apm_vis = atq_vis_sim / max(1, minuto_sim)
                         
-                        # Si la IA predice que "Ambos Anotan" (SÍ)
-                        if pred_btts == 1:
+                        if pred_btts_v == 1:
                             if apm_loc < 0.5 or apm_vis < 0.5:
                                 st.markdown("""
                                 <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
                                     <h4 style="margin-top:0; color:#B45309;">⚠️ ADVERTENCIA DE SENTIDO COMÚN</h4>
-                                    <p style="margin:0; color:#92400E;">La IA proyecta <b>SÍ (Ambos Anotan)</b> basándose en estadística, pero el volumen ofensivo actual es de <b>menos de 0.5 APM</b>.<br>
-                                    El Oráculo tiene autonomía, pero el Risk Manager sugiere extrema cautela en esta entrada.</p>
+                                    <p style="margin:0; color:#92400E;">La IA proyecta <b>SÍ (Ambos Anotan)</b> pero el volumen ofensivo actual es de <b>menos de 0.5 APM</b>. Sugerimos cautela extrema.</p>
                                 </div>
                                 """, unsafe_allow_html=True)
-                                # AQUÍ QUITAMOS LA SOBREESCRITURA. La IA mantiene su respuesta original. 
+                        
                         st.markdown("---")
                         st.markdown("### 🔮 Veredicto del Oráculo (Análisis Físico)")
-                        # Tarjeta Gigante del Marcador
                         st.markdown(f"""
                         <div style="background-color: #1E293B; border: 2px solid #3B82F6; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px;">
                             <h4 style="margin-top:0; color:#94A3B8;">🎯 MARCADOR EXACTO PROYECTADO</h4>
                             <h1 style="color:#FFFFFF; font-size: 3.5rem; margin: 10px 0; font-family: monospace;">{marcador_exacto}</h1>
-                            <p style="margin:0; font-size: 0.9rem; color:#64748B;">Triangulación matemática de los 3 modelos predictivos</p>
                         </div>
                         """, unsafe_allow_html=True)
+                        
                         col_r1, col_r2, col_r3 = st.columns(3)
                         with col_r1:
-                            st.markdown(f"""
-                            <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h4 style="margin-top:0; color:#475569;">🏆 Ganador Proyectado</h4>
-                                <h2 style="color:#0F172A; margin: 10px 0;">{ganador_str}</h2>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
+                            st.markdown(f"""<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;"><h4 style="margin-top:0; color:#475569;">🏆 Ganador</h4><h2 style="color:#0F172A; margin: 10px 0;">{ganador_str}</h2></div>""", unsafe_allow_html=True)
                         with col_r2:
-                            st.markdown(f"""
-                            <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h4 style="margin-top:0; color:#475569;">⚽ Goles Totales (Al final)</h4>
-                                <h2 style="color:#0EA5E9; margin: 10px 0;">{pred_goles:.1f} Goles</h2>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
+                            st.markdown(f"""<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;"><h4 style="margin-top:0; color:#475569;">⚽ Goles Totales</h4><h2 style="color:#0EA5E9; margin: 10px 0;">{pred_goles_v:.1f}</h2></div>""", unsafe_allow_html=True)
                         with col_r3:
-                            st.markdown(f"""
-                            <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;">
-                                <h4 style="margin-top:0; color:#475569;">🔥 ¿Ambos Anotan?</h4>
-                                <h2 style="color:{color_btts}; margin: 10px 0;">{btts_str}</h2>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.markdown(f"""<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;"><h4 style="margin-top:0; color:#475569;">🔥 Ambos Anotan</h4><h2 style="color:{color_btts}; margin: 10px 0;">{btts_str}</h2></div>""", unsafe_allow_html=True)
                             
                     except Exception as e:
                         st.error(f"❌ Error al procesar la predicción: {str(e)}")
