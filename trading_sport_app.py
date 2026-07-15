@@ -2971,11 +2971,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 st.error(f"Error procesando IA táctica: {e}")
                                 
                         # ------------------------------------------------------------------
-                        # LÓGICA DE ENTRADA Y CÁLCULO DE RIESGO
+                        # LÓGICA DE ENTRADA, PLATAFORMA Y CÁLCULO DE RIESGO
                         # ------------------------------------------------------------------
                         st.markdown("---")
                         st.markdown("#### ⚙️ Configurar Ejecución y Riesgo")
-                        st.info("Ajusta tu punto de entrada real. La IA calculará los puntos de salida para hacer el seguimiento.")
+                        st.info("Ajusta tu punto de entrada real, la casa de apuestas y la cuota de la amenaza.")
                         
                         sel_ini_rad = pr['seleccion_inicial']
                         if "Sí" in sel_ini_rad: am_def = sel_ini_rad.replace("Sí", "No")
@@ -2987,14 +2987,41 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         elif "Empate" in sel_ini_rad: am_def = "Cualquiera Gana"
                         else: am_def = "Opción Contraria"
                         
+                        # --- FILA 1: NOMBRES Y AMENAZA ---
+                        col_nom1, col_nom2 = st.columns(2)
+                        with col_nom1:
+                            st.text_input("Tu Selección (Pre-definida):", value=sel_ini_rad, disabled=True, key=f"sel_{pr['codigo']}")
+                        with col_nom2:
+                            amenaza_rad = st.text_input("Amenaza a Cubrir:", value=am_def, key=f"am_{pr['codigo']}")
+
+                        # --- FILA 2: CUOTAS Y CAPITAL ---
                         col_ent1, col_ent2, col_ent3 = st.columns(3)
                         with col_ent1:
-                            amenaza_rad = st.text_input("Amenaza a Cubrir:", value=am_def, key=f"am_{pr['codigo']}")
+                            cuota_ent_rad = st.number_input("Cuota Entrada (Tu Selección):", min_value=1.01, value=float(pr['cuota_inicial']), step=0.05, key=f"c_ent_{pr['codigo']}")
                         with col_ent2:
-                            cuota_ent_rad = st.number_input("Cuota Actual (Entrada):", min_value=1.01, value=float(pr['cuota_inicial']), step=0.05, key=f"c_ent_{pr['codigo']}")
+                            # Evita que falle si guardó un valor extraño en auditoría
+                            val_amenaza = float(pr.get('cuota_amenaza_audit') or 1.90)
+                            if val_amenaza < 1.01: val_amenaza = 1.90
+                            cuota_amenaza_rad = st.number_input("Cuota Actual Amenaza:", min_value=1.01, value=val_amenaza, step=0.05, key=f"c_am_{pr['codigo']}")
                         with col_ent3:
                             stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=int(pr['stake_1']), step=5000, key=f"stk_ent_{pr['codigo']}")
                         
+                        # --- FILA 3: CASA DE APUESTAS ---
+                        lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"]
+                        plat_previa = pr.get('plataforma_inicial', 'BetPlay')
+                        idx_plat = lista_casas.index(plat_previa) if plat_previa in lista_casas else 0
+                        
+                        col_plat1, col_plat2 = st.columns(2)
+                        with col_plat1:
+                            plat_rad_sel = st.selectbox("Casa de Apuestas (Entrada):", lista_casas, index=idx_plat, key=f"plat_{pr['codigo']}")
+                        with col_plat2:
+                            if plat_rad_sel == "Otra":
+                                plat_rad_final = st.text_input("Especifica la plataforma:", key=f"otra_{pr['codigo']}")
+                            else:
+                                plat_rad_final = plat_rad_sel
+                                st.write("") # Espacio para balancear el diseño
+
+                        # Matemática Financiera para el Radar
                         retorno_bruto_esperado = stake_ent_rad * cuota_ent_rad
                         utilidad_max_posible = retorno_bruto_esperado - stake_ent_rad
                         max_roi_pct = (utilidad_max_posible / stake_ent_rad) * 100 if stake_ent_rad > 0 else 0
@@ -3032,7 +3059,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         col_disp1, col_disp2 = st.columns(2)
                         with col_disp1:
                             if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
-                                if cuota_cazar_rad > 0:
+                                if cuota_cazar_rad > 0 and plat_rad_final:
                                     import datetime
                                     try:
                                         # 🎯 TRUCO ESTRUCTURAL: Reconstruimos el texto exacto para la pestaña de seguimiento
@@ -3050,12 +3077,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             "partido": partido_formateado, 
                                             "seleccion_inicial": sel_ini_rad,
                                             "seleccion_cobertura": amenaza_rad,
+                                            "plataforma_inicial": plat_rad_final,
                                             "cuota_inicial": float(cuota_ent_rad),
+                                            "cuota_amenaza_audit": float(cuota_amenaza_rad),
                                             "capital_total": float(stake_ent_rad),
                                             "stake_1": float(stake_ent_rad),
                                             "cuota_objetivo": float(cuota_cazar_rad),
                                             "cuota_stop_loss": float(cuota_sl_rad),
-                                            "hora_inicio_partido": hora_actual # <-- ES VITAL PARA QUE APAREZCA
+                                            "hora_inicio_partido": hora_actual
                                         }).eq("codigo", pr['codigo']).execute()
                                         
                                         st.success("✅ ¡Disparo exitoso! Operación inyectada al mercado en vivo. Ve a la pestaña 'Seguimiento'.")
@@ -3063,7 +3092,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     except Exception as err_db:
                                         st.error(f"❌ Error crítico de Supabase: {str(err_db)}")
                                 else:
-                                    st.error("Error matemático en las cuotas. Ajusta tu entrada.")
+                                    st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
                         with col_disp2:
                             if st.button("🗑️ ABORTAR (Descartar Partido)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
                                 supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
