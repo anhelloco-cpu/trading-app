@@ -2670,113 +2670,110 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
     tab_pre, tab_vivo = st.tabs(["📋 Planificación Pre-Partido", "⏱️ Oráculo En Vivo (Foto Táctica)"])
 
     # ---------------------------------------------------------
-    # PESTAÑA 1: PRE-PARTIDO (Buscador de Cuotas Gemelas y EV)
+    # PESTAÑA 1: PRE-PARTIDO (Buscador Global en closing_odds.csv)
     # ---------------------------------------------------------
     with tab_pre:
-        st.subheader("⚖️ Escáner de Cuotas Gemelas (Valor Esperado)")
-        st.info("Ingresa las cuotas de apertura. El Oráculo buscará en tu historial partidos con un contexto de precios similar para revelarte si la apuesta tiene valor matemático (EV+).")
+        st.subheader("⚖️ Escáner Global (Modelo Kaunitz)")
+        st.info("El Oráculo está conectado a la base de datos 'Beat The Bookie' (casi 500,000 partidos). Ingresa las cuotas de tu casa para ver si es una trampa o un error del mercado.")
         
         col_p1, col_p2, col_p3 = st.columns(3)
         with col_p1:
-            c_loc_pre = st.number_input("Cuota Local (1):", min_value=1.01, value=2.10, step=0.05)
+            c_loc_pre = st.number_input("Cuota Local (Tu Casa):", min_value=1.01, value=2.10, step=0.05)
         with col_p2:
-            c_emp_pre = st.number_input("Cuota Empate (X):", min_value=1.01, value=3.20, step=0.05)
+            c_emp_pre = st.number_input("Cuota Empate (Tu Casa):", min_value=1.01, value=3.20, step=0.05)
         with col_p3:
-            c_vis_pre = st.number_input("Cuota Visita (2):", min_value=1.01, value=3.50, step=0.05)
+            c_vis_pre = st.number_input("Cuota Visita (Tu Casa):", min_value=1.01, value=3.50, step=0.05)
             
         st.markdown("---")
         
-        # EL NUEVO RADAR DE FLEXIBILIDAD
-        margen = st.slider(
-            "🎯 Radar de Flexibilidad (± Rango de Cuotas):", 
-            min_value=0.05, max_value=1.50, value=0.30, step=0.05, 
-            help="Aumenta este rango si el Oráculo encuentra 0 partidos. Una flexibilidad de 0.30 buscará cuotas que estén 0.30 por encima o por debajo de las que ingresaste."
-        )
+        # Radar de Flexibilidad (Ahora busca en el CSV)
+        margen = st.slider("🎯 Margen de Tolerancia de Búsqueda (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
         
-        st.markdown("---")
         col_ev1, col_ev2, col_ev3 = st.columns(3)
         with col_ev1:
-            mercado_evaluar = st.selectbox("¿Qué auditarás?", ["Gana Local", "Gana Visita", "Empate", "Ambos Anotan", "Línea de Goles (+2.5)"])
+            mercado_evaluar = st.selectbox("¿Qué mercado quieres auditar?", ["Gana Local", "Gana Visita", "Empate"])
         with col_ev2:
-            cuota_mercado = st.number_input(f"Cuota de '{mercado_evaluar}':", min_value=1.01, value=1.90, step=0.05)
+            # Automáticamente detecta la cuota seleccionada arriba
+            cuota_mercado = c_loc_pre if mercado_evaluar == "Gana Local" else (c_vis_pre if mercado_evaluar == "Gana Visita" else c_emp_pre)
+            st.info(f"Cuota a auditar: {cuota_mercado}")
         with col_ev3:
             stake_pre = st.number_input("Stake ($ COP):", min_value=5000, value=20000, step=5000)
 
-        if st.button("🔮 Auditar Rentabilidad Histórica", use_container_width=True):
-            if supabase is None:
-                st.error("Conecta Supabase para acceder al historial de cuotas.")
+        if st.button("🔮 Auditar contra Medio Millón de Partidos", use_container_width=True):
+            import pandas as pd
+            import os
+            
+            # El nombre exacto de tu archivo comprimido
+            nombre_archivo = 'closing_odds.csv.gz' 
+            
+            if not os.path.exists(nombre_archivo):
+                st.error(f"🚨 Falta el archivo '{nombre_archivo}' en la carpeta. Asegúrate de que el nombre sea exacto.")
             else:
-                with st.spinner("Lanzando red de búsqueda en el Libro Mayor..."):
-                    res_trading = supabase.table("historial_trading").select(
-                        "cuota_base_audit, cuota_empate_audit, cuota_amenaza_audit, goles_finales_seleccion, goles_finales_rival"
-                    ).eq("estado", "CERRADA").execute()
-                    
-                    if not res_trading.data:
-                        st.warning("No hay suficientes operaciones cerradas para realizar una auditoría pre-partido.")
-                    else:
-                        import pandas as pd
-                        df_pre = pd.DataFrame(res_trading.data)
+                with st.spinner("Buceando en la base de datos de Kaunitz..."):
+                    try:
+                        # Pandas lee el .gz directamente con compression='gzip'
+                        df_global = pd.read_csv(nombre_archivo, compression='gzip')
                         
-                        df_pre = df_pre.fillna(0)
-                        df_pre['goles_finales_seleccion'] = pd.to_numeric(df_pre['goles_finales_seleccion'], errors='coerce').fillna(0)
-                        df_pre['goles_finales_rival'] = pd.to_numeric(df_pre['goles_finales_rival'], errors='coerce').fillna(0)
+                        # Limpiar datos nulos
+                        df_global = df_global.dropna(subset=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win', 'home_score', 'away_score'])
                         
-                        # Filtrar el historial usando tu nuevo radar de flexibilidad
-                        df_gemelas = df_pre[
-                            (df_pre['cuota_base_audit'] >= c_loc_pre - margen) & (df_pre['cuota_base_audit'] <= c_loc_pre + margen) &
-                            (df_pre['cuota_empate_audit'] >= c_emp_pre - margen) & (df_pre['cuota_empate_audit'] <= c_emp_pre + margen)
-                        ].copy()
+                        # Buscar gemelos en el MERCADO GLOBAL
+                        df_gemelas = df_global[
+                            (df_global['avg_odds_home_win'] >= c_loc_pre - margen) & (df_global['avg_odds_home_win'] <= c_loc_pre + margen) &
+                            (df_global['avg_odds_draw'] >= c_emp_pre - margen) & (df_global['avg_odds_draw'] <= c_emp_pre + margen) &
+                            (df_global['avg_odds_away_win'] >= c_vis_pre - margen) & (df_global['avg_odds_away_win'] <= c_vis_pre + margen)
+                        ]
                         
                         total_gemelas = len(df_gemelas)
                         
-                        if total_gemelas < 3:
-                            st.warning(f"🚨 Solo se atraparon {total_gemelas} partidos en la red. Por favor, aumenta el 'Radar de Flexibilidad' arriba para capturar más datos históricos.")
+                        if total_gemelas < 50:
+                            st.warning(f"🚨 La red solo atrapó {total_gemelas} partidos. Amplía el 'Margen de Tolerancia' para tener una muestra estadística válida (ideal > 100).")
                         else:
-                            ganaron_local = len(df_gemelas[df_gemelas['goles_finales_seleccion'] > df_gemelas['goles_finales_rival']])
-                            ganaron_visita = len(df_gemelas[df_gemelas['goles_finales_seleccion'] < df_gemelas['goles_finales_rival']])
-                            empataron = len(df_gemelas[df_gemelas['goles_finales_seleccion'] == df_gemelas['goles_finales_rival']])
-                            ambos_anotan = len(df_gemelas[(df_gemelas['goles_finales_seleccion'] > 0) & (df_gemelas['goles_finales_rival'] > 0)])
-                            over_25 = len(df_gemelas[(df_gemelas['goles_finales_seleccion'] + df_gemelas['goles_finales_rival']) >= 3])
+                            # Calcular resultados reales de esos partidos históricos
+                            ganaron_local = len(df_gemelas[df_gemelas['home_score'] > df_gemelas['away_score']])
+                            ganaron_visita = len(df_gemelas[df_gemelas['home_score'] < df_gemelas['away_score']])
+                            empataron = len(df_gemelas[df_gemelas['home_score'] == df_gemelas['away_score']])
                             
+                            # Probabilidades reales
                             if mercado_evaluar == "Gana Local": prob_real = ganaron_local / total_gemelas
                             elif mercado_evaluar == "Gana Visita": prob_real = ganaron_visita / total_gemelas
-                            elif mercado_evaluar == "Empate": prob_real = empataron / total_gemelas
-                            elif mercado_evaluar == "Ambos Anotan": prob_real = ambos_anotan / total_gemelas
-                            else: prob_real = over_25 / total_gemelas
+                            else: prob_real = empataron / total_gemelas
                             
+                            # Matemática EV
                             prob_perder = 1.0 - prob_real
                             ganancia_neta = (stake_pre * cuota_mercado) - stake_pre
                             ev = (prob_real * ganancia_neta) - (prob_perder * stake_pre)
                             roi_ev = (ev / stake_pre) * 100 if stake_pre > 0 else 0
                             
                             st.markdown("---")
-                            st.markdown(f"### 📊 Radiografía de Contexto Similar")
-                            st.write(f"Al lanzar la red con **±{margen:.2f}** de flexibilidad, atrapamos **{total_gemelas} partidos**. En ese tipo de escenarios, esto es lo que ocurrió en la realidad:")
+                            st.markdown(f"### 📊 Auditoría del Mercado Mundial")
+                            st.write(f"De casi 500,000 partidos, se aislaron **{total_gemelas} juegos** donde el consenso global de casas de apuestas ofrecía este mismo bloque de cuotas. Esto fue lo que ocurrió:")
                             
-                            c_res1, c_res2, c_res3, c_res4 = st.columns(4)
-                            c_res1.metric("Local Ganó", f"{(ganaron_local/total_gemelas)*100:.0f}%")
-                            c_res2.metric("Empataron", f"{(empataron/total_gemelas)*100:.0f}%")
-                            c_res3.metric("Ambos Anotaron", f"{(ambos_anotan/total_gemelas)*100:.0f}%")
-                            c_res4.metric("Más de 2.5 Goles", f"{(over_25/total_gemelas)*100:.0f}%")
+                            c_res1, c_res2, c_res3 = st.columns(3)
+                            c_res1.metric("Local Ganó", f"{(ganaron_local/total_gemelas)*100:.1f}%")
+                            c_res2.metric("Empataron", f"{(empataron/total_gemelas)*100:.1f}%")
+                            c_res3.metric("Visita Ganó", f"{(ganaron_visita/total_gemelas)*100:.1f}%")
                             
                             st.markdown("---")
-                            st.markdown("### ⚖️ Auditoría de Valor Esperado (EV)")
+                            st.markdown("### ⚖️ Veredicto de Valor (EV)")
                             if ev > 0:
                                 st.markdown(f"""
                                 <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 20px; border-radius: 8px;">
-                                    <h3 style="margin-top:0; color: #166534;">✅ APUESTA RENTABLE (EV+)</h3>
-                                    <h1 style="color: #15803D; margin: 10px 0;">+${ev:,.0f} COP <span style="font-size: 1rem;">de valor promedio por apuesta</span></h1>
-                                    <p style="margin:0; color: #166534;">La cuota de <b>{cuota_mercado}</b> es excelente. Según tus datos, este evento ocurre el <b>{prob_real*100:.1f}%</b> de las veces en estas condiciones. A largo plazo ganarás <b>(ROI: +{roi_ev:.1f}%)</b>.</p>
+                                    <h3 style="margin-top:0; color: #166534;">✅ ERROR DE LA CASA (EV+)</h3>
+                                    <h1 style="color: #15803D; margin: 10px 0;">+${ev:,.0f} COP <span style="font-size: 1rem;">de valor puro</span></h1>
+                                    <p style="margin:0; color: #166534;">La probabilidad real global es del <b>{prob_real*100:.1f}%</b>. A cuota <b>{cuota_mercado}</b>, tienes una ventaja matemática sobre la casa. Dispara. <b>(ROI Proyectado: +{roi_ev:.1f}%)</b>.</p>
                                 </div>
                                 """, unsafe_allow_html=True)
                             else:
                                 st.markdown(f"""
                                 <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 20px; border-radius: 8px;">
-                                    <h3 style="margin-top:0; color: #991B1B;">🚨 TRAMPA MATEMÁTICA (EV-)</h3>
-                                    <h1 style="color: #B91C1C; margin: 10px 0;">-${abs(ev):,.0f} COP <span style="font-size: 1rem;">de pérdida garantizada a largo plazo</span></h1>
-                                    <p style="margin:0; color: #991B1B;">Pagan a <b>{cuota_mercado}</b>, pero el riesgo real es altísimo (solo ocurre un <b>{prob_real*100:.1f}%</b> de las veces). Si apuestas esto repetidamente, quebrarás <b>(ROI: {roi_ev:.1f}%)</b>.</p>
+                                    <h3 style="margin-top:0; color: #991B1B;">🚨 TRAMPA DE LA CASA (EV-)</h3>
+                                    <h1 style="color: #B91C1C; margin: 10px 0;">-${abs(ev):,.0f} COP <span style="font-size: 1rem;">de pérdida esperada</span></h1>
+                                    <p style="margin:0; color: #991B1B;">La cuota de <b>{cuota_mercado}</b> es un robo. En {total_gemelas} partidos similares, esto solo ocurrió el <b>{prob_real*100:.1f}%</b> de las veces. Aléjate. <b>(ROI: {roi_ev:.1f}%)</b>.</p>
                                 </div>
                                 """, unsafe_allow_html=True)
+                    except Exception as e:
+                        st.error(f"Error procesando el mega-archivo: {str(e)}")
 
     # ---------------------------------------------------------
     # PESTAÑA 2: EN VIVO (Oráculo Táctico Puro)
