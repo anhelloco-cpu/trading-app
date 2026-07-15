@@ -207,8 +207,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- CÁLCULO DE SALDOS EN TIEMPO REAL ---
-saldo_real = obtener_saldo_banca("REAL")
-saldo_simulacion = obtener_saldo_banca("SIMULACION")
+# El Ancla Contable: Usamos directamente la sumatoria física de las casas de apuestas
+df_cajas_reales = obtener_saldos_por_plataforma("REAL")
+if not df_cajas_reales.empty:
+    saldo_real = df_cajas_reales['Saldo Actual (COP)'].sum()
+else:
+    saldo_real = obtener_saldo_banca("REAL")
+
+df_cajas_simuladas = obtener_saldos_por_plataforma("SIMULACION")
+if not df_cajas_simuladas.empty:
+    saldo_simulacion = df_cajas_simuladas['Saldo Actual (COP)'].sum()
+else:
+    saldo_simulacion = obtener_saldo_banca("SIMULACION")
 
 # --- LISTADO DE PLATAFORMAS (CASAS DE APUESTAS) ---
 plataformas_colombia = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia"]
