@@ -2835,7 +2835,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         ganador_str = "Empate" if pred_1x2 == 1 else "Equipo Local" if pred_1x2 == 2 else "Equipo Visitante"
                         btts_str = "SÍ" if pred_btts == 1 else "NO"
                         color_btts = "#10B981" if pred_btts == 1 else "#EF4444"
-                       # Si la IA predice que "Ambos Anotan" (SÍ)
+                        
+                        # ---> ¡ESTAS DOS LÍNEAS SON VITALES! <---
+                        apm_loc = atq_loc_sim / max(1, minuto_sim)
+                        apm_vis = atq_vis_sim / max(1, minuto_sim)
+                        
+                        # Si la IA predice que "Ambos Anotan" (SÍ)
                         if pred_btts == 1:
                             if apm_loc < 0.5 or apm_vis < 0.5:
                                 st.markdown("""
