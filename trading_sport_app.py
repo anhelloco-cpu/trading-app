@@ -2835,7 +2835,34 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         ganador_str = "Empate" if pred_1x2 == 1 else "Equipo Local" if pred_1x2 == 2 else "Equipo Visitante"
                         btts_str = "SÍ" if pred_btts == 1 else "NO"
                         color_btts = "#10B981" if pred_btts == 1 else "#EF4444"
+                        # -------------------------------------------------------------
+                        # 🎯 MOTOR DE TRIANGULACIÓN (MARCADOR EXACTO)
+                        # -------------------------------------------------------------
+                        goles_redondeados = round(pred_goles)
                         
+                        if pred_1x2 == 1: # Empate
+                            if pred_btts == 0 or goles_redondeados < 2:
+                                marcador_exacto = "0 - 0"
+                            else:
+                                mitad = max(1, goles_redondeados // 2)
+                                marcador_exacto = f"{mitad} - {mitad}"
+                        
+                        elif pred_1x2 == 2: # Gana Local
+                            if pred_btts == 0:
+                                gl = max(1, goles_redondeados)
+                                marcador_exacto = f"{gl} - 0"
+                            else:
+                                gl = max(2, goles_redondeados - 1)
+                                marcador_exacto = f"{gl} - 1"
+                                
+                        else: # Gana Visita
+                            if pred_btts == 0:
+                                gv = max(1, goles_redondeados)
+                                marcador_exacto = f"0 - {gv}"
+                            else:
+                                gv = max(2, goles_redondeados - 1)
+                                marcador_exacto = f"1 - {gv}"
+                        # -------------------------------------------------------------
                         # ---> ¡ESTAS DOS LÍNEAS SON VITALES! <---
                         apm_loc = atq_loc_sim / max(1, minuto_sim)
                         apm_vis = atq_vis_sim / max(1, minuto_sim)
@@ -2853,7 +2880,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 # AQUÍ QUITAMOS LA SOBREESCRITURA. La IA mantiene su respuesta original. 
                         st.markdown("---")
                         st.markdown("### 🔮 Veredicto del Oráculo (Análisis Físico)")
-                        
+                        # Tarjeta Gigante del Marcador
+                        st.markdown(f"""
+                        <div style="background-color: #1E293B; border: 2px solid #3B82F6; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px;">
+                            <h4 style="margin-top:0; color:#94A3B8;">🎯 MARCADOR EXACTO PROYECTADO</h4>
+                            <h1 style="color:#FFFFFF; font-size: 3.5rem; margin: 10px 0; font-family: monospace;">{marcador_exacto}</h1>
+                            <p style="margin:0; font-size: 0.9rem; color:#64748B;">Triangulación matemática de los 3 modelos predictivos</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                         col_r1, col_r2, col_r3 = st.columns(3)
                         with col_r1:
                             st.markdown(f"""
