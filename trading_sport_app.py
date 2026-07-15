@@ -2704,6 +2704,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
         st.markdown("<h3 style='color: #1E3A8A;'>🧠 Oráculo Predictivo (Machine Learning + Contexto)</h3>", unsafe_allow_html=True)
         st.info("Ingresa las cuotas principales (1X2) para que la IA entienda el contexto. Luego, elige tu mercado.")
 
+        # --- ESCUDO ANTI-FANTASMA: Memoria para que la interfaz no se recoja ---
+        if 'ia_activa' not in st.session_state:
+            st.session_state.ia_activa = False
+
         if not modelos_cargados or df_global is None:
             st.error("🚨 Modelos o datos no encontrados. Por favor, asegúrate de que se cargaron correctamente en la parte superior del código.")
         else:
@@ -2748,132 +2752,144 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
             st.markdown("<br>", unsafe_allow_html=True)
 
+            # En lugar de ejecutar todo directo en el botón, activamos la memoria
             if st.button("🚀 Ejecutar Red Neuronal", use_container_width=True):
-                with st.spinner("Analizando líneas de goles e ineficiencias matemáticas..."):
+                st.session_state.ia_activa = True
+
+            # Si la memoria está activa, mostramos el panel completo (nunca se recogerá)
+            if st.session_state.ia_activa:
+                df_clean = df_global.dropna(subset=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win'])
+                
+                df_gemelas = df_clean[
+                    (df_clean['avg_odds_home_win'] >= c_loc_pre - margen) & (df_clean['avg_odds_home_win'] <= c_loc_pre + margen) &
+                    (df_clean['avg_odds_draw'] >= c_emp_pre - margen) & (df_clean['avg_odds_draw'] <= c_emp_pre + margen) &
+                    (df_clean['avg_odds_away_win'] >= c_vis_pre - margen) & (df_clean['avg_odds_away_win'] <= c_vis_pre + margen)
+                ]
+                
+                total_gemelas = len(df_gemelas)
+                
+                if total_gemelas < 10:
+                    st.warning(f"🚨 Solo se encontraron {total_gemelas} partidos similares. Sube el 'Margen de Búsqueda'.")
+                else:
+                    avg_h = df_gemelas['avg_odds_home_win'].mean()
+                    avg_d = df_gemelas['avg_odds_draw'].mean()
+                    avg_a = df_gemelas['avg_odds_away_win'].mean()
+                    n_odds = df_gemelas['n_odds_home_win'].mean() if 'n_odds_home_win' in df_gemelas.columns else 15
                     
-                    df_clean = df_global.dropna(subset=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win'])
+                    inef_h = c_loc_pre - avg_h
+                    inef_d = c_emp_pre - avg_d
+                    inef_a = c_vis_pre - avg_a
                     
-                    df_gemelas = df_clean[
-                        (df_clean['avg_odds_home_win'] >= c_loc_pre - margen) & (df_clean['avg_odds_home_win'] <= c_loc_pre + margen) &
-                        (df_clean['avg_odds_draw'] >= c_emp_pre - margen) & (df_clean['avg_odds_draw'] <= c_emp_pre + margen) &
-                        (df_clean['avg_odds_away_win'] >= c_vis_pre - margen) & (df_clean['avg_odds_away_win'] <= c_vis_pre + margen)
-                    ]
+                    input_data = pd.DataFrame([[avg_h, avg_d, avg_a, c_loc_pre, c_emp_pre, c_vis_pre, inef_h, inef_d, inef_a, n_odds, n_odds, n_odds]], 
+                        columns=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win', 'max_odds_home_win', 'max_odds_draw', 'max_odds_away_win', 'ineficiencia_local', 'ineficiencia_empate', 'ineficiencia_visita', 'n_odds_home_win', 'n_odds_draw', 'n_odds_away_win'])
                     
-                    total_gemelas = len(df_gemelas)
+                    prob_1x2 = modelo_1x2.predict_proba(input_data)[0] 
+                    prob_empate, prob_local, prob_visita = prob_1x2[0], prob_1x2[1], prob_1x2[2]
                     
-                    if total_gemelas < 10:
-                        st.warning(f"🚨 Solo se encontraron {total_gemelas} partidos similares. Sube el 'Margen de Búsqueda'.")
+                    pred_goles = modelo_goles.predict(input_data)[0]
+                    prob_btts_si = modelo_btts.predict_proba(input_data)[0][1] 
+                    prob_btts_no = 1.0 - prob_btts_si
+                    
+                    total_goles_hist = df_gemelas['home_score'] + df_gemelas['away_score']
+                    prob_over_x_hist = len(df_gemelas[total_goles_hist > linea_goles]) / total_gemelas
+                    prob_under_x_hist = len(df_gemelas[total_goles_hist < linea_goles]) / total_gemelas
+                    
+                    mercado_display = mercado_evaluar.replace("X", str(linea_goles))
+                    
+                    if mercado_evaluar == "Gana Local": prob_real = prob_local
+                    elif mercado_evaluar == "Gana Visita": prob_real = prob_visita
+                    elif mercado_evaluar == "Empate": prob_real = prob_empate
+                    elif mercado_evaluar == "Ambos Anotan (Sí)": prob_real = prob_btts_si
+                    elif mercado_evaluar == "Ambos Anotan (No)": prob_real = prob_btts_no
+                    elif mercado_evaluar == "Más de X Goles": prob_real = prob_over_x_hist
+                    elif mercado_evaluar == "Menos de X Goles": prob_real = prob_under_x_hist
+                        
+                    prob_perder = 1.0 - prob_real
+                    ganancia_neta = (stake_pre * cuota_mercado) - stake_pre
+                    ev = (prob_real * ganancia_neta) - (prob_perder * stake_pre)
+                    roi_ev = (ev / stake_pre) * 100 if stake_pre > 0 else 0
+                    
+                    st.markdown("---")
+                    st.markdown(f"<h3 style='text-align: center; color: #1E293B;'>🤖 RESULTADOS DEL ORÁCULO ({total_gemelas} Partidos)</h3>", unsafe_allow_html=True)
+                    
+                    col_r1, col_r2 = st.columns(2)
+                    with col_r1:
+                        st.markdown("#### 🏆 Probabilidades 1X2 (IA)")
+                        st.metric("Gana Local", f"{prob_local*100:.1f}%")
+                        st.metric("Empate", f"{prob_empate*100:.1f}%")
+                        st.metric("Gana Visita", f"{prob_visita*100:.1f}%")
+                        
+                    with col_r2:
+                        st.markdown("#### ⚽ Mercado de Goles")
+                        st.metric("Goles Esperados (IA)", f"{pred_goles:.2f} ⚽")
+                        g1, g2 = st.columns(2)
+                        g1.metric("BTTS (SÍ)", f"{prob_btts_si*100:.1f}%")
+                        g1.metric("BTTS (NO)", f"{prob_btts_no*100:.1f}%")
+                        g2.metric(f"Más de {linea_goles}", f"{prob_over_x_hist*100:.1f}%")
+                        g2.metric(f"Menos de {linea_goles}", f"{prob_under_x_hist*100:.1f}%")
+
+                    if ev > 0:
+                        st.markdown(f"""
+                        <div style="background-color: #ECFDF5; border: 2px solid #10B981; padding: 20px; border-radius: 10px; text-align: center;">
+                            <h3 style="color: #047857; margin-top:0;">✅ ALERTA DE VALOR (EV+)</h3>
+                            <h1 style="color: #10B981; margin: 10px 0;">+${ev:,.0f} COP</h1>
+                            <p style="color: #064E3B; margin-bottom:0;">La máquina determina que tienes ventaja matemática (ROI: +{roi_ev:.1f}%). <b>¡Guárdalo en el Radar!</b></p>
+                        </div>
+                        """, unsafe_allow_html=True)
                     else:
-                        avg_h = df_gemelas['avg_odds_home_win'].mean()
-                        avg_d = df_gemelas['avg_odds_draw'].mean()
-                        avg_a = df_gemelas['avg_odds_away_win'].mean()
-                        n_odds = df_gemelas['n_odds_home_win'].mean() if 'n_odds_home_win' in df_gemelas.columns else 15
-                        
-                        inef_h = c_loc_pre - avg_h
-                        inef_d = c_emp_pre - avg_d
-                        inef_a = c_vis_pre - avg_a
-                        
-                        input_data = pd.DataFrame([[avg_h, avg_d, avg_a, c_loc_pre, c_emp_pre, c_vis_pre, inef_h, inef_d, inef_a, n_odds, n_odds, n_odds]], 
-                            columns=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win', 'max_odds_home_win', 'max_odds_draw', 'max_odds_away_win', 'ineficiencia_local', 'ineficiencia_empate', 'ineficiencia_visita', 'n_odds_home_win', 'n_odds_draw', 'n_odds_away_win'])
-                        
-                        prob_1x2 = modelo_1x2.predict_proba(input_data)[0] 
-                        prob_empate, prob_local, prob_visita = prob_1x2[0], prob_1x2[1], prob_1x2[2]
-                        
-                        pred_goles = modelo_goles.predict(input_data)[0]
-                        prob_btts_si = modelo_btts.predict_proba(input_data)[0][1] 
-                        prob_btts_no = 1.0 - prob_btts_si
-                        
-                        total_goles_hist = df_gemelas['home_score'] + df_gemelas['away_score']
-                        prob_over_x_hist = len(df_gemelas[total_goles_hist > linea_goles]) / total_gemelas
-                        prob_under_x_hist = len(df_gemelas[total_goles_hist < linea_goles]) / total_gemelas
-                        
-                        mercado_display = mercado_evaluar.replace("X", str(linea_goles))
-                        
-                        if mercado_evaluar == "Gana Local": prob_real = prob_local
-                        elif mercado_evaluar == "Gana Visita": prob_real = prob_visita
-                        elif mercado_evaluar == "Empate": prob_real = prob_empate
-                        elif mercado_evaluar == "Ambos Anotan (Sí)": prob_real = prob_btts_si
-                        elif mercado_evaluar == "Ambos Anotan (No)": prob_real = prob_btts_no
-                        elif mercado_evaluar == "Más de X Goles": prob_real = prob_over_x_hist
-                        elif mercado_evaluar == "Menos de X Goles": prob_real = prob_under_x_hist
-                            
-                        prob_perder = 1.0 - prob_real
-                        ganancia_neta = (stake_pre * cuota_mercado) - stake_pre
-                        ev = (prob_real * ganancia_neta) - (prob_perder * stake_pre)
-                        roi_ev = (ev / stake_pre) * 100 if stake_pre > 0 else 0
-                        
-                        st.markdown("---")
-                        st.markdown(f"<h3 style='text-align: center; color: #1E293B;'>🤖 RESULTADOS DEL ORÁCULO ({total_gemelas} Partidos)</h3>", unsafe_allow_html=True)
-                        
-                        col_r1, col_r2 = st.columns(2)
-                        with col_r1:
-                            st.markdown("#### 🏆 Probabilidades 1X2 (IA)")
-                            st.metric("Gana Local", f"{prob_local*100:.1f}%")
-                            st.metric("Empate", f"{prob_empate*100:.1f}%")
-                            st.metric("Gana Visita", f"{prob_visita*100:.1f}%")
-                            
-                        with col_r2:
-                            st.markdown("#### ⚽ Mercado de Goles")
-                            st.metric("Goles Esperados (IA)", f"{pred_goles:.2f} ⚽")
-                            g1, g2 = st.columns(2)
-                            g1.metric("BTTS (SÍ)", f"{prob_btts_si*100:.1f}%")
-                            g1.metric("BTTS (NO)", f"{prob_btts_no*100:.1f}%")
-                            g2.metric(f"Más de {linea_goles}", f"{prob_over_x_hist*100:.1f}%")
-                            g2.metric(f"Menos de {linea_goles}", f"{prob_under_x_hist*100:.1f}%")
+                        st.markdown(f"""
+                        <div style="background-color: #FEF2F2; border: 2px solid #EF4444; padding: 20px; border-radius: 10px; text-align: center;">
+                            <h3 style="color: #B91C1C; margin-top:0;">🚨 TRAMPA DE LA CASA (EV-)</h3>
+                            <h1 style="color: #EF4444; margin: 10px 0;">-${abs(ev):,.0f} COP</h1>
+                            <p style="color: #7F1D1D; margin-bottom:0;">Esta cuota no tiene valor (ROI: {roi_ev:.1f}%). Descartar.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
 
-                        if ev > 0:
-                            st.markdown(f"""
-                            <div style="background-color: #ECFDF5; border: 2px solid #10B981; padding: 20px; border-radius: 10px; text-align: center;">
-                                <h3 style="color: #047857; margin-top:0;">✅ ALERTA DE VALOR (EV+)</h3>
-                                <h1 style="color: #10B981; margin: 10px 0;">+${ev:,.0f} COP</h1>
-                                <p style="color: #064E3B; margin-bottom:0;">La máquina determina que tienes ventaja matemática (ROI: +{roi_ev:.1f}%). <b>¡Guárdalo en el Radar!</b></p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                    # --- ZONA DE GUARDADO EN EL RADAR ---
+                    st.markdown("---")
+                    st.markdown("### 📡 Guardar en Radar En Vivo")
+                    st.write("¿La apuesta tiene valor? Guárdala en tu lista de seguimiento sin arriesgar capital.")
+                    
+                    rp1, rp2 = st.columns(2)
+                    with rp1:
+                        nombre_partido_radar = st.text_input("Nombre del Partido:", placeholder="Ej: Real Madrid vs Man City")
+                    with rp2:
+                        plataforma_radar_sel = st.selectbox("Plataforma a usar:", todas_las_plataformas, key="plat_radar")
+                        if plataforma_radar_sel == "Otra":
+                            plataforma_radar = st.text_input("Especifica la plataforma:", key="plat_radar_otra")
                         else:
-                            st.markdown(f"""
-                            <div style="background-color: #FEF2F2; border: 2px solid #EF4444; padding: 20px; border-radius: 10px; text-align: center;">
-                                <h3 style="color: #B91C1C; margin-top:0;">🚨 TRAMPA DE LA CASA (EV-)</h3>
-                                <h1 style="color: #EF4444; margin: 10px 0;">-${abs(ev):,.0f} COP</h1>
-                                <p style="color: #7F1D1D; margin-bottom:0;">Esta cuota no tiene valor (ROI: {roi_ev:.1f}%). Descartar.</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                        # --- NUEVO: GUARDAR EN EL RADAR ---
-                        st.markdown("---")
-                        st.markdown("### 📡 Guardar en Radar En Vivo")
-                        st.write("¿La apuesta tiene valor? Guárdala en tu lista de seguimiento sin arriesgar capital. En vivo, inyectarás la foto táctica para confirmar el disparo.")
-                        
-                        rp1, rp2 = st.columns(2)
-                        with rp1:
-                            nombre_partido_radar = st.text_input("Nombre del Partido:", placeholder="Ej: Real Madrid vs Man City")
-                        with rp2:
-                            plataforma_radar = st.selectbox("Plataforma a usar:", todas_las_plataformas, key="plat_radar")
-                        
-                        if st.button("📌 Mandar al Radar", use_container_width=True):
-                            if not nombre_partido_radar:
-                                st.error("Debes ponerle un nombre al partido.")
+                            plataforma_radar = plataforma_radar_sel
+                    
+                    if st.button("📌 Mandar al Radar", use_container_width=True):
+                        if not nombre_partido_radar:
+                            st.error("Debes ponerle un nombre al partido.")
+                        else:
+                            if supabase is not None:
+                                nuevo_codigo = f"RAD-{generar_codigo()}"
+                                datos_radar = {
+                                    "codigo": nuevo_codigo,
+                                    "partido": nombre_partido_radar,
+                                    "estrategia": "Estrategia Libre Directa", 
+                                    "seleccion_inicial": mercado_display,
+                                    "plataforma_inicial": plataforma_radar,
+                                    "capital_total": stake_pre,
+                                    "cuota_inicial": cuota_mercado,
+                                    "stake_1": stake_pre,
+                                    "estado": "RADAR",
+                                    "tipo_banca": "SIMULACION",
+                                    "cuota_base_audit": c_loc_pre, 
+                                    "cuota_empate_audit": c_emp_pre,
+                                    "cuota_amenaza_audit": c_vis_pre
+                                }
+                                supabase.table("historial_trading").insert(datos_radar).execute()
+                                
+                                # Limpiamos la memoria para que se cierre el panel e inicie una nueva búsqueda limpia
+                                st.session_state.ia_activa = False 
+                                
+                                st.success(f"✅ Partido '{nombre_partido_radar}' guardado. Búscalo en la pestaña 'Radar En Vivo'.")
+                                st.rerun()
                             else:
-                                if supabase is not None:
-                                    nuevo_codigo = f"RAD-{generar_codigo()}"
-                                    datos_radar = {
-                                        "codigo": nuevo_codigo,
-                                        "partido": nombre_partido_radar,
-                                        "estrategia": "Estrategia Libre Directa", # Se pone Libre para que el Liquidador lo entienda cuando pase a EN VIVO
-                                        "seleccion_inicial": mercado_display,
-                                        "plataforma_inicial": plataforma_radar,
-                                        "capital_total": stake_pre,
-                                        "cuota_inicial": cuota_mercado,
-                                        "stake_1": stake_pre,
-                                        "estado": "RADAR", # ESTADO MAGICO: No resta saldo
-                                        "tipo_banca": "SIMULACION", # Por seguridad, arranca en simulación
-                                        "cuota_base_audit": c_loc_pre, 
-                                        "cuota_empate_audit": c_emp_pre,
-                                        "cuota_amenaza_audit": c_vis_pre
-                                    }
-                                    supabase.table("historial_trading").insert(datos_radar).execute()
-                                    st.success(f"✅ Partido '{nombre_partido_radar}' guardado en el Radar. Búscalo en la siguiente pestaña cuando ruede el balón.")
-                                else:
-                                    st.error("Conecta Supabase primero.")
+                                st.error("Conecta Supabase primero.")
 
     # ---------------------------------------------------------
     # PESTAÑA 2: RADAR EN VIVO (Watchlist y Ejecución)
