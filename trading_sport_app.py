@@ -2696,41 +2696,54 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
     tab_pre, tab_vivo = st.tabs(["📋 Planificación Pre-Partido", "⏱️ Oráculo En Vivo (Foto Táctica)"])
 
     # ---------------------------------------------------------
-    # PESTAÑA 1: PRE-PARTIDO (Oráculo Machine Learning + Búsqueda)
+    # PESTAÑA 1: PRE-PARTIDO (Oráculo Machine Learning + Contexto)
     # ---------------------------------------------------------
     with tab_pre:
-        st.subheader("🧠 Oráculo Predictivo (Machine Learning + Contexto)")
-        st.info("Ingresa tus cuotas y el margen. El sistema deducirá el contexto mundial automáticamente en la base de datos y la IA proyectará el valor real.")
+        st.markdown("<h3 style='color: #1E3A8A;'>🧠 Oráculo Predictivo (Machine Learning + Contexto)</h3>", unsafe_allow_html=True)
+        st.info("Ingresa las cuotas principales (1X2) para que la IA entienda el contexto del partido. Luego, elige qué mercado específico quieres evaluar.")
 
         if not modelos_cargados or df_global is None:
             st.error("🚨 Modelos o datos no encontrados. Por favor, asegúrate de que se cargaron correctamente en la parte superior del código.")
         else:
+            st.markdown("#### 1️⃣ Define el Contexto del Partido (Cuotas 1X2)")
             col_p1, col_p2, col_p3 = st.columns(3)
             with col_p1:
-                c_loc_pre = st.number_input("Cuota Local (Tu Casa):", min_value=1.01, value=2.10, step=0.05)
+                c_loc_pre = st.number_input("Cuota Local:", min_value=1.01, value=2.10, step=0.05)
             with col_p2:
-                c_emp_pre = st.number_input("Cuota Empate (Tu Casa):", min_value=1.01, value=3.20, step=0.05)
+                c_emp_pre = st.number_input("Cuota Empate:", min_value=1.01, value=3.20, step=0.05)
             with col_p3:
-                c_vis_pre = st.number_input("Cuota Visita (Tu Casa):", min_value=1.01, value=3.50, step=0.05)
+                c_vis_pre = st.number_input("Cuota Visita:", min_value=1.01, value=3.50, step=0.05)
             
             st.markdown("---")
-            margen = st.slider("🎯 Margen de Búsqueda de Contexto (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
-            
-            col_ev1, col_ev2, col_ev3 = st.columns(3)
-            with col_ev1:
-                mercado_evaluar = st.selectbox("¿Qué mercado vas a auditar?", ["Gana Local", "Empate", "Gana Visita"])
-            with col_ev2:
-                cuota_mercado = c_loc_pre if mercado_evaluar == "Gana Local" else (c_vis_pre if mercado_evaluar == "Gana Visita" else c_emp_pre)
-                st.info(f"Cuota a auditar: {cuota_mercado}")
-            with col_ev3:
+            st.markdown("#### 2️⃣ Configura tu Auditoría")
+            col_cfg1, col_cfg2 = st.columns(2)
+            with col_cfg1:
+                margen = st.slider("🎯 Margen de Búsqueda (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
+            with col_cfg2:
                 stake_pre = st.number_input("Stake ($ COP):", min_value=5000, value=20000, step=5000)
+
+            st.markdown("#### 3️⃣ Mercado a Evaluar")
+            col_m1, col_m2 = st.columns(2)
+            with col_m1:
+                mercado_evaluar = st.selectbox("¿Qué mercado vas a auditar?", 
+                                              ["Gana Local", "Empate", "Gana Visita", "Ambos Anotan (Sí)", "Más de 2.5 Goles"])
+            with col_m2:
+                # Determinar un valor por defecto lógico según la selección
+                if mercado_evaluar == "Gana Local": val_defecto = float(c_loc_pre)
+                elif mercado_evaluar == "Empate": val_defecto = float(c_emp_pre)
+                elif mercado_evaluar == "Gana Visita": val_defecto = float(c_vis_pre)
+                else: val_defecto = 1.90 # Valor estándar para goles/BTTS
+                
+                cuota_mercado = st.number_input(f"Cuota que te pagan por '{mercado_evaluar}':", min_value=1.01, value=val_defecto, step=0.05)
+
+            st.markdown("<br>", unsafe_allow_html=True)
 
             if st.button("🚀 Ejecutar Red Neuronal", use_container_width=True):
                 with st.spinner("Buscando contexto y decodificando ineficiencias matemáticas..."):
                     
-                    # 1. Buscar el clúster de partidos (Contexto) en la base de datos
                     df_clean = df_global.dropna(subset=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win'])
                     
+                    # 1. Buscar el clúster de partidos (Contexto)
                     df_gemelas = df_clean[
                         (df_clean['avg_odds_home_win'] >= c_loc_pre - margen) & (df_clean['avg_odds_home_win'] <= c_loc_pre + margen) &
                         (df_clean['avg_odds_draw'] >= c_emp_pre - margen) & (df_clean['avg_odds_draw'] <= c_emp_pre + margen) &
@@ -2740,33 +2753,22 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                     total_gemelas = len(df_gemelas)
                     
                     if total_gemelas < 10:
-                        st.warning(f"🚨 Solo se encontraron {total_gemelas} partidos similares. Sube el 'Margen de Búsqueda' para que la IA tenga un contexto válido.")
+                        st.warning(f"🚨 Solo se encontraron {total_gemelas} partidos similares. Sube el 'Margen de Búsqueda' para darle a la IA un contexto estadístico válido.")
                     else:
-                        # 2. El sistema calcula los promedios mundial automáticamente
+                        # 2. Promedios mundiales e Ineficiencias
                         avg_h = df_gemelas['avg_odds_home_win'].mean()
                         avg_d = df_gemelas['avg_odds_draw'].mean()
                         avg_a = df_gemelas['avg_odds_away_win'].mean()
-                        
-                        # Detecta liquidez de casas o usa 15 por defecto
                         n_odds = df_gemelas['n_odds_home_win'].mean() if 'n_odds_home_win' in df_gemelas.columns else 15
                         
-                        # 3. Calcular las "trampas" (ineficiencias)
                         inef_h = c_loc_pre - avg_h
                         inef_d = c_emp_pre - avg_d
                         inef_a = c_vis_pre - avg_a
                         
-                        # 4. Empaquetar para la IA
-                        input_data = pd.DataFrame([[
-                            avg_h, avg_d, avg_a, c_loc_pre, c_emp_pre, c_vis_pre,
-                            inef_h, inef_d, inef_a, n_odds, n_odds, n_odds
-                        ]], columns=[
-                            'avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win',
-                            'max_odds_home_win', 'max_odds_draw', 'max_odds_away_win',
-                            'ineficiencia_local', 'ineficiencia_empate', 'ineficiencia_visita',
-                            'n_odds_home_win', 'n_odds_draw', 'n_odds_away_win'
-                        ])
+                        # 3. Predicciones IA
+                        input_data = pd.DataFrame([[avg_h, avg_d, avg_a, c_loc_pre, c_emp_pre, c_vis_pre, inef_h, inef_d, inef_a, n_odds, n_odds, n_odds]], 
+                            columns=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win', 'max_odds_home_win', 'max_odds_draw', 'max_odds_away_win', 'ineficiencia_local', 'ineficiencia_empate', 'ineficiencia_visita', 'n_odds_home_win', 'n_odds_draw', 'n_odds_away_win'])
                         
-                        # 5. La IA hace sus predicciones instantáneas
                         prob_1x2 = modelo_1x2.predict_proba(input_data)[0] 
                         prob_empate = prob_1x2[0]
                         prob_local = prob_1x2[1]
@@ -2775,46 +2777,75 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         pred_goles = modelo_goles.predict(input_data)[0]
                         prob_btts = modelo_btts.predict_proba(input_data)[0][1] 
                         
-                        # 6. Cálculos de Valor Esperado (EV) para el mercado seleccionado
+                        # Probabilidad histórica para el Over 2.5
+                        prob_over25_hist = len(df_gemelas[(df_gemelas['home_score'] + df_gemelas['away_score']) > 2.5]) / total_gemelas
+                        
+                        # 4. Asignar probabilidad real al mercado seleccionado
                         if mercado_evaluar == "Gana Local": prob_real = prob_local
                         elif mercado_evaluar == "Gana Visita": prob_real = prob_visita
-                        else: prob_real = prob_empate
+                        elif mercado_evaluar == "Empate": prob_real = prob_empate
+                        elif mercado_evaluar == "Ambos Anotan (Sí)": prob_real = prob_btts
+                        elif mercado_evaluar == "Más de 2.5 Goles": prob_real = prob_over25_hist
                             
+                        # 5. Matemática de Valor (EV)
                         prob_perder = 1.0 - prob_real
                         ganancia_neta = (stake_pre * cuota_mercado) - stake_pre
                         ev = (prob_real * ganancia_neta) - (prob_perder * stake_pre)
                         roi_ev = (ev / stake_pre) * 100 if stake_pre > 0 else 0
                         
-                        # 7. Imprimir Resultados
+                        # --------------------------------------------------
+                        # INTERFAZ DE RESULTADOS (DISEÑO PREMIUM)
+                        # --------------------------------------------------
                         st.markdown("---")
-                        st.markdown(f"### 🏆 Probabilidades Reales (IA basada en {total_gemelas} partidos de contexto)")
-                        r1, r2, r3 = st.columns(3)
-                        r1.metric("Local", f"{prob_local*100:.1f}%")
-                        r2.metric("Empate", f"{prob_empate*100:.1f}%")
-                        r3.metric("Visita", f"{prob_visita*100:.1f}%")
-                        
+                        st.markdown(f"<h3 style='text-align: center; color: #334155;'>🤖 PANEL DE CONTROL DEL ORÁCULO ({total_gemelas} Partidos Analizados)</h3>", unsafe_allow_html=True)
                         st.markdown("<br>", unsafe_allow_html=True)
-                        st.markdown("### ⚽ Radar de Goles")
-                        g1, g2 = st.columns(2)
-                        g1.metric("Goles Esperados", f"{pred_goles:.2f} goles")
-                        g2.metric("Ambos Anotan (Sí)", f"{prob_btts*100:.1f}%")
                         
-                        st.markdown("---")
-                        st.markdown(f"### ⚖️ Veredicto de Valor: {mercado_evaluar}")
+                        # Cajas de Datos (1X2 y Goles)
+                        col_r1, col_r2 = st.columns(2)
+                        
+                        with col_r1:
+                            st.markdown("""
+                            <div style='background-color: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'>
+                                <h4 style='color: #0F172A; margin-top: 0; border-bottom: 2px solid #CBD5E1; padding-bottom: 10px;'>🏆 Probabilidades 1X2</h4>
+                            """, unsafe_allow_html=True)
+                            st.metric("Gana Local", f"{prob_local*100:.1f}%")
+                            st.metric("Empate", f"{prob_empate*100:.1f}%")
+                            st.metric("Gana Visita", f"{prob_visita*100:.1f}%")
+                            st.markdown("</div>", unsafe_allow_html=True)
+                            
+                        with col_r2:
+                            st.markdown("""
+                            <div style='background-color: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; height: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'>
+                                <h4 style='color: #0F172A; margin-top: 0; border-bottom: 2px solid #CBD5E1; padding-bottom: 10px;'>⚽ Mercado de Goles</h4>
+                            """, unsafe_allow_html=True)
+                            st.metric("Goles Esperados (Promedio)", f"{pred_goles:.2f} ⚽")
+                            st.metric("Ambos Anotan (SÍ)", f"{prob_btts*100:.1f}%")
+                            st.metric("Más de 2.5 Goles", f"{prob_over25_hist*100:.1f}%")
+                            st.markdown("</div>", unsafe_allow_html=True)
+
+                        st.markdown("<br><br>", unsafe_allow_html=True)
+                        
+                        # Veredicto de Valor
                         if ev > 0:
                             st.markdown(f"""
-                            <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 20px; border-radius: 8px;">
-                                <h3 style="margin-top:0; color: #166534;">✅ ERROR DE LA CASA (EV+)</h3>
-                                <h1 style="color: #15803D; margin: 10px 0;">+${ev:,.0f} COP <span style="font-size: 1rem;">de valor puro</span></h1>
-                                <p style="margin:0; color: #166534;">La probabilidad real predictiva es <b>{prob_real*100:.1f}%</b>. A cuota <b>{cuota_mercado}</b>, tienes ventaja matemática. <b>(ROI Proyectado: +{roi_ev:.1f}%)</b>.</p>
+                            <div style="background-color: #ECFDF5; border: 2px solid #10B981; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);">
+                                <h2 style="color: #047857; margin-top:0; font-size: 2rem;">✅ ALERTA DE VALOR (EV+)</h2>
+                                <h4 style="color: #065F46; font-weight: normal;">Mercado: <b>{mercado_evaluar}</b> a cuota <b>{cuota_mercado}</b></h4>
+                                <h1 style="color: #10B981; font-size: 4rem; margin: 15px 0;">+${ev:,.0f} COP</h1>
+                                <h3 style="color: #047857; margin-bottom: 20px;">ROI Proyectado: <b>+{roi_ev:.1f}%</b></h3>
+                                <hr style="border-color: #A7F3D0; width: 80%; margin: auto;">
+                                <p style="color: #064E3B; font-size: 1.1rem; margin-top: 15px; margin-bottom:0;">La máquina determina que tienes un <b>{prob_real*100:.1f}%</b> de probabilidad real. Tienes ventaja matemática. <b>¡Dispara!</b></p>
                             </div>
                             """, unsafe_allow_html=True)
                         else:
                             st.markdown(f"""
-                            <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 20px; border-radius: 8px;">
-                                <h3 style="margin-top:0; color: #991B1B;">🚨 TRAMPA DE LA CASA (EV-)</h3>
-                                <h1 style="color: #B91C1C; margin: 10px 0;">-${abs(ev):,.0f} COP <span style="font-size: 1rem;">de pérdida esperada</span></h1>
-                                <p style="margin:0; color: #991B1B;">A largo plazo perderás dinero. La probabilidad real es solo <b>{prob_real*100:.1f}%</b>. Aléjate. <b>(ROI: {roi_ev:.1f}%)</b>.</p>
+                            <div style="background-color: #FEF2F2; border: 2px solid #EF4444; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.2);">
+                                <h2 style="color: #B91C1C; margin-top:0; font-size: 2rem;">🚨 TRAMPA DE LA CASA (EV-)</h2>
+                                <h4 style="color: #991B1B; font-weight: normal;">Mercado: <b>{mercado_evaluar}</b> a cuota <b>{cuota_mercado}</b></h4>
+                                <h1 style="color: #EF4444; font-size: 4rem; margin: 15px 0;">-${abs(ev):,.0f} COP</h1>
+                                <h3 style="color: #B91C1C; margin-bottom: 20px;">ROI Proyectado: <b>{roi_ev:.1f}%</b></h3>
+                                <hr style="border-color: #FECACA; width: 80%; margin: auto;">
+                                <p style="color: #7F1D1D; font-size: 1.1rem; margin-top: 15px; margin-bottom:0;">Esta cuota es un robo. La probabilidad real es solo del <b>{prob_real*100:.1f}%</b>. Si apuestas esto a largo plazo, quebrarás. <b>Aléjate.</b></p>
                             </div>
                             """, unsafe_allow_html=True)
 
