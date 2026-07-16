@@ -3549,6 +3549,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         elif "Goles" in mercado_actual: mdo_str = "Línea de Goles"
                                         else: mdo_str = mercado_actual if mercado_actual else "Mercado 1X2"
                                             
+                                        # 🕵️‍♂️ CANDADO FINAL: Obligar a llamar a las cosas por su nombre
+                                        if seleccion_final_rad in ["Sí", "No"]: mdo_str = "Ambos Anotan"
+                                        elif "Más" in seleccion_final_rad or "Menos" in seleccion_final_rad: mdo_str = "Línea de Goles"
+                                        
                                         # 🎯 LA MAGIA FINAL: ENSAMBLE DEL NOMBRE LIMPIO Y ESTANDARIZADO
                                         partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
                                         partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
