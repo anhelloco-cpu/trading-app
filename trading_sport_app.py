@@ -3426,7 +3426,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         
                         col_nom1, col_nom2 = st.columns(2)
                         with col_nom1:
-                            # Ya no es texto libre, es una lista desplegable estricta
+                            # Lista desplegable estricta
                             seleccion_final_rad = st.selectbox("Tu Selección:", opciones_mercado, index=idx_defecto, key=f"sel_rad_{pr['codigo']}")
                         with col_nom2:
                             # Auto-calcular la amenaza basada en la opción que eligió en el selectbox
@@ -3435,8 +3435,13 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             else:
                                 amenaza_final_rad = opciones_mercado[0]
                                 
-                            # Se muestra la amenaza pero NO se puede editar (disabled=True)
-                            st.text_input("La Amenaza a Cubrir (Automática):", value=amenaza_final_rad, disabled=True, key=f"am_info_rad_{pr['codigo']}")
+                            # 🛡️ SOLUCIÓN: Caja de diseño bloqueada (HTML Puro). Evita el bug de memoria de Streamlit.
+                            st.markdown("<p style='font-size: 14px; margin-bottom: 5px;'>La Amenaza a Cubrir (Automática):</p>", unsafe_allow_html=True)
+                            st.markdown(f"""
+                            <div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B; padding: 9px 12px; border-radius: 8px; font-family: sans-serif; cursor: not-allowed; min-height: 40px; display: flex; align-items: center;">
+                                {amenaza_final_rad}
+                            </div>
+                            """, unsafe_allow_html=True)
 
                         # --- FILA 2: LAS CUOTAS PURAS Y EL CAPITAL ---
                         col_ent1, col_ent2, col_ent3 = st.columns(3)
