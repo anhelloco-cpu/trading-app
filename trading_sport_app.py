@@ -3429,15 +3429,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             st.info("💡 Asegúrate de que la amenaza sea la contraria exacta.")
                             amenaza_final_rad = st.text_input("La Amenaza a Cubrir:", value=am_def, key=f"am_info_rad_{pr['codigo']}")
 
-                        # --- FILA 1: PIVOTE TÁCTICO (NOMBRES EDITABLES) ---
-                        col_nom1, col_nom2 = st.columns(2)
-                        with col_nom1:
-                            st.info("💡 Puedes cambiar tu selección si el asedio en vivo te hizo cambiar de opinión.")
-                            seleccion_final_rad = st.text_input("Tu Selección (Editable):", value=sel_ini_rad, key=f"sel_{pr['codigo']}")
-                        with col_nom2:
-                            st.info("💡 Asegúrate de que la amenaza sea la contraria exacta.")
-                            amenaza_final_rad = st.text_input("La Amenaza a Cubrir:", value=am_def, key=f"am_info_{pr['codigo']}")
-
                         # --- FILA 2: LAS CUOTAS PURAS Y EL CAPITAL ---
                         col_ent1, col_ent2, col_ent3 = st.columns(3)
                         with col_ent1:
@@ -3510,8 +3501,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         # -------------------------------------------------------------
                                         # 🧠 RE-CÁLCULO SILENCIOSO (TESTIGO DE LA IA PARA AUDITORÍA)
                                         # -------------------------------------------------------------
-                                        # Como Streamlit borra la memoria al oprimir un botón, 
-                                        # obligamos a la IA a calcular de nuevo en este microsegundo.
                                         m1x2_rad = joblib.load('modelo_1x2.pkl')
                                         mgoles_rad = joblib.load('modelo_goles.pkl')
                                         mbtts_rad = joblib.load('modelo_btts.pkl')
@@ -3547,20 +3536,21 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         marcador_ia_testigo = f"{c_loc}-{c_vis}"
                                         # -------------------------------------------------------------
 
-                                        if "Ambos Anotan" in sel_ini_rad: mdo_str = "Ambos Anotan"
-                                        elif "Goles" in sel_ini_rad: mdo_str = "Línea de Goles"
-                                        else: mdo_str = "Mercado 1X2"
+                                        if "Ambos Anotan" in mercado_actual: mdo_str = "Ambos Anotan"
+                                        elif "Goles" in mercado_actual: mdo_str = "Línea de Goles"
+                                        else: mdo_str = mercado_actual if mercado_actual else "Mercado 1X2"
                                             
-                                        # 1. El título vuelve a quedar profesional y limpio
-                                        partido_formateado = f"🏟️ {pr['partido']} | [{mdo_str}] {sel_ini_rad} vs {am_def}"
+                                        # 🎯 LA MAGIA FINAL: ENSAMBLE DEL NOMBRE LIMPIO (Igual a la Estrategia 3)
+                                        partido_formateado = f"🏟️ {pr['partido'].replace('🏟️ ', '').strip()} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
+                                        
                                         hora_actual = datetime.datetime.now().strftime("%H:%M")
                                         
                                         supabase.table("historial_trading").update({
                                             "estado": "EN VIVO",
                                             "tipo_banca": banca_activa_rad,
                                             "estrategia": "Estrategia 3: Binario Personalizado", 
-                                            "partido": partido_formateado, 
-                                            "prediccion_ia": marcador_ia_testigo, # 🎯 AQUÍ ALIMENTAMOS TU NUEVA COLUMNA
+                                            "partido": partido_formateado, # <--- ENTRA LIMPIO A LA BASE DE DATOS
+                                            "prediccion_ia": marcador_ia_testigo, 
                                             "seleccion_inicial": seleccion_final_rad,
                                             "seleccion_cobertura": amenaza_final_rad,
                                             "plataforma_inicial": plat_rad_final,
@@ -3573,7 +3563,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             "hora_inicio_partido": hora_actual
                                         }).eq("codigo", pr['codigo']).execute()
                                         
-                                        st.success("✅ ¡Disparo exitoso! Predicción guardada. Ve a la pestaña 'Seguimiento'.")
+                                        st.success("✅ ¡Disparo exitoso! Predicción guardada en formato limpio. Ve a la pestaña 'Seguimiento'.")
                                         st.rerun()
                                     except Exception as err_db:
                                         st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
@@ -3584,7 +3574,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
                                 st.warning("Partido descartado del Radar.")
                                 st.rerun()
-
     # ---------------------------------------------------------
     # PESTAÑA 3: LABORATORIO TÁCTICO (El código original que ya tenías)
     # ---------------------------------------------------------
