@@ -3542,7 +3542,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             if val_amenaza < 1.01: val_amenaza = 1.90
                             cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, value=val_amenaza, step=0.05, key=f"c_am_{pr['codigo']}")
                         with col_ent3:
-                            stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=int(pr['stake_1']), step=5000, key=f"stk_ent_{pr['codigo']}")
+                            # Evita el crash si la base de datos viene en 0 por clonación
+                            valor_base_stake = max(5000, int(pr.get('stake_1', 5000)))
+                            stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=valor_base_stake, step=5000, key=f"stk_ent_{pr['codigo']}")
                         
                         lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"]
                         plat_previa = pr.get('plataforma_inicial', 'BetPlay')
