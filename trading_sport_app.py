@@ -3399,43 +3399,57 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         
                         sel_ini_rad = pr['seleccion_inicial']
                         # ------------------------------------------------------------------
-                        # 🧹 LÓGICA DE SELECCIÓN BLINDADA (Cero Errores de Tipeo)
+                        # 🧹 LÓGICA DE SELECCIÓN BLINDADA (DISCIPLINA DE MERCADO ESTRICTA)
                         # ------------------------------------------------------------------
                         sel_ini_rad = str(pr.get('seleccion_inicial', ''))
                         mercado_actual = str(pr.get('mercado', ''))
                         
-                        # 1. Limpieza inicial estricta (Estandarización Total)
-                        if "Ambos Anotan" in mercado_actual or "Ambos Anotan" in sel_ini_rad:
-                            sel_ini_rad = "Sí" if ("Sí" in sel_ini_rad or "Si" in sel_ini_rad) else "No"
-                            am_def = "No" if sel_ini_rad == "Sí" else "Sí"
+                        # 1. Inferencia Inteligente del Mercado Original
+                        if "Ambos Anotan" in mercado_actual or "Ambos" in sel_ini_rad or "Sí" in sel_ini_rad or "No" in sel_ini_rad:
+                            mdo_str = "Ambos Anotan"
                             opciones_mercado = ["Sí", "No"]
+                            sel_ini_limpia = "Sí" if ("Sí" in sel_ini_rad or "Si" in sel_ini_rad) else "No"
+                            
+                        elif "Más" in sel_ini_rad or "Menos" in sel_ini_rad or "Goles" in mercado_actual:
+                            mdo_str = "Línea de Goles"
+                            # Rescatamos la línea (ej. 2.5) si viene en el texto
+                            import re
+                            numeros = re.findall(r'\d+\.\d+|\d+', sel_ini_rad)
+                            linea = numeros[0] if numeros else "2.5"
+                            opciones_mercado = [f"Más de {linea}", f"Menos de {linea}"]
+                            sel_ini_limpia = f"Más de {linea}" if "Más" in sel_ini_rad else f"Menos de {linea}"
+                            
+                        elif "Local" in sel_ini_rad or "Visita" in sel_ini_rad or "Empate" in sel_ini_rad or "1X2" in mercado_actual:
+                            mdo_str = "Mercado 1X2"
+                            if "Local" in sel_ini_rad:
+                                sel_ini_limpia = "Local"
+                                opciones_mercado = ["Local", "Empate / Visita"]
+                            elif "Visita" in sel_ini_rad:
+                                sel_ini_limpia = "Visita"
+                                opciones_mercado = ["Visita", "Local / Empate"]
+                            else:
+                                sel_ini_limpia = "Empate"
+                                opciones_mercado = ["Empate", "Cualquiera Gana"]
                         else:
-                            # Si es otro mercado (Goles, 1X2), calculamos su opuesto lógico
-                            if "Más" in sel_ini_rad: am_def = sel_ini_rad.replace("Más", "Menos")
-                            elif "Menos" in sel_ini_rad: am_def = sel_ini_rad.replace("Menos", "Más")
-                            elif "Local" in sel_ini_rad: am_def = "Empate / Visita"
-                            elif "Visita" in sel_ini_rad: am_def = "Local / Empate"
-                            elif "Empate" in sel_ini_rad: am_def = "Cualquiera Gana"
-                            else: am_def = "Opción Contraria"
-                            opciones_mercado = [sel_ini_rad, am_def]
+                            mdo_str = mercado_actual if mercado_actual else "Mercado Personalizado"
+                            sel_ini_limpia = sel_ini_rad
+                            opciones_mercado = [sel_ini_limpia, "Opción Contraria"]
 
-                        # --- FILA 1: PIVOTE TÁCTICO (ESTANDARIZADO Y BLOQUEADO) ---
-                        st.info("💡 **Selección Blindada:** Elige tu pronóstico. La amenaza se calcula sola para proteger tu base de datos.")
+                        # --- FILA 1: PIVOTE TÁCTICO (ESTRICTO AL ESCÁNER) ---
+                        st.info(f"💡 **Modo Disciplina:** Operando estrictamente el mercado **[{mdo_str}]** que detectó el escáner.")
                         
-                        idx_defecto = 0 if sel_ini_rad == opciones_mercado[0] else 1 if len(opciones_mercado) > 1 else 0
+                        idx_defecto = 0 if sel_ini_limpia == opciones_mercado[0] else 1 if len(opciones_mercado) > 1 else 0
                         
                         col_nom1, col_nom2 = st.columns(2)
                         with col_nom1:
-                            # Lista desplegable estricta
+                            # La lista desplegable ahora está encerrada en las opciones del mercado detectado
                             seleccion_final_rad = st.selectbox("Tu Selección:", opciones_mercado, index=idx_defecto, key=f"sel_rad_{pr['codigo']}")
                         with col_nom2:
-                            # Auto-calcular la amenaza basada en la opción que eligió en el selectbox
                             if seleccion_final_rad == opciones_mercado[0]:
                                 amenaza_final_rad = opciones_mercado[1] if len(opciones_mercado) > 1 else "Opción Contraria"
                             else:
                                 amenaza_final_rad = opciones_mercado[0]
                                 
-                            # 🛡️ SOLUCIÓN: Caja de diseño bloqueada (HTML Puro). Evita el bug de memoria de Streamlit.
                             st.markdown("<p style='font-size: 14px; margin-bottom: 5px;'>La Amenaza a Cubrir (Automática):</p>", unsafe_allow_html=True)
                             st.markdown(f"""
                             <div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B; padding: 9px 12px; border-radius: 8px; font-family: sans-serif; cursor: not-allowed; min-height: 40px; display: flex; align-items: center;">
@@ -3554,8 +3568,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         elif "Goles" in mercado_actual: mdo_str = "Línea de Goles"
                                         else: mdo_str = mercado_actual if mercado_actual else "Mercado 1X2"
                                             
-                                        # 🎯 LA MAGIA FINAL: ENSAMBLE DEL NOMBRE LIMPIO (Igual a la Estrategia 3)
-                                        partido_formateado = f"🏟️ {pr['partido'].replace('🏟️ ', '').strip()} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
+                                        # 🎯 LA MAGIA FINAL: ENSAMBLE DEL NOMBRE LIMPIO Y ESTANDARIZADO
+                                        partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
+                                        partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
                                         
                                         hora_actual = datetime.datetime.now().strftime("%H:%M")
                                         
