@@ -3258,18 +3258,38 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             else:
                 for pr in partidos_radar:
                     with st.expander(f"📌 {pr['partido']} | Mdo: {pr['seleccion_inicial']} | Cuota Plan: {pr['cuota_inicial']} | Stake: ${pr['stake_1']:,.0f}"):
-                        st.write(f"**Cuotas Base Iniciales:** Local ({pr['cuota_base_audit']}) | Empate ({pr['cuota_empate_audit']}) | Visita ({pr['cuota_amenaza_audit']})")
+                        st.write(f"**Cuotas Base Iniciales:** Local ({pr.get('cuota_base_audit', 'N/A')}) | Empate ({pr.get('cuota_empate_audit', 'N/A')}) | Visita ({pr.get('cuota_amenaza_audit', 'N/A')})")
                         st.markdown("---")
                         st.markdown("#### 📸 Foto Táctica En Vivo")
                         
+                        # ------------------------------------------------------------------
+                        # 🧠 MEMORIA TELEPÁTICA: Buscar última foto guardada en Seguimiento
+                        # ------------------------------------------------------------------
+                        res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
+                        ultima_foto = res_fotos.data[0] if res_fotos.data else None
+                        
+                        if ultima_foto:
+                            st.info(f"🔄 **Datos Sincronizados:** Mostrando la última auditoría (Min {ultima_foto['minuto_evaluado']}) registrada en el Seguimiento.")
+                            min_def = int(ultima_foto['minuto_evaluado'])
+                            gl_def = int(ultima_foto['goles_local'])
+                            gv_def = int(ultima_foto['goles_vis'])
+                            al_def = int(ultima_foto['atkp_local'])
+                            av_def = int(ultima_foto['atkp_vis'])
+                        else:
+                            min_def = 60
+                            gl_def = 0
+                            gv_def = 0
+                            al_def = 40
+                            av_def = 25
+
                         cr1, cr2, cr3 = st.columns(3)
-                        m_rad = cr1.number_input("⏱️ Minuto:", min_value=1, max_value=120, value=60, key=f"mr_{pr['codigo']}")
-                        gl_rad = cr2.number_input("⚽ Goles Loc:", min_value=0, value=0, key=f"glr_{pr['codigo']}")
-                        gv_rad = cr3.number_input("⚽ Goles Vis:", min_value=0, value=0, key=f"gvr_{pr['codigo']}")
+                        m_rad = cr1.number_input("⏱️ Minuto:", min_value=1, max_value=120, value=min_def, key=f"mr_{pr['codigo']}")
+                        gl_rad = cr2.number_input("⚽ Goles Loc:", min_value=0, value=gl_def, key=f"glr_{pr['codigo']}")
+                        gv_rad = cr3.number_input("⚽ Goles Vis:", min_value=0, value=gv_def, key=f"gvr_{pr['codigo']}")
                         
                         cr4, cr5 = st.columns(2)
-                        al_rad = cr4.number_input("🔥 Atq. Pel. Local:", min_value=0, value=40, key=f"alr_{pr['codigo']}")
-                        av_rad = cr5.number_input("🔥 Atq. Pel. Visita:", min_value=0, value=25, key=f"avr_{pr['codigo']}")
+                        al_rad = cr4.number_input("🔥 Atq. Pel. Local:", min_value=0, value=al_def, key=f"alr_{pr['codigo']}")
+                        av_rad = cr5.number_input("🔥 Atq. Pel. Visita:", min_value=0, value=av_def, key=f"avr_{pr['codigo']}")
                         
                         if st.button("🧠 Validar con Oráculo Táctico", key=f"btn_ev_{pr['codigo']}", use_container_width=True):
                             try:
@@ -3377,7 +3397,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 fav_es_visita = "Visita" in jerarquia
                                 
                                 # ESCENARIO 1: EL GIGANTE HERIDO -> SEÑAL DE ENTRADA AL "SÍ"
-                                # El no-favorito anota primero, pero el Favorito está atacando fuertemente (>0.8 APM)
                                 if (fav_es_local and gv_rad == 1 and gl_rad == 0 and apm_loc_crudo >= 0.8) or \
                                    (fav_es_visita and gl_rad == 1 and gv_rad == 0 and apm_vis_crudo >= 0.8):
                                     
@@ -3386,14 +3405,13 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     <div style="background-color: #F0FDF4; border-left: 6px solid #16A34A; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
                                         <h4 style="margin-top:0; color:#15803D;">🔥 SEÑAL DE ENTRADA: EL GIGANTE HERIDO</h4>
                                         <p style="margin:0; font-size: 0.95rem; color:#14532D;">
-                                        El débil anotó un gol sorpresa, pero el Favorito ({equipo_atacando}) tiene la cancha inclinada a su favor ({max(apm_loc_crudo, apm_vis_crudo):.2f} APM). 
-                                        <br><br><b>🎯 ORDEN SUGERIDA:</b> Entra al <b>SÍ (Ambos Anotan)</b> ahora mismo. La cuota tiene valor altísimo y el gol del empate es inminente.
+                                        El débil anotó, pero el Favorito ({equipo_atacando}) tiene la cancha inclinada a su favor ({max(apm_loc_crudo, apm_vis_crudo):.2f} APM). 
+                                        <br><br><b>🎯 ORDEN SUGERIDA:</b> Entra al <b>SÍ (Ambos Anotan)</b> ahora mismo. La cuota tiene valor altísimo.
                                         </p>
                                     </div>
                                     """
                                     
                                 # ESCENARIO 2: ASFIXIA TOTAL -> SEÑAL DE ENTRADA AL "NO"
-                                # El Favorito anota primero, sigue atacando fuerte, y el débil no responde (<0.4 APM)
                                 elif (fav_es_local and gl_rad == 1 and gv_rad == 0 and apm_loc_crudo >= 0.8 and apm_vis_crudo <= 0.4) or \
                                      (fav_es_visita and gv_rad == 1 and gl_rad == 0 and apm_vis_crudo >= 0.8 and apm_loc_crudo <= 0.4):
                                     
@@ -3402,13 +3420,13 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
                                         <h4 style="margin-top:0; color:#991B1B;">🛡️ SEÑAL DE ENTRADA: ASFIXIA TOTAL</h4>
                                         <p style="margin:0; font-size: 0.95rem; color:#7F1D1D;">
-                                        El Favorito ya tiene su gol, no deja de atacar y el equipo {equipo_asfixiado} está completamente anulado (Ataque ínfimo de {min(apm_loc_crudo, apm_vis_crudo):.2f} APM). 
-                                        <br><br><b>🎯 ORDEN SUGERIDA:</b> Entra al <b>NO (Ambos Anotan)</b>. La cuota está inflada y el rival no tiene volumen físico para empatar. Te dará una cobertura muy barata.
+                                        El Favorito ya anotó y asfixia. El equipo {equipo_asfixiado} está anulado ({min(apm_loc_crudo, apm_vis_crudo):.2f} APM). 
+                                        <br><br><b>🎯 ORDEN SUGERIDA:</b> Entra al <b>NO (Ambos Anotan)</b>. Cobertura barata, el rival no tiene volumen para empatar.
                                         </p>
                                     </div>
                                     """
                                     
-                                # ESCENARIO 3: MOMENTUM 0-0 (Gol Temprano HT)
+                                # ESCENARIO 3: MOMENTUM 0-0
                                 elif m_rad <= 45 and goles_actuales_totales == 0:
                                     if apm_loc_crudo >= 1.0 or apm_vis_crudo >= 1.0:
                                         atacante_fuerte = "Local" if apm_loc_crudo > apm_vis_crudo else "Visita"
@@ -3419,8 +3437,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         <div style="background-color: #FFFBEB; border-left: 6px solid #D97706; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
                                             <h4 style="margin-top:0; color:#B45309;">⚡ SEÑAL DE MOMENTUM: GOL INMINENTE (1T)</h4>
                                             <p style="margin:0; font-size: 0.95rem; color:#92400E;">
-                                            El equipo {atacante_fuerte} está bombardeando el arco ({max(apm_loc_crudo, apm_vis_crudo):.2f} APM). {texto_riesgo}.
-                                            <br><br><b>🎯 ORDEN SUGERIDA:</b> Entra a <b>Más de 0.5 Goles en el 1er Tiempo</b> si la cuota supera 1.80.
+                                            El equipo {atacante_fuerte} bombardea el arco ({max(apm_loc_crudo, apm_vis_crudo):.2f} APM). {texto_riesgo}.
+                                            <br><br><b>🎯 ORDEN SUGERIDA:</b> Entra a <b>Más de 0.5 Goles 1er Tiempo</b> si la cuota supera 1.80.
                                             </p>
                                         </div>
                                         """
@@ -3438,12 +3456,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 </div>
                                 """, unsafe_allow_html=True)
                                 
-                                # IMPRIME LAS SEÑALES DE ENTRADA DEL FRANCOTIRADOR
                                 if alerta_señal: st.markdown(alerta_señal, unsafe_allow_html=True)
                                 
-                                # INTERFAZ CAMALEÓN
                                 if "Ambos Anotan" in mercado_operacion or "Sí" in seleccion_operacion or "No" in seleccion_operacion:
-                                    # VISTA BTTS (Oculta Quién Gana, Muestra Asedio Mutuo)
                                     estado_btts = "🟢 VIABLE" if btts == "SÍ" else "🔴 EN PELIGRO"
                                     st.markdown(f"""
                                     <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 0 0 8px 8px; text-align: center; margin-bottom: 15px;">
@@ -3454,7 +3469,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     </div>
                                     """, unsafe_allow_html=True)
                                 else:
-                                    # VISTA 1X2 / GOLES (Oculta BTTS, Muestra Ganador/Dominio)
                                     color_winner = "#0EA5E9" if winner_tactico == "Local" else ("#F59E0B" if winner_tactico == "Empate" else "#8B5CF6")
                                     st.markdown(f"""
                                     <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 0 0 8px 8px; text-align: center; margin-bottom: 15px;">
@@ -3474,52 +3488,38 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         st.markdown("---")
                         st.markdown("#### ⚙️ Configurar Ejecución y Riesgo")
                         
-                        sel_ini_rad = pr['seleccion_inicial']
-                        # ------------------------------------------------------------------
-                        # 🧹 LÓGICA DE SELECCIÓN BLINDADA (DISCIPLINA DE MERCADO ESTRICTA)
-                        # ------------------------------------------------------------------
                         sel_ini_rad = str(pr.get('seleccion_inicial', ''))
                         mercado_actual = str(pr.get('mercado', ''))
                         
-                        # 1. Inferencia Inteligente del Mercado Original
                         if "Ambos Anotan" in mercado_actual or "Ambos" in sel_ini_rad or "Sí" in sel_ini_rad or "No" in sel_ini_rad:
                             mdo_str = "Ambos Anotan"
                             opciones_mercado = ["Sí", "No"]
                             sel_ini_limpia = "Sí" if ("Sí" in sel_ini_rad or "Si" in sel_ini_rad) else "No"
-                            
                         elif "Más" in sel_ini_rad or "Menos" in sel_ini_rad or "Goles" in mercado_actual:
                             mdo_str = "Línea de Goles"
-                            # Rescatamos la línea (ej. 2.5) si viene en el texto
                             import re
                             numeros = re.findall(r'\d+\.\d+|\d+', sel_ini_rad)
                             linea = numeros[0] if numeros else "2.5"
                             opciones_mercado = [f"Más de {linea}", f"Menos de {linea}"]
                             sel_ini_limpia = f"Más de {linea}" if "Más" in sel_ini_rad else f"Menos de {linea}"
-                            
                         elif "Local" in sel_ini_rad or "Visita" in sel_ini_rad or "Empate" in sel_ini_rad or "1X2" in mercado_actual:
                             mdo_str = "Mercado 1X2"
                             if "Local" in sel_ini_rad:
-                                sel_ini_limpia = "Local"
-                                opciones_mercado = ["Local", "Empate / Visita"]
+                                sel_ini_limpia = "Local"; opciones_mercado = ["Local", "Empate / Visita"]
                             elif "Visita" in sel_ini_rad:
-                                sel_ini_limpia = "Visita"
-                                opciones_mercado = ["Visita", "Local / Empate"]
+                                sel_ini_limpia = "Visita"; opciones_mercado = ["Visita", "Local / Empate"]
                             else:
-                                sel_ini_limpia = "Empate"
-                                opciones_mercado = ["Empate", "Cualquiera Gana"]
+                                sel_ini_limpia = "Empate"; opciones_mercado = ["Empate", "Cualquiera Gana"]
                         else:
                             mdo_str = mercado_actual if mercado_actual else "Mercado Personalizado"
                             sel_ini_limpia = sel_ini_rad
                             opciones_mercado = [sel_ini_limpia, "Opción Contraria"]
 
-                        # --- FILA 1: PIVOTE TÁCTICO (ESTRICTO AL ESCÁNER) ---
                         st.info(f"💡 **Modo Disciplina:** Operando estrictamente el mercado **[{mdo_str}]** que detectó el escáner.")
                         
                         idx_defecto = 0 if sel_ini_limpia == opciones_mercado[0] else 1 if len(opciones_mercado) > 1 else 0
-                        
                         col_nom1, col_nom2 = st.columns(2)
                         with col_nom1:
-                            # La lista desplegable ahora está encerrada en las opciones del mercado detectado
                             seleccion_final_rad = st.selectbox("Tu Selección:", opciones_mercado, index=idx_defecto, key=f"sel_rad_{pr['codigo']}")
                         with col_nom2:
                             if seleccion_final_rad == opciones_mercado[0]:
@@ -3534,7 +3534,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             </div>
                             """, unsafe_allow_html=True)
 
-                        # --- FILA 2: LAS CUOTAS PURAS Y EL CAPITAL ---
                         col_ent1, col_ent2, col_ent3 = st.columns(3)
                         with col_ent1:
                             cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, value=float(pr['cuota_inicial']), step=0.05, key=f"c_ent_{pr['codigo']}")
@@ -3545,7 +3544,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         with col_ent3:
                             stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=int(pr['stake_1']), step=5000, key=f"stk_ent_{pr['codigo']}")
                         
-                        # --- FILA 3: CASA DE APUESTAS ---
                         lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"]
                         plat_previa = pr.get('plataforma_inicial', 'BetPlay')
                         idx_plat = lista_casas.index(plat_previa) if plat_previa in lista_casas else 0
@@ -3560,7 +3558,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 plat_rad_final = plat_rad_sel
                                 st.write("")
 
-                        # Matemática Financiera para el Radar
                         retorno_bruto_esperado = stake_ent_rad * cuota_ent_rad
                         utilidad_max_posible = retorno_bruto_esperado - stake_ent_rad
                         max_roi_pct = (utilidad_max_posible / stake_ent_rad) * 100 if stake_ent_rad > 0 else 0
@@ -3588,12 +3585,16 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             """, unsafe_allow_html=True)
                         else:
                             st.warning("La cuota de entrada no permite generar utilidades.")
-                            cuota_cazar_rad = 0
-                            cuota_sl_rad = 0
+                            cuota_cazar_rad = 0; cuota_sl_rad = 0
                         
                         st.markdown("<br>", unsafe_allow_html=True)
                         banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
                         banca_activa_rad = "REAL" if "Real" in banca_ejecutar else "SIMULACION"
+                        
+                        # ------------------------------------------------------------------
+                        # 🧬 CHECKBOX: MODO VIGÍA (RETENER EN RADAR)
+                        # ------------------------------------------------------------------
+                        retener_radar = st.checkbox("🔄 Retener partido en el Radar tras disparar (Para buscar múltiples entradas)", value=True, key=f"chk_retener_{pr['codigo']}")
                         
                         col_disp1, col_disp2 = st.columns(2)
                         with col_disp1:
@@ -3602,10 +3603,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     import datetime
                                     import joblib
                                     import pandas as pd
+                                    import uuid # Para generar el nuevo código si clonamos
+                                    
                                     try:
-                                        # -------------------------------------------------------------
-                                        # 🧠 RE-CÁLCULO SILENCIOSO (TESTIGO DE LA IA PARA AUDITORÍA)
-                                        # -------------------------------------------------------------
                                         m1x2_rad = joblib.load('modelo_1x2.pkl')
                                         mgoles_rad = joblib.load('modelo_goles.pkl')
                                         mbtts_rad = joblib.load('modelo_btts.pkl')
@@ -3639,27 +3639,20 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             if c_vis == 0: c_vis = 1
 
                                         marcador_ia_testigo = f"{c_loc}-{c_vis}"
-                                        # -------------------------------------------------------------
 
-                                        if "Ambos Anotan" in mercado_actual: mdo_str = "Ambos Anotan"
-                                        elif "Goles" in mercado_actual: mdo_str = "Línea de Goles"
-                                        else: mdo_str = mercado_actual if mercado_actual else "Mercado 1X2"
-                                            
-                                        # 🕵️‍♂️ CANDADO FINAL: Obligar a llamar a las cosas por su nombre
+                                        # Candado de Nombre
                                         if seleccion_final_rad in ["Sí", "No"]: mdo_str = "Ambos Anotan"
                                         elif "Más" in seleccion_final_rad or "Menos" in seleccion_final_rad: mdo_str = "Línea de Goles"
                                         
-                                        # 🎯 LA MAGIA FINAL: ENSAMBLE DEL NOMBRE LIMPIO Y ESTANDARIZADO
                                         partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
                                         partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
-                                        
                                         hora_actual = datetime.datetime.now().strftime("%H:%M")
                                         
-                                        supabase.table("historial_trading").update({
+                                        datos_inyeccion = {
                                             "estado": "EN VIVO",
                                             "tipo_banca": banca_activa_rad,
                                             "estrategia": "Estrategia 3: Binario Personalizado", 
-                                            "partido": partido_formateado, # <--- ENTRA LIMPIO A LA BASE DE DATOS
+                                            "partido": partido_formateado,
                                             "prediccion_ia": marcador_ia_testigo, 
                                             "seleccion_inicial": seleccion_final_rad,
                                             "seleccion_cobertura": amenaza_final_rad,
@@ -3671,9 +3664,36 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             "cuota_objetivo": float(cuota_cazar_rad),
                                             "cuota_stop_loss": float(cuota_sl_rad),
                                             "hora_inicio_partido": hora_actual
-                                        }).eq("codigo", pr['codigo']).execute()
-                                        
-                                        st.success("✅ ¡Disparo exitoso! Predicción guardada en formato limpio. Ve a la pestaña 'Seguimiento'.")
+                                        }
+
+                                        # -------------------------------------------------------------
+                                        # 🧬 LÓGICA DEL CLONADOR DE BASE DE DATOS
+                                        # -------------------------------------------------------------
+                                        if retener_radar:
+                                            # 1. Clonamos el registro entero para el Seguimiento con un nuevo ID
+                                            registro_clonado = dict(pr)
+                                            registro_clonado.update(datos_inyeccion)
+                                            # Le asignamos un ID único al clon para que no choque con el original
+                                            nuevo_codigo = str(uuid.uuid4())[:8].upper()
+                                            registro_clonado['codigo'] = nuevo_codigo
+                                            # Limpiamos el ID autoincremental si existe
+                                            if 'id' in registro_clonado: del registro_clonado['id']
+                                            
+                                            # Insertamos el clon en la BD (Este se va al Seguimiento)
+                                            supabase.table("historial_trading").insert(registro_clonado).execute()
+                                            
+                                            # 2. Reseteamos la plata del original en el Radar para futuras entradas
+                                            supabase.table("historial_trading").update({
+                                                "stake_1": 0.0,
+                                                "capital_total": 0.0
+                                            }).eq("codigo", pr['codigo']).execute()
+                                            
+                                            st.success("✅ ¡Disparo exitoso! Operación enviada a Seguimiento. El partido sigue en tu Radar para nuevas entradas.")
+                                        else:
+                                            # Flujo normal: el partido abandona el Radar
+                                            supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
+                                            st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
+                                            
                                         st.rerun()
                                     except Exception as err_db:
                                         st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
