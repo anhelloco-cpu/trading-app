@@ -1432,7 +1432,13 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             
                                     if alerta_franco: st.markdown(alerta_franco, unsafe_allow_html=True)
                                     
-                                    # LÓGICA DE ASEDIO BTTS
+                                    # -------------------------------------------------------------
+                                    # LÓGICA DE ASEDIO BTTS (SÍ y NO)
+                                    # -------------------------------------------------------------
+                                    # 1. Valores por defecto (Salva-errores)
+                                    estado_btts = "⏳ EVALUANDO..."
+                                    color_btts = "#64748B"
+                                    
                                     if aposto_si:
                                         if g_local > 0 and g_vis > 0:
                                             msj_ia = "🎉 **¡OBJETIVO CUMPLIDO!** Ambos marcaron. Ganaste el SÍ. Liquida ya."
@@ -1473,6 +1479,29 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                 msj_ia = f"🛡️ **INTENTO TÍMIDO:** Prepara cobertura. {eq_necesitado} ataca lento."
                                                 ird = 75.0
                                                 estado_btts = "🟡 DUDOSO"
+                                                color_btts = "#F59E0B"
+                                                
+                                    else: # APOSTÓ AL "NO"
+                                        if g_local > 0 and g_vis > 0:
+                                            msj_ia = "❌ **SINIESTRO:** Ambos marcaron. Perdiste el NO."
+                                            ird = 100.0
+                                            estado_btts = "💀 PERDIDO"
+                                            color_btts = "#EF4444"
+                                        elif g_local == 0 and g_vis == 0:
+                                            msj_ia = f"✅ **BAJO CONTROL:** Ninguno ha marcado. Ritmo bajo de {apm_total:.2f} APM."
+                                            ird = 20.0
+                                            estado_btts = "🟢 SEGURO"
+                                            color_btts = "#10B981"
+                                        else: # Hay un gol (Riesgo activado)
+                                            if apm_total > 1.2:
+                                                msj_ia = f"🚨 **ALERTA ROJA:** El partido está FRENÉTICO ({apm_total:.2f} APM). Gran riesgo de que empaten."
+                                                ird = 90.0
+                                                estado_btts = "🔴 EN PELIGRO"
+                                                color_btts = "#EF4444"
+                                            else:
+                                                msj_ia = f"⚖️ **TENDENCIA FAVORABLE:** Hay un gol, pero el asedio total está controlado ({apm_total:.2f} APM)."
+                                                ird = 40.0
+                                                estado_btts = "🟡 RESISTIENDO"
                                                 color_btts = "#F59E0B"
                                     
                                     # PANEL GIGANTE BTTS
