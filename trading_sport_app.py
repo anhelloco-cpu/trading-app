@@ -3225,54 +3225,39 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 color_btts = "#10B981" if pred_btts_rad == 1 else "#EF4444"
                                 
                                 # ------------------------------------------------------------------
-                                # ⚖️ 1. EL CRUCE HÍBRIDO: CUOTAS GLOBALES VS TÁCTICA EN VIVO
+                                # ⚖️ 1. LECTURA DE JERARQUÍA HISTÓRICA
                                 # ------------------------------------------------------------------
-                                c_loc_hist = float(pr['cuota_base_audit'])
-                                c_vis_hist = float(pr['cuota_amenaza_audit'])
+                                c_loc_hist = float(pr.get('cuota_base_audit', 2.0))
+                                c_vis_hist = float(pr.get('cuota_amenaza_audit', 2.0))
                                 
-                                if c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: fav_global = "Local"
-                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: fav_global = "Visita"
-                                else: fav_global = "Fuerzas Parejas"
+                                if c_loc_hist <= 1.35: jerarquia = "Súper Favorito Local"
+                                elif c_vis_hist <= 1.35: jerarquia = "Súper Favorito Visita"
+                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = "Local Favorito"
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = "Visita Favorito"
+                                else: jerarquia = "Fuerzas Parejas"
 
                                 if al_rad > av_rad and (al_rad - av_rad) > 10: dom_vivo = "Local"
                                 elif av_rad > al_rad and (av_rad - al_rad) > 10: dom_vivo = "Visita"
                                 else: dom_vivo = "Asedio Dividido"
-
-                                if fav_global == "Fuerzas Parejas":
-                                    veredicto_hibrido = f"⚖️ **Duelo Equilibrado:** Históricamente parejos. Confía en la cancha: el dominador táctico es **{dom_vivo}**."
-                                    color_hib = "#3B82F6"; bg_hib = "#EFF6FF"
-                                elif fav_global == dom_vivo:
-                                    veredicto_hibrido = f"🟢 **CONFIRMACIÓN ABSOLUTA:** El **{fav_global}** era favorito global, y además está arrasando. Predicción altamente segura."
-                                    color_hib = "#15803D"; bg_hib = "#F0FDF4"
-                                elif dom_vivo == "Asedio Dividido":
-                                    veredicto_hibrido = f"⚠️ **Alerta de Jerarquía:** Ataques parejos, pero el **{fav_global}** es favorito histórico y puede destrabarlo por jerarquía."
-                                    color_hib = "#B45309"; bg_hib = "#FFFBEB"
-                                else:
-                                    veredicto_hibrido = f"🚨 **CHOQUE DE TRENES (TRAMPA):** El **{fav_global}** es favorito, pero el **{dom_vivo}** lo está sometiendo. Escenario de alta varianza."
-                                    color_hib = "#B91C1C"; bg_hib = "#FEF2F2"
 
                                 # ------------------------------------------------------------------
                                 # 🎯 2. MOTOR DE TRIANGULACIÓN E INYECCIÓN FÍSICA
                                 # ------------------------------------------------------------------
                                 goles_actuales_totales = gl_rad + gv_rad
                                 minutos_restantes = 90 - m_rad
-                                
                                 apm_loc_crudo = al_rad / max(1, m_rad)
                                 apm_vis_crudo = av_rad / max(1, m_rad)
 
-                                # 1. MODO GOLEADA (Romper el conservadurismo de la IA)
+                                # MODO GOLEADA
                                 goles_esperados_ia = round(pred_goles_rad)
-                                
                                 if apm_loc_crudo >= 1.5 or apm_vis_crudo >= 1.5:
                                     goles_fisicos = goles_actuales_totales + int((minutos_restantes / 30) * max(apm_loc_crudo, apm_vis_crudo))
                                     goles_esperados_ia = max(goles_esperados_ia, goles_fisicos)
 
                                 goles_nuevos_esperados = max(0, goles_esperados_ia - goles_actuales_totales)
-                                
-                                calc_loc = gl_rad
-                                calc_vis = gv_rad
+                                calc_loc, calc_vis = gl_rad, gv_rad
 
-                                # 2. Reparto de Goles según el Ganador
+                                # Reparto de Goles según el Ganador
                                 if pred_1x2_rad == 1: 
                                     if calc_loc > calc_vis: calc_vis = calc_loc 
                                     elif calc_vis > calc_loc: calc_loc = calc_vis 
@@ -3286,21 +3271,18 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     if calc_vis <= calc_loc: calc_vis = calc_loc + max(1, goles_nuevos_esperados)
                                     else: calc_vis += goles_nuevos_esperados
 
-                                # 3. EL PIVOTE DINÁMICO (BTTS BASADO EN ASEDIO MUTUO)
+                                # PIVOTE DINÁMICO (BTTS BASADO EN ASEDIO MUTUO)
                                 if apm_loc_crudo >= 0.6 and apm_vis_crudo >= 0.6:
-                                    # Ambos equipos están atacando peligrosamente: ES UN SÍ ROTUNDO
                                     calc_loc = max(1, calc_loc)
                                     calc_vis = max(1, calc_vis)
                                     btts = "SÍ (Alta Prob. Física)"
                                     color_btts = "#10B981"
                                 elif apm_loc_crudo < 0.4 or apm_vis_crudo < 0.4:
-                                    # Uno de los dos equipos está casi muerto: ES UN NO FÍSICO
                                     btts = "NO (Falta Asedio)"
                                     color_btts = "#EF4444"
                                     if apm_loc_crudo < 0.4 and gl_rad == 0: calc_loc = 0
                                     if apm_vis_crudo < 0.4 and gv_rad == 0: calc_vis = 0
                                 else:
-                                    # Zona media: Confiamos en lo que proyectó la IA inicialmente
                                     if pred_btts_rad == 1:
                                         calc_loc = max(1, calc_loc)
                                         calc_vis = max(1, calc_vis)
@@ -3311,82 +3293,81 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         color_btts = "#EF4444"
                                         
                                 marcador_exacto = f"{calc_loc} - {calc_vis}"
-                                # --- NUEVO: SINCRONIZAR LETRERO BTTS CON LA REALIDAD ---
                                 if calc_loc > 0 and calc_vis > 0:
                                     btts = "SÍ"
                                     color_btts = "#10B981"
                                 else:
-                                    # Si la IA decía SÍ, pero el sistema físico lo bloqueó, te avisa.
                                     btts = "NO (Bloqueado por Táctica)" if pred_btts_rad == 1 else "NO"
                                     color_btts = "#EF4444"
+
                                 # ------------------------------------------------------------------
-                                # ⏱️ 3. ÁRBITRO DE TIEMPO (FILTRO ANTI-REMONTADAS)
+                                # ⏱️ 3. RADAR DE MOMENTUM (GOL EN 1ER TIEMPO)
                                 # ------------------------------------------------------------------
-                                minutos_restantes = 90 - m_rad
-                                diferencia_goles_real = abs(gl_rad - gv_rad) 
-                                lider_real = 1 if gl_rad == gv_rad else (2 if gl_rad > gv_rad else 3)
-                                
-                                arbitro_msg = ""
-                                if lider_real != 1 and pred_1x2_rad != lider_real:
-                                    if (diferencia_goles_real * 10) > minutos_restantes:
-                                        if lider_real == 2:
-                                            calc_loc = gl_rad
-                                            calc_vis = gv_rad + (1 if pred_btts_rad == 1 and gv_rad == 0 and minutos_restantes >= 5 else 0)
-                                            marcador_exacto = f"{calc_loc} - {calc_vis}"
-                                            winner_tactico = "Equipo Local (Corregido por Reloj)"
-                                        else:
-                                            calc_loc = gl_rad + (1 if pred_btts_rad == 1 and gl_rad == 0 and minutos_restantes >= 5 else 0)
-                                            calc_vis = gv_rad
-                                            marcador_exacto = f"{calc_loc} - {calc_vis}"
-                                            winner_tactico = "Equipo Visitante (Corregido por Reloj)"
-                                            
-                                        arbitro_msg = f"""
-                                        <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                                            <h4 style="margin-top:0; color:#B45309;">⏱️ ALERTA DEL ÁRBITRO DE TIEMPO</h4>
-                                            <p style="margin:0; color:#92400E;">La IA proyectó Remontada/Empate, pero la diferencia es de <b>{diferencia_goles_real} goles</b> y solo quedan <b>{minutos_restantes} minutos</b>. El Risk Manager ha bloqueado la predicción.</p>
+                                alerta_momentum = ""
+                                if m_rad <= 45 and goles_actuales_totales == 0:
+                                    # Evaluamos si alguien está asediando duro
+                                    if apm_loc_crudo >= 1.0 or apm_vis_crudo >= 1.0:
+                                        atacante_fuerte = "Local" if apm_loc_crudo > apm_vis_crudo else "Visita"
+                                        es_favorito = True if atacante_fuerte in jerarquia else False
+                                        
+                                        texto_riesgo = "Alta probabilidad (Favorito presionando)" if es_favorito else "Peligro de sorpresa (El Débil domina)"
+                                        
+                                        alerta_momentum = f"""
+                                        <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                                            <h4 style="margin-top:0; color:#991B1B;">🔥 ALERTA DE MOMENTUM (GOL INMINENTE HT)</h4>
+                                            <p style="margin:0; color:#7F1D1D;">El equipo <b>{atacante_fuerte}</b> está bombardeando con un asedio masivo (> 1.0 APM). {texto_riesgo}.<br>
+                                            👉 <i>Sugerencia: Revisa la cuota a <b>Más de 0.5 Goles 1er Tiempo</b>. Si está por encima de 1.80, hay tremendo valor en vivo.</i></p>
                                         </div>
                                         """
+                                elif m_rad <= 45 and goles_actuales_totales > 0:
+                                     # Ya hubo gol, el modelo evalúa si hay fuego para el segundo (Ideal para BTTS)
+                                     if apm_loc_crudo >= 0.8 and apm_vis_crudo >= 0.8:
+                                         alerta_momentum = f"""
+                                        <div style="background-color: #F0FDF4; border-left: 6px solid #16A34A; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                                            <h4 style="margin-top:0; color:#15803D;">⚔️ PARTIDO ROTO (ALTA VARIANZA HT)</h4>
+                                            <p style="margin:0; color:#14532D;">Ya hubo gol, pero el asedio no para de ningún lado. Ritmo vertiginoso perfecto para mercados de BTTS o Goles Adicionales en el 1er Tiempo.</p>
+                                        </div>
+                                        """
+
+                                # ------------------------------------------------------------------
+                                # 🖼️ 4. RENDERIZADO VISUAL GIGANTE (MÉTODO ICEBERG)
+                                # ------------------------------------------------------------------
+                                mercado_operacion = str(pr.get('mercado', ''))
+                                seleccion_operacion = str(pr.get('seleccion_inicial', ''))
                                 
-                                # Advertencia de Sentido Común BTTS
-                                apm_loc = al_rad / max(1, m_rad)
-                                apm_vis = av_rad / max(1, m_rad)
-                                btts_msg = ""
-                                if pred_btts_rad == 1 and (apm_loc < 0.5 or apm_vis < 0.5):
-                                    btts_msg = """
-                                    <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                                        <h4 style="margin-top:0; color:#B45309;">⚠️ ADVERTENCIA DE SENTIDO COMÚN</h4>
-                                        <p style="margin:0; color:#92400E;">La IA proyecta <b>SÍ (Ambos Anotan)</b> pero el volumen ofensivo actual es de <b>menos de 0.5 APM</b>. Sugerimos extrema cautela.</p>
+                                st.markdown(f"""
+                                <div style="background-color: #1E293B; border-bottom: 4px solid #3B82F6; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-bottom: 0px;">
+                                    <h4 style="margin:0; color:#94A3B8; font-size: 0.9rem;">ADN DEL PARTIDO</h4>
+                                    <h3 style="color:#FFFFFF; margin: 5px 0;">[{jerarquia}]</h3>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                # IMPRIME LA ALERTA DE MOMENTUM (SI APLICA)
+                                if alerta_momentum: st.markdown(alerta_momentum, unsafe_allow_html=True)
+                                
+                                # INTERFAZ CAMALEÓN
+                                if "Ambos Anotan" in mercado_operacion or "Sí" in seleccion_operacion or "No" in seleccion_operacion:
+                                    # VISTA BTTS (Oculta Quién Gana, Muestra Asedio Mutuo)
+                                    estado_btts = "🟢 VIABLE" if btts == "SÍ" else "🔴 EN PELIGRO"
+                                    st.markdown(f"""
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 0 0 8px 8px; text-align: center; margin-bottom: 15px;">
+                                        <h3 style="margin-top:0; color:#0F172A;">📊 ORÁCULO BTTS (Ambos Anotan)</h3>
+                                        <h1 style="color:{color_btts}; font-size: 3rem; margin: 10px 0;">{estado_btts}</h1>
+                                        <p style="margin:0; font-size: 1rem; color:#475569;">Goles Totales Proyectados IA: <b>{pred_goles_rad:.1f}</b></p>
+                                        <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">Nivel de Caos (Asedio Mutuo): {ird_rad:.1f}%</p>
                                     </div>
-                                    """
-
-                                # ------------------------------------------------------------------
-                                # 🖼️ RENDERIZADO VISUAL GIGANTE
-                                # ------------------------------------------------------------------
-                                st.markdown(f"""
-                                <div style="background-color: {bg_hib}; padding: 15px; border-left: 6px solid {color_hib}; border-radius: 4px; margin-bottom: 15px;">
-                                    <h5 style="margin-top:0; color:{color_hib};">🧬 Análisis Híbrido (Mercado Global vs Cancha)</h5>
-                                    <p style="margin:0; font-size: 0.95rem; color:#334155;">{veredicto_hibrido}</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-
-                                if arbitro_msg: st.markdown(arbitro_msg, unsafe_allow_html=True)
-                                if btts_msg: st.markdown(btts_msg, unsafe_allow_html=True)
-
-                                st.markdown(f"""
-                                <div style="background-color: #1E293B; border: 2px solid #3B82F6; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 15px;">
-                                    <h4 style="margin-top:0; color:#94A3B8;">🎯 MARCADOR EXACTO PROYECTADO</h4>
-                                    <h1 style="color:#FFFFFF; font-size: 3.5rem; margin: 10px 0; font-family: monospace;">{marcador_exacto}</h1>
-                                    <p style="margin:0; font-size: 0.9rem; color:#64748B;">Nivel de Asedio en Cancha (IRD): {ird_rad:.1f}%</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                col_r1, col_r2, col_r3 = st.columns(3)
-                                with col_r1:
-                                    st.markdown(f"""<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;"><h4 style="margin-top:0; color:#475569;">🏆 Ganador</h4><h3 style="color:#0F172A; margin: 10px 0; font-size: 1.2rem;">{winner_tactico}</h3></div>""", unsafe_allow_html=True)
-                                with col_r2:
-                                    st.markdown(f"""<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;"><h4 style="margin-top:0; color:#475569;">⚽ Totales</h4><h3 style="color:#0EA5E9; margin: 10px 0; font-size: 1.2rem;">{pred_goles_rad:.1f}</h3></div>""", unsafe_allow_html=True)
-                                with col_r3:
-                                    st.markdown(f"""<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;"><h4 style="margin-top:0; color:#475569;">🔥 Ambos</h4><h3 style="color:{color_btts}; margin: 10px 0; font-size: 1.2rem;">{btts}</h3></div>""", unsafe_allow_html=True)
+                                    """, unsafe_allow_html=True)
+                                else:
+                                    # VISTA 1X2 / GOLES (Oculta BTTS, Muestra Ganador/Dominio)
+                                    color_winner = "#0EA5E9" if winner_tactico == "Local" else ("#F59E0B" if winner_tactico == "Empate" else "#8B5CF6")
+                                    st.markdown(f"""
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 0 0 8px 8px; text-align: center; margin-bottom: 15px;">
+                                        <h3 style="margin-top:0; color:#0F172A;">🎯 PROYECCIÓN TÁCTICA</h3>
+                                        <h1 style="color:{color_winner}; font-size: 2.5rem; margin: 10px 0;">{marcador_exacto}</h1>
+                                        <p style="margin:0; font-size: 1.1rem; color:#475569;">Ganador Físico: <b>{winner_tactico}</b></p>
+                                        <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{dom_vivo}</b> está dominando la cancha (IRD: {ird_rad:.1f}%)</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
 
                             except Exception as e:
                                 st.error(f"Error procesando IA táctica: {e}")
