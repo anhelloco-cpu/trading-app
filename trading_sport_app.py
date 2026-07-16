@@ -3407,6 +3407,20 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         elif "Empate" in sel_ini_rad: am_def = "Cualquiera Gana"
                         else: am_def = "Opción Contraria"
                         
+                        # 🧹 FILTRO LAVADORA: Limpiar redundancias de Ambos Anotan
+                        if "Ambos Anotan" in str(pr.get('mercado', '')):
+                            sel_ini_rad = sel_ini_rad.replace("Ambos Anotan (Sí)", "Sí").replace("Ambos Anotan (No)", "No").replace("Ambos Anotan Sí", "Sí").replace("Ambos Anotan No", "No")
+                            am_def = am_def.replace("Ambos Anotan (No)", "No").replace("Ambos Anotan (Sí)", "Sí").replace("Ambos Anotan No", "No").replace("Ambos Anotan Sí", "Sí")
+
+                        # --- FILA 1: PIVOTE TÁCTICO (NOMBRES EDITABLES) ---
+                        col_nom1, col_nom2 = st.columns(2)
+                        with col_nom1:
+                            st.info("💡 Puedes cambiar tu selección si el asedio en vivo te hizo cambiar de opinión.")
+                            seleccion_final_rad = st.text_input("Tu Selección (Editable):", value=sel_ini_rad, key=f"sel_{pr['codigo']}")
+                        with col_nom2:
+                            st.info("💡 Asegúrate de que la amenaza sea la contraria exacta.")
+                            amenaza_final_rad = st.text_input("La Amenaza a Cubrir:", value=am_def, key=f"am_info_{pr['codigo']}")
+
                         # --- FILA 1: PIVOTE TÁCTICO (NOMBRES EDITABLES) ---
                         col_nom1, col_nom2 = st.columns(2)
                         with col_nom1:
