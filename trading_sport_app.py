@@ -3398,36 +3398,45 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         st.markdown("#### ⚙️ Configurar Ejecución y Riesgo")
                         
                         sel_ini_rad = pr['seleccion_inicial']
-                        if "Sí" in sel_ini_rad: am_def = sel_ini_rad.replace("Sí", "No")
-                        elif "No" in sel_ini_rad: am_def = sel_ini_rad.replace("No", "Sí")
-                        elif "Más" in sel_ini_rad: am_def = sel_ini_rad.replace("Más", "Menos")
-                        elif "Menos" in sel_ini_rad: am_def = sel_ini_rad.replace("Menos", "Más")
-                        elif "Local" in sel_ini_rad: am_def = "Empate / Visita"
-                        elif "Visita" in sel_ini_rad: am_def = "Local / Empate"
-                        elif "Empate" in sel_ini_rad: am_def = "Cualquiera Gana"
-                        else: am_def = "Opción Contraria"
-                        
-                        # 🧹 FILTRO LAVADORA: Limpiar redundancias de Ambos Anotan
-                        if "Ambos Anotan" in str(pr.get('mercado', '')):
-                            sel_ini_rad = sel_ini_rad.replace("Ambos Anotan (Sí)", "Sí").replace("Ambos Anotan (No)", "No").replace("Ambos Anotan Sí", "Sí").replace("Ambos Anotan No", "No")
-                            am_def = am_def.replace("Ambos Anotan (No)", "No").replace("Ambos Anotan (Sí)", "Sí").replace("Ambos Anotan No", "No").replace("Ambos Anotan Sí", "Sí")
-
                         # ------------------------------------------------------------------
-                        # 🧹 FILTRO LAVADORA: Limpiar redundancias de Ambos Anotan
+                        # 🧹 LÓGICA DE SELECCIÓN BLINDADA (Cero Errores de Tipeo)
                         # ------------------------------------------------------------------
+                        sel_ini_rad = str(pr.get('seleccion_inicial', ''))
                         mercado_actual = str(pr.get('mercado', ''))
-                        if "Ambos Anotan" in mercado_actual:
-                            sel_ini_rad = sel_ini_rad.replace("Ambos Anotan (Sí)", "Sí").replace("Ambos Anotan (No)", "No").replace("Ambos Anotan Sí", "Sí").replace("Ambos Anotan No", "No").strip()
-                            am_def = am_def.replace("Ambos Anotan (No)", "No").replace("Ambos Anotan (Sí)", "Sí").replace("Ambos Anotan No", "No").replace("Ambos Anotan Sí", "Sí").strip()
+                        
+                        # 1. Limpieza inicial estricta (Estandarización Total)
+                        if "Ambos Anotan" in mercado_actual or "Ambos Anotan" in sel_ini_rad:
+                            sel_ini_rad = "Sí" if ("Sí" in sel_ini_rad or "Si" in sel_ini_rad) else "No"
+                            am_def = "No" if sel_ini_rad == "Sí" else "Sí"
+                            opciones_mercado = ["Sí", "No"]
+                        else:
+                            # Si es otro mercado (Goles, 1X2), calculamos su opuesto lógico
+                            if "Más" in sel_ini_rad: am_def = sel_ini_rad.replace("Más", "Menos")
+                            elif "Menos" in sel_ini_rad: am_def = sel_ini_rad.replace("Menos", "Más")
+                            elif "Local" in sel_ini_rad: am_def = "Empate / Visita"
+                            elif "Visita" in sel_ini_rad: am_def = "Local / Empate"
+                            elif "Empate" in sel_ini_rad: am_def = "Cualquiera Gana"
+                            else: am_def = "Opción Contraria"
+                            opciones_mercado = [sel_ini_rad, am_def]
 
-                        # --- FILA 1: PIVOTE TÁCTICO (NOMBRES EDITABLES) ---
+                        # --- FILA 1: PIVOTE TÁCTICO (ESTANDARIZADO Y BLOQUEADO) ---
+                        st.info("💡 **Selección Blindada:** Elige tu pronóstico. La amenaza se calcula sola para proteger tu base de datos.")
+                        
+                        idx_defecto = 0 if sel_ini_rad == opciones_mercado[0] else 1 if len(opciones_mercado) > 1 else 0
+                        
                         col_nom1, col_nom2 = st.columns(2)
                         with col_nom1:
-                            st.info("💡 Puedes cambiar tu selección si el asedio en vivo te hizo cambiar de opinión.")
-                            seleccion_final_rad = st.text_input("Tu Selección (Editable):", value=sel_ini_rad, key=f"sel_rad_{pr['codigo']}")
+                            # Ya no es texto libre, es una lista desplegable estricta
+                            seleccion_final_rad = st.selectbox("Tu Selección:", opciones_mercado, index=idx_defecto, key=f"sel_rad_{pr['codigo']}")
                         with col_nom2:
-                            st.info("💡 Asegúrate de que la amenaza sea la contraria exacta.")
-                            amenaza_final_rad = st.text_input("La Amenaza a Cubrir:", value=am_def, key=f"am_info_rad_{pr['codigo']}")
+                            # Auto-calcular la amenaza basada en la opción que eligió en el selectbox
+                            if seleccion_final_rad == opciones_mercado[0]:
+                                amenaza_final_rad = opciones_mercado[1] if len(opciones_mercado) > 1 else "Opción Contraria"
+                            else:
+                                amenaza_final_rad = opciones_mercado[0]
+                                
+                            # Se muestra la amenaza pero NO se puede editar (disabled=True)
+                            st.text_input("La Amenaza a Cubrir (Automática):", value=amenaza_final_rad, disabled=True, key=f"am_info_rad_{pr['codigo']}")
 
                         # --- FILA 2: LAS CUOTAS PURAS Y EL CAPITAL ---
                         col_ent1, col_ent2, col_ent3 = st.columns(3)
