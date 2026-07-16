@@ -3370,31 +3370,58 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     color_btts = "#EF4444"
 
                                 # ------------------------------------------------------------------
-                                # ⏱️ 3. RADAR DE MOMENTUM (GOL EN 1ER TIEMPO)
+                                # 🎯 3. RADAR DE OPORTUNIDADES EN VIVO (SEÑALES DE ENTRADA)
                                 # ------------------------------------------------------------------
-                                alerta_momentum = ""
-                                if m_rad <= 45 and goles_actuales_totales == 0:
-                                    # Evaluamos si alguien está asediando duro
+                                alerta_señal = ""
+                                fav_es_local = "Local" in jerarquia
+                                fav_es_visita = "Visita" in jerarquia
+                                
+                                # ESCENARIO 1: EL GIGANTE HERIDO -> SEÑAL DE ENTRADA AL "SÍ"
+                                # El no-favorito anota primero, pero el Favorito está atacando fuertemente (>0.8 APM)
+                                if (fav_es_local and gv_rad == 1 and gl_rad == 0 and apm_loc_crudo >= 0.8) or \
+                                   (fav_es_visita and gl_rad == 1 and gv_rad == 0 and apm_vis_crudo >= 0.8):
+                                    
+                                    equipo_atacando = "Local" if fav_es_local else "Visita"
+                                    alerta_señal = f"""
+                                    <div style="background-color: #F0FDF4; border-left: 6px solid #16A34A; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
+                                        <h4 style="margin-top:0; color:#15803D;">🔥 SEÑAL DE ENTRADA: EL GIGANTE HERIDO</h4>
+                                        <p style="margin:0; font-size: 0.95rem; color:#14532D;">
+                                        El débil anotó un gol sorpresa, pero el Favorito ({equipo_atacando}) tiene la cancha inclinada a su favor ({max(apm_loc_crudo, apm_vis_crudo):.2f} APM). 
+                                        <br><br><b>🎯 ORDEN SUGERIDA:</b> Entra al <b>SÍ (Ambos Anotan)</b> ahora mismo. La cuota tiene valor altísimo y el gol del empate es inminente.
+                                        </p>
+                                    </div>
+                                    """
+                                    
+                                # ESCENARIO 2: ASFIXIA TOTAL -> SEÑAL DE ENTRADA AL "NO"
+                                # El Favorito anota primero, sigue atacando fuerte, y el débil no responde (<0.4 APM)
+                                elif (fav_es_local and gl_rad == 1 and gv_rad == 0 and apm_loc_crudo >= 0.8 and apm_vis_crudo <= 0.4) or \
+                                     (fav_es_visita and gv_rad == 1 and gl_rad == 0 and apm_vis_crudo >= 0.8 and apm_loc_crudo <= 0.4):
+                                    
+                                    equipo_asfixiado = "Visita" if fav_es_local else "Local"
+                                    alerta_señal = f"""
+                                    <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
+                                        <h4 style="margin-top:0; color:#991B1B;">🛡️ SEÑAL DE ENTRADA: ASFIXIA TOTAL</h4>
+                                        <p style="margin:0; font-size: 0.95rem; color:#7F1D1D;">
+                                        El Favorito ya tiene su gol, no deja de atacar y el equipo {equipo_asfixiado} está completamente anulado (Ataque ínfimo de {min(apm_loc_crudo, apm_vis_crudo):.2f} APM). 
+                                        <br><br><b>🎯 ORDEN SUGERIDA:</b> Entra al <b>NO (Ambos Anotan)</b>. La cuota está inflada y el rival no tiene volumen físico para empatar. Te dará una cobertura muy barata.
+                                        </p>
+                                    </div>
+                                    """
+                                    
+                                # ESCENARIO 3: MOMENTUM 0-0 (Gol Temprano HT)
+                                elif m_rad <= 45 and goles_actuales_totales == 0:
                                     if apm_loc_crudo >= 1.0 or apm_vis_crudo >= 1.0:
                                         atacante_fuerte = "Local" if apm_loc_crudo > apm_vis_crudo else "Visita"
                                         es_favorito = True if atacante_fuerte in jerarquia else False
+                                        texto_riesgo = "Favorito presionando con furia" if es_favorito else "Peligro de sorpresa del Débil"
                                         
-                                        texto_riesgo = "Alta probabilidad (Favorito presionando)" if es_favorito else "Peligro de sorpresa (El Débil domina)"
-                                        
-                                        alerta_momentum = f"""
-                                        <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                                            <h4 style="margin-top:0; color:#991B1B;">🔥 ALERTA DE MOMENTUM (GOL INMINENTE HT)</h4>
-                                            <p style="margin:0; color:#7F1D1D;">El equipo <b>{atacante_fuerte}</b> está bombardeando con un asedio masivo (> 1.0 APM). {texto_riesgo}.<br>
-                                            👉 <i>Sugerencia: Revisa la cuota a <b>Más de 0.5 Goles 1er Tiempo</b>. Si está por encima de 1.80, hay tremendo valor en vivo.</i></p>
-                                        </div>
-                                        """
-                                elif m_rad <= 45 and goles_actuales_totales > 0:
-                                     # Ya hubo gol, el modelo evalúa si hay fuego para el segundo (Ideal para BTTS)
-                                     if apm_loc_crudo >= 0.8 and apm_vis_crudo >= 0.8:
-                                         alerta_momentum = f"""
-                                        <div style="background-color: #F0FDF4; border-left: 6px solid #16A34A; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                                            <h4 style="margin-top:0; color:#15803D;">⚔️ PARTIDO ROTO (ALTA VARIANZA HT)</h4>
-                                            <p style="margin:0; color:#14532D;">Ya hubo gol, pero el asedio no para de ningún lado. Ritmo vertiginoso perfecto para mercados de BTTS o Goles Adicionales en el 1er Tiempo.</p>
+                                        alerta_señal = f"""
+                                        <div style="background-color: #FFFBEB; border-left: 6px solid #D97706; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
+                                            <h4 style="margin-top:0; color:#B45309;">⚡ SEÑAL DE MOMENTUM: GOL INMINENTE (1T)</h4>
+                                            <p style="margin:0; font-size: 0.95rem; color:#92400E;">
+                                            El equipo {atacante_fuerte} está bombardeando el arco ({max(apm_loc_crudo, apm_vis_crudo):.2f} APM). {texto_riesgo}.
+                                            <br><br><b>🎯 ORDEN SUGERIDA:</b> Entra a <b>Más de 0.5 Goles en el 1er Tiempo</b> si la cuota supera 1.80.
+                                            </p>
                                         </div>
                                         """
 
@@ -3411,8 +3438,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 </div>
                                 """, unsafe_allow_html=True)
                                 
-                                # IMPRIME LA ALERTA DE MOMENTUM (SI APLICA)
-                                if alerta_momentum: st.markdown(alerta_momentum, unsafe_allow_html=True)
+                                # IMPRIME LAS SEÑALES DE ENTRADA DEL FRANCOTIRADOR
+                                if alerta_señal: st.markdown(alerta_señal, unsafe_allow_html=True)
                                 
                                 # INTERFAZ CAMALEÓN
                                 if "Ambos Anotan" in mercado_operacion or "Sí" in seleccion_operacion or "No" in seleccion_operacion:
