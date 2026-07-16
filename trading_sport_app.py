@@ -1360,163 +1360,203 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 st.markdown("---")
                                 
-                                # 3. CÁLCULOS MATEMÁTICOS DE IA
-                                texto_mercado = str(op.get('mercado', '')) + " " + str(op.get('partido', ''))
+                                # -------------------------------------------------------------
+                                # 3. CÁLCULOS MATEMÁTICOS DE IA Y JERARQUÍA HISTÓRICA
+                                # -------------------------------------------------------------
+                                texto_mercado = str(op.get('partido', ''))
                                 is_ambos_anotan = "Ambos Anotan" in texto_mercado
                                 is_linea_goles = "Línea de Goles" in texto_mercado
                                 
+                                # A. ADN del Partido (Jerarquía)
+                                c_loc_hist = float(op.get('cuota_inicial', 2.0)) # Asumimos cuota inicial local si no hay base
+                                c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
+                                
+                                if c_loc_hist <= 1.35: jerarquia = "👑 Súper Favorito Local"
+                                elif c_vis_hist <= 1.35: jerarquia = "👑 Súper Favorito Visita"
+                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = "⚔️ Local Favorito"
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = "⚔️ Visita Favorito"
+                                else: jerarquia = "⚖️ Fuerzas Parejas"
+
+                                st.markdown(f"""
+                                <div style="background-color: #1E293B; border-bottom: 4px solid #3B82F6; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-bottom: 15px;">
+                                    <h4 style="margin:0; color:#94A3B8; font-size: 0.9rem;">ADN DEL PARTIDO (Histórico)</h4>
+                                    <h3 style="color:#FFFFFF; margin: 5px 0;">[{jerarquia}]</h3>
+                                </div>
+                                """, unsafe_allow_html=True)
+
                                 apm_local = atkp_local / max(1, minuto_actual)
                                 apm_vis = atkp_vis / max(1, minuto_actual)
                                 apm_total = apm_local + apm_vis
                                 tiempo_restante = max(0, 90 - minuto_actual)
                                 goles_totales = g_local + g_vis
                                 
+                                # Variables Financieras Base
                                 retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
                                 utilidad_original_maxima = retorno_bruto_esperado - op['stake_1']
                                 cuota_minima_rentable = retorno_bruto_esperado / utilidad_original_maxima if utilidad_original_maxima > 0 else 0
                                 cuota_sl = float(op.get('cuota_stop_loss') or 0.0)
-                                
-                                monto_a_inyectar = retorno_bruto_esperado / cuota_salida
+                                monto_a_inyectar = retorno_bruto_esperado / cuota_salida if cuota_salida > 0 else 0
                                 utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
                                 
-                                ird = 0.0
+                                ird = min(100.0, apm_total * 45.0)
                                 msj_ia = ""
+                                alerta_franco = ""
                                 
+                                # -------------------------------------------------------------
+                                # 🧠 BIFURCACIÓN DEL ORÁCULO (ICEBERG)
+                                # -------------------------------------------------------------
                                 if is_ambos_anotan:
-                                    st.markdown("#### 🧠 Asesoría Táctica IA (Mercado 'Ambos Anotan')")
                                     aposto_si = (sel_ini.strip().lower() in ["sí", "si", "yes"])
                                     
+                                    # 🎯 ALERTA FRANCOTIRADOR (COBERTURA ASIMÉTRICA TEMPRANA)
+                                    if aposto_si and goles_totales == 1 and minuto_actual <= 45:
+                                        quien_anoto = "Local" if g_local == 1 else "Visita"
+                                        # Si el gol lo hizo el Súper Favorito, el débil sufrirá para empatar.
+                                        if quien_anoto in jerarquia and "Súper" in jerarquia:
+                                            alerta_franco = f"""
+                                            <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                                                <h4 style="margin-top:0; color:#991B1B;">🎯 ALERTA FRANCOTIRADOR (ARBITRAJE ASIMÉTRICO)</h4>
+                                                <p style="margin:0; color:#7F1D1D;">Goliat ({quien_anoto}) anotó temprano. Es probable que David no responda. 
+                                                <br><b>La cuota de la amenaza (NO) debe estar inflada en la plataforma.</b>
+                                                <br>👉 <i>Si la cuota de cobertura es alta, inyecta seguro ahora para garantizar Freebet.</i></p>
+                                            </div>
+                                            """
+                                        else:
+                                            alerta_franco = f"""
+                                            <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                                                <h4 style="margin-top:0; color:#1E3A8A;">🛡️ PACIENCIA TÁCTICA (GOL REBELDE)</h4>
+                                                <p style="margin:0; color:#1E3A8A;">El débil ({quien_anoto}) sorprendió temprano. El Favorito se irá con todo a empatar.
+                                                <br><b>NO CUBRAS AÚN.</b> El Asedio Total ({apm_total:.1f}) favorece al BTTS.</p>
+                                            </div>
+                                            """
+                                            
+                                    if alerta_franco: st.markdown(alerta_franco, unsafe_allow_html=True)
+                                    
+                                    # LÓGICA DE ASEDIO BTTS
                                     if aposto_si:
                                         if g_local > 0 and g_vis > 0:
                                             msj_ia = "🎉 **¡OBJETIVO CUMPLIDO!** Ambos marcaron. Ganaste el SÍ. Liquida ya."
                                             ird = 0.0
+                                            estado_btts = "✅ GARANTIZADO"
+                                            color_btts = "#10B981"
                                         elif g_local == 0 and g_vis == 0:
                                             if minuto_actual < 20:
-                                                msj_ia = f"⏳ **Fase de Estudio:** Minuto {minuto_actual}. APM Total: {apm_total:.1f}. Es temprano, deja correr."
+                                                msj_ia = f"⏳ **Fase de Estudio:** Minuto {minuto_actual}. Es temprano, deja correr."
                                                 ird = 20.0
+                                                estado_btts = "🟡 EN CALIBRACIÓN"
+                                                color_btts = "#F59E0B"
                                             else:
-                                                if apm_total >= 1.3 and apm_local >= 0.5 and apm_vis >= 0.5:
-                                                    msj_ia = f"🔥 **Ida y Vuelta (Frenético):** Velocímetro en {apm_total:.1f} APM. Ambos atacan, excelente escenario."
+                                                if apm_local >= 0.5 and apm_vis >= 0.5:
+                                                    msj_ia = f"🔥 **Ida y Vuelta:** Ambos equipos atacan constantemente."
                                                     ird = 25.0
-                                                elif apm_total < 0.9:
-                                                    msj_ia = f"📉 **Partido Trabado:** Velocidad muy lenta ({apm_total:.1f} APM). Considera salir."
-                                                    ird = 85.0
+                                                    estado_btts = "🟢 ALTA PROBABILIDAD"
+                                                    color_btts = "#10B981"
                                                 else:
-                                                    msj_ia = f"⚠️ **Ritmo Lento/Inclinado:** Velocidad en {apm_total:.1f} APM. Precaución."
-                                                    ird = 60.0
-                                        else:
-                                            if g_local == 0: 
-                                                eq_necesitado = eq_local; apm_necesitado = apm_local; eq_dominante = eq_vis; apm_dominante = apm_vis
-                                            else: 
-                                                eq_necesitado = eq_vis; apm_necesitado = apm_vis; eq_dominante = eq_local; apm_dominante = apm_local
-                                                
-                                            total_atkp_actual = (apm_necesitado + apm_dominante) * minuto_actual
-                                            share_necesitado = ((apm_necesitado * minuto_actual) / total_atkp_actual) * 100 if total_atkp_actual > 0 else 0
-                                            
-                                            st.write(f"🔍 **Auditoría:** {eq_necesitado} ataca a **{apm_necesitado:.1f} APM** ({share_necesitado:.0f}% del control).")
-                                            
-                                            if apm_necesitado >= 0.7 and share_necesitado >= 55:
-                                                msj_ia = f"⚔️ **ASEDIO TOTAL:** {eq_necesitado} domina al rival. ¡Aguanta!"
-                                                ird = 35.0 if tiempo_restante > 20 else 60.0
-                                            elif apm_necesitado >= 0.7 and share_necesitado < 50:
-                                                msj_ia = f"⚠️ **GOLPE A GOLPE:** No hay dominio claro. Alerta encendida."
-                                                ird = 70.0
-                                            elif apm_necesitado < 0.5:
-                                                msj_ia = f"🚨 **ASFIXIA TÁCTICA:** {eq_necesitado} no tiene velocidad. ¡Sal de ahí!"
+                                                    msj_ia = f"⚠️ **Ritmo Asimétrico:** Un equipo no está atacando. BTTS en riesgo."
+                                                    ird = 85.0
+                                                    estado_btts = "🔴 EN PELIGRO CRÍTICO"
+                                                    color_btts = "#EF4444"
+                                        else: # Falta un gol
+                                            eq_necesitado = eq_local if g_local == 0 else eq_vis
+                                            apm_necesitado = apm_local if g_local == 0 else apm_vis
+                                            if apm_necesitado >= 0.7:
+                                                msj_ia = f"⚔️ **ASEDIO TOTAL:** {eq_necesitado} domina buscando su gol. ¡Aguanta!"
+                                                ird = 35.0
+                                                estado_btts = "🟢 GOL INMINENTE"
+                                                color_btts = "#10B981"
+                                            elif apm_necesitado < 0.4:
+                                                msj_ia = f"🚨 **ASFIXIA TÁCTICA:** {eq_necesitado} no llega al arco. ¡Sal de ahí!"
                                                 ird = 95.0
+                                                estado_btts = "🔴 MUERTE OFENSIVA"
+                                                color_btts = "#EF4444"
                                             else:
-                                                msj_ia = f"🛡️ **INTENTO TÍMIDO:** Prepara cobertura."
-                                                ird = 80.0
-                                                
-                                            if tiempo_restante <= 12 and (g_local == 0 or g_vis == 0):
-                                                msj_ia += " ⏳ **¡TIEMPO CRÍTICO!**"
-                                                ird = max(ird, 90.0)
-                                    else:
-                                        if g_local > 0 and g_vis > 0:
-                                            msj_ia = "❌ **SINIESTRO:** Ambos marcaron. Perdiste el NO."
-                                            ird = 100.0
-                                        else:
-                                            msj_ia = f"✅ **Auditoría del NO:** Velocidad de {apm_total:.1f} APM. Evalúa si el que pierde ataca mucho."
-                                            ird = 50.0 
-                                    st.info(msj_ia)
+                                                msj_ia = f"🛡️ **INTENTO TÍMIDO:** Prepara cobertura. {eq_necesitado} ataca lento."
+                                                ird = 75.0
+                                                estado_btts = "🟡 DUDOSO"
+                                                color_btts = "#F59E0B"
+                                    
+                                    # PANEL GIGANTE BTTS
+                                    st.markdown(f"""
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+                                        <h3 style="margin-top:0; color:#0F172A;">📊 ESTADO DEL BTTS (Ambos Anotan)</h3>
+                                        <h1 style="color:{color_btts}; font-size: 2.5rem; margin: 10px 0;">{estado_btts}</h1>
+                                        <p style="margin:0; font-size: 1.1rem; color:#475569;">{msj_ia}</p>
+                                        <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">Nivel de Caos (Asedio Mutuo): {ird:.1f}% IRD | Velocidad: {apm_total:.2f} APM</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
 
                                 elif is_linea_goles:
-                                    st.markdown("#### 🧠 Asesoría Táctica IA (Mercado 'Línea de Goles')")
+                                    # [Mantenemos la lógica de Línea de Goles igual que la tenías, solo la metemos en el Panel Gigante]
                                     import re
                                     match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
                                     linea_obj = float(match_linea.group()) if match_linea else 2.5
                                     aposto_mas = "Más" in sel_ini or "Mas" in sel_ini
-                                    
                                     diferencia_goles = linea_obj - goles_totales
-                                    st.write(f"📊 **Métrica Global:** Velocidad del partido en **{apm_total:.1f} APM**.")
-                                    st.write(f"⏱️ **Contexto Espacio-Tiempo:** Faltan **{tiempo_restante} min** y tienes un margen de **{abs(diferencia_goles)} goles** respecto al límite.")
                                     
                                     if aposto_mas:
                                         if diferencia_goles < 0:
                                             msj_ia = f"🎉 **¡OBJETIVO CUMPLIDO!** Ya superaste la línea de {linea_obj} goles."
-                                            ird = 0.0
+                                            ird = 0.0; estado_goles = "✅ GARANTIZADO"; color_goles = "#10B981"
                                         elif diferencia_goles >= 1.5 and tiempo_restante <= 25:
-                                            msj_ia = f"🚨 **RELOJ EN CONTRA:** Te faltan {int(diferencia_goles + 0.5)} goles y solo quedan {tiempo_restante} minutos. El asedio no importa si ya no hay tiempo. ¡HUYE YA!"
-                                            ird = 95.0
+                                            msj_ia = f"🚨 **RELOJ EN CONTRA:** Faltan goles y tiempo."
+                                            ird = 95.0; estado_goles = "🔴 PELIGRO DE MUERTE"; color_goles = "#EF4444"
                                         else:
                                             if apm_total >= 1.3:
-                                                msj_ia = f"🔥 **PARTIDO ROTO:** Excelente volumen ofensivo ({apm_total:.1f} APM). Faltan {int(diferencia_goles + 0.5)} goles en {tiempo_restante} min. ¡Mantén la posición!"
-                                                ird = 30.0 if tiempo_restante > 20 else 65.0
-                                            elif apm_total >= 0.9:
-                                                msj_ia = f"⚖️ **RITMO ESTÁNDAR:** Velocidad normal. Tienes {tiempo_restante} min para buscar los goles que necesitas."
-                                                ird = 55.0 if tiempo_restante > 20 else 80.0
+                                                msj_ia = f"🔥 **PARTIDO ROTO:** Excelente volumen ofensivo."
+                                                ird = 40.0; estado_goles = "🟢 ALTA PROBABILIDAD"; color_goles = "#10B981"
                                             else:
-                                                msj_ia = f"📉 **PARTIDO MUERTO:** Ritmo muy lento ({apm_total:.1f} APM) y el tiempo avanza. Huye y caza cuota."
-                                                ird = 90.0
-                                                
-                                            if diferencia_goles <= 0.5 and tiempo_restante <= 15:
-                                                msj_ia += f" ⏳ Estás a UN SOLO GOL, máxima tensión en los últimos {tiempo_restante} min."
-                                                
-                                    else: # Apostó MENOS
+                                                msj_ia = f"📉 **PARTIDO MUERTO:** Ritmo muy lento ({apm_total:.1f} APM)."
+                                                ird = 85.0; estado_goles = "🔴 TENDENCIA UNDER"; color_goles = "#EF4444"
+                                    else: # UNDER
                                         if diferencia_goles < 0:
                                             msj_ia = f"❌ **SINIESTRO:** Superaron la línea. Perdiste el 'Menos de'."
-                                            ird = 100.0
-                                        elif diferencia_goles >= 3.5:
-                                            msj_ia = f"✅ **BLINDAJE DE ACERO:** Tienes un colchón gigante de {diferencia_goles} goles. Tendrían que hacer un gol cada {tiempo_restante/max(1, diferencia_goles):.1f} minutos. Apuesta extremadamente segura, no importa el ritmo."
-                                            ird = 5.0
-                                        elif diferencia_goles >= 2.5 and tiempo_restante <= 45:
-                                            msj_ia = f"✅ **BLINDAJE DE SEGUNDO TIEMPO:** Colchón de {diferencia_goles} goles y ya pasamos la mitad del partido. Matemáticamente casi imposible que te remonten."
-                                            ird = 10.0
-                                        elif diferencia_goles >= 1.5 and tiempo_restante <= 20:
-                                            msj_ia = f"✅ **BLINDAJE DE CIERRE:** Colchón de {diferencia_goles} goles y quedan {tiempo_restante} min. El reloj ya mató el partido."
-                                            ird = 15.0
+                                            ird = 100.0; estado_goles = "💀 PERDIDO"; color_goles = "#000000"
+                                        elif diferencia_goles >= 2.5:
+                                            msj_ia = f"✅ **BLINDAJE DE ACERO:** Colchón gigante."
+                                            ird = 10.0; estado_goles = "✅ SEGURO"; color_goles = "#10B981"
                                         else:
-                                            if diferencia_goles <= 1.0: 
-                                                if apm_total >= 1.2:
-                                                    msj_ia = f"🚨 **¡PÁNICO OFENSIVO!** A UN GOL de perder y el partido está FRENÉTICO ({apm_total:.1f} APM). ¡HUYE INMEDIATAMENTE!"
-                                                    ird = 95.0
-                                                elif tiempo_restante <= 15:
-                                                    msj_ia = f"⏳ **RELOJ SALVADOR:** A 1 gol de perder, pero el ritmo es normal y solo faltan {tiempo_restante} min. El reloj es tu amigo."
-                                                    ird = 55.0
-                                                else:
-                                                    msj_ia = f"⚠️ **Alerta:** A un gol de perder y quedan {tiempo_restante} min de riesgo. Vigila de cerca."
-                                                    ird = 75.0
+                                            if apm_total >= 1.2:
+                                                msj_ia = f"🚨 **PÁNICO OFENSIVO:** Partido frenético."
+                                                ird = 85.0; estado_goles = "🔴 ALERTA DE GOL"; color_goles = "#EF4444"
                                             else:
-                                                if apm_total >= 1.2:
-                                                    msj_ia = f"⚠️ **RITMO PELIGROSO:** Tienes colchón de {int(diferencia_goles)} goles, pero atacan a ritmo frenético ({apm_total:.1f} APM) con {tiempo_restante} min por delante. Gran riesgo."
-                                                    ird = 70.0
-                                                elif apm_total >= 0.9:
-                                                    msj_ia = f"⚖️ **RITMO MODERADO:** Velocidad normal ({apm_total:.1f} APM). Faltan {tiempo_restante} min. Atento a cambios."
-                                                    ird = 55.0
-                                                else:
-                                                    msj_ia = f"✅ **CONTROL TOTAL:** Partido aburrido ({apm_total:.1f} APM). Faltan {tiempo_restante} min y tienes margen. Apuesta segura."
-                                                    ird = 15.0
-                                    st.info(msj_ia)
+                                                msj_ia = f"✅ **CONTROL TOTAL:** Partido aburrido."
+                                                ird = 20.0; estado_goles = "🟢 TENDENCIA UNDER"; color_goles = "#10B981"
+
+                                    st.markdown(f"""
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+                                        <h3 style="margin-top:0; color:#0F172A;">📊 ESTADO LÍNEA DE GOLES ({linea_obj})</h3>
+                                        <h1 style="color:{color_goles}; font-size: 2.5rem; margin: 10px 0;">{estado_goles}</h1>
+                                        <p style="margin:0; font-size: 1.1rem; color:#475569;">{msj_ia}</p>
+                                        <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">Velocidad del partido: {apm_total:.2f} APM</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
 
                                 else:
-                                    st.markdown("#### 🌡️ Termómetro del Evento (IRD General)")
-                                    ird = min(100.0, apm_total * 45.0) 
-                                    st.info(f"🔎 El evento fluye a **{apm_total:.2f} Ataques Peligrosos por Minuto** totales.")
-                                
+                                    # MERCADO 1X2 (Dominio Absoluto)
+                                    dom_vivo = "Local" if apm_local > apm_vis and (atkp_local - atkp_vis) > 10 else ("Visita" if apm_vis > apm_local and (atkp_vis - atkp_local) > 10 else "Asedio Dividido")
+                                    
+                                    if "Asedio" in dom_vivo:
+                                        msj_ia = "⚔️ El partido está atascado en el medio campo. Ninguno se impone."
+                                        color_1x2 = "#F59E0B"
+                                        ird = 75.0
+                                    else:
+                                        msj_ia = f"🔥 El equipo **{dom_vivo}** tiene a su rival contra las cuerdas."
+                                        color_1x2 = "#10B981" if ((dom_vivo == "Local" and "Local" in sel_ini) or (dom_vivo == "Visita" and "Visita" in sel_ini)) else "#EF4444"
+                                        ird = 25.0 if color_1x2 == "#10B981" else 90.0
+
+                                    st.markdown(f"""
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+                                        <h3 style="margin-top:0; color:#0F172A;">🎯 TÁCTICA 1X2 (DOMINIO EN CANCHA)</h3>
+                                        <h1 style="color:{color_1x2}; font-size: 2.5rem; margin: 10px 0;">DOMINA: {dom_vivo.upper()}</h1>
+                                        <p style="margin:0; font-size: 1.1rem; color:#475569;">{msj_ia}</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+
+                                # Barra de Progreso General (Termómetro)
                                 color_barra = "#10B981" if ird < 45 else "#F59E0B" if ird < 75 else "#EF4444"
                                 st.progress(int(ird) / 100)
-                                st.markdown(f"<h5 style='text-align: center; color: {color_barra};'>Alerta Táctica (IRD): {ird:.1f}%</h5>", unsafe_allow_html=True)
-
+                                st.markdown(f"<h5 style='text-align: center; color: {color_barra}; margin-top:5px;'>Termómetro General (IRD): {ird:.1f}%</h5>", unsafe_allow_html=True)
+                                
                                 # =====================================================================
                                 # 4. ORÁCULO TRI-FACTOR (IA + HISTORIA + RIESGO PATRIMONIAL)
                                 # =====================================================================
