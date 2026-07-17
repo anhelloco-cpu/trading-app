@@ -3734,6 +3734,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             eq_loc_ui = "Local"
                             eq_vis_ui = "Visita"
 
+                                               
                         # ------------------------------------------------------------------
                         # 🎛️ PANEL DE EVALUACIÓN MULTI-ESTRATEGIA
                         # ------------------------------------------------------------------
@@ -3752,13 +3753,54 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         with tab_anti_empate:
                             st.markdown("""
                             <div style='background-color: #F8FAFC; border-left: 4px solid #8B5CF6; padding: 10px; border-radius: 4px; margin-bottom: 15px;'>
-                                <h4 style='margin:0; color: #4C1D95;'>Estrategia Asimetrica (Riesgo al Empate)</h4>
-                                <p style='margin:0; font-size:0.85rem; color: #64748B;'>Ideal para usar en Vivo (Min > 45) cuando el Super Favorito asedia (APM > 1.0) y el marcador va 0-0.</p>
+                                <h4 style='margin:0; color: #4C1D95;'>⚖️ Estrategia Asimétrica (Riesgo al Empate)</h4>
+                                <p style='margin:0; font-size:0.85rem; color: #64748B;'>Ideal para usar en Vivo (Min > 45) cuando el Súper Favorito asedia (APM > 1.0) y el marcador va 0-0.</p>
                             </div>
                             """, unsafe_allow_html=True)
                             
-                            c_ae1, c_ae2, c_ae3 = st.columns(3)                        
-                        
+                            c_ae1, c_ae2, c_ae3 = st.columns(3)
+                            # Traemos las cuotas base auditadas como sugerencia inicial si existen
+                            cuota_sug_fav = min(float(pr.get('cuota_base_audit', 1.08)), float(pr.get('cuota_amenaza_audit', 1.08)))
+                            cuota_sug_deb = max(float(pr.get('cuota_base_audit', 18.20)), float(pr.get('cuota_amenaza_audit', 18.20)))
+                            
+                            cuota_fav_ae = c_ae1.number_input("👑 Cuota Favorito (En Vivo):", min_value=1.01, step=0.01, value=max(1.01, cuota_sug_fav), key=f"c_fav_ae_{pr['codigo']}")
+                            cuota_deb_ae = c_ae2.number_input("🩸 Cuota Débil (En Vivo):", min_value=1.01, step=0.1, value=max(2.0, cuota_sug_deb), key=f"c_deb_ae_{pr['codigo']}")
+                            inv_total_ae = c_ae3.number_input("💰 Inversión Total ($):", min_value=1000, step=10000, value=100000, key=f"inv_ae_{pr['codigo']}")
+                            
+                            if cuota_deb_ae > 0 and cuota_fav_ae > 0:
+                                stake_cobertura = inv_total_ae / cuota_deb_ae
+                                stake_fuerte = inv_total_ae - stake_cobertura
+                                
+                                retorno_fav = stake_fuerte * cuota_fav_ae
+                                utilidad_fav = retorno_fav - inv_total_ae
+                                roi_pct = (utilidad_fav / inv_total_ae) * 100 if inv_total_ae > 0 else 0
+                                
+                                st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+                                if stake_fuerte > 0:
+                                    st.markdown(f"""
+                                    <div style='display: flex; justify-content: space-between; margin-bottom: 10px;'>
+                                        <div style='background-color: #ECFDF5; padding: 15px; border-radius: 8px; width: 32%; text-align: center; border: 1px solid #A7F3D0;'>
+                                            <h5 style='margin:0; color: #065F46;'>🟢 GANA FAVORITO</h5>
+                                            <p style='margin:5px 0 0 0; font-size:0.8rem; color: #047857;'>Inyectar: <b>${stake_fuerte:,.0f}</b></p>
+                                            <h3 style='margin:10px 0 0 0; color: #10B981;'>+${utilidad_fav:,.0f}</h3>
+                                            <span style='font-size:0.75rem; color:#059669; font-weight:bold;'>ROI: {roi_pct:.1f}%</span>
+                                        </div>
+                                        <div style='background-color: #EFF6FF; padding: 15px; border-radius: 8px; width: 32%; text-align: center; border: 1px solid #BFDBFE;'>
+                                            <h5 style='margin:0; color: #1E3A8A;'>🔵 GANA DÉBIL</h5>
+                                            <p style='margin:5px 0 0 0; font-size:0.8rem; color: #1D4ED8;'>Inyectar: <b>${stake_cobertura:,.0f}</b></p>
+                                            <h3 style='margin:10px 0 0 0; color: #3B82F6;'>$0</h3>
+                                            <span style='font-size:0.75rem; color:#2563EB;'>Break-Even</span>
+                                        </div>
+                                        <div style='background-color: #FEF2F2; padding: 15px; border-radius: 8px; width: 32%; text-align: center; border: 1px solid #FECACA;'>
+                                            <h5 style='margin:0; color: #991B1B;'>🔴 EMPATE</h5>
+                                            <p style='margin:5px 0 0 0; font-size:0.8rem; color: #B91C1C;'>El Agujero Negro</p>
+                                            <h3 style='margin:10px 0 0 0; color: #EF4444;'>-${inv_total_ae:,.0f}</h3>
+                                            <span style='font-size:0.75rem; color:#DC2626;'>Pérdida Total</span>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                else:
+                                    st.warning("⚠️ Ajusta la cuota del Débil, no permite cobertura matemática.")
 # Las cajitas conectadas a la memoria (st.session_state) CON NOMBRES REALES
                         cr1, cr2, cr3 = st.columns(3)
                         m_rad = cr1.number_input("⏱️ Minuto:", min_value=1, max_value=120, key=f"mr_{pr['codigo']}", value=st.session_state.get(f"mr_{pr['codigo']}", 60))
