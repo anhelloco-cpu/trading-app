@@ -3749,7 +3749,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             "seleccion_cobertura": amenaza_final_rad,
                                             "plataforma_inicial": plat_rad_final,
                                             "cuota_inicial": float(cuota_ent_rad),
-                                            "cuota_amenaza_audit": float(cuota_amenaza_rad),
                                             "capital_total": float(stake_ent_rad),
                                             "stake_1": float(stake_ent_rad),
                                             "cuota_objetivo": float(cuota_cazar_rad),
