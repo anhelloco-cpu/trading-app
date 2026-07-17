@@ -1750,7 +1750,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 """, unsafe_allow_html=True)
 
                                 # =====================================================================
-                                # 🔍 MATRIZ FINANCIERA DE LA OPERACIÓN (Adaptada para Binario/eSports)
+                                # 🔍 MATRIZ FINANCIERA DE LA OPERACIÓN (TRI-FÁSICA)
                                 # =====================================================================
                                 st.markdown("#### 🔍 Matriz Financiera de la Operación")
                                 
@@ -1760,32 +1760,72 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     else:
                                         st.markdown(f"<div style='background-color: #FEF2F2; padding: 10px; border-left: 4px solid #EF4444; border-radius: 4px; margin-bottom: 10px; color: #991B1B; font-size: 0.9rem;'>⚖️ <b>Estado Break-Even:</b> La cuota actual ({cuota_salida:.2f}) está por debajo del Punto de Equilibrio ({cuota_minima_rentable:.2f}). Cubrir ahora consolidará una pérdida matemática.</div>", unsafe_allow_html=True)
                                 
-                                util_inicial_con_cob = utilidad_proyectada
-                                util_cobertura_con_cob = utilidad_proyectada
-                                util_inicial_sin_cob = utilidad_original_maxima
-                                util_perdida_sin_cob = -op['stake_1']
+                                # -------------------------------------------------------------
+                                # MATEMÁTICA DE LAS 3 OPCIONES
+                                # -------------------------------------------------------------
+                                # Variables Base
+                                st1 = op['stake_1']
+                                c_ini = op['cuota_inicial']
+                                ret_bruto = st1 * c_ini
                                 
-                                col_sc1, col_sc2 = st.columns(2)
+                                # OPCIÓN A: Cobertura Total (Hedging Clásico)
+                                monto_inyectar_a = ret_bruto / cuota_salida if cuota_salida > 0 else 0
+                                util_si_gana_a = ret_bruto - st1 - monto_inyectar_a
+                                util_si_pierde_a = util_si_gana_a  # En cobertura total, ganes o pierdas te llevas lo mismo
+                                
+                                # OPCIÓN B: Dejar Correr (Sin Seguro)
+                                util_si_gana_b = ret_bruto - st1
+                                util_si_pierde_b = -st1
+                                
+                                # OPCIÓN C: Freebet (Riesgo Cero)
+                                # Fórmula: Inyección = Stake 1 / (Cuota Amenaza - 1)
+                                if cuota_salida > 1.01:
+                                    monto_inyectar_c = st1 / (cuota_salida - 1)
+                                    util_si_gana_c = ret_bruto - st1 - monto_inyectar_c
+                                    util_si_pierde_c = 0.0 # Por definición, si pierdes quedas en $0
+                                else:
+                                    monto_inyectar_c = 0.0
+                                    util_si_gana_c = 0.0
+                                    util_si_pierde_c = 0.0
+                                
+                                col_sc1, col_sc2, col_sc3 = st.columns(3)
+                                
                                 with col_sc1:
                                     st.markdown(f"""
-                                    <div style="background-color: #F8FAFC; padding: 15px; border-radius: 6px; border: 1px solid #CBD5E1;">
-                                        <b style="color: #1E293B;">OPCIÓN A: Cobertura Activa (Cuota {cuota_salida:.2f})</b><br>
-                                        • Inversión Extra: <b>${monto_a_inyectar:,.0f} COP</b><br>
-                                        • Balance Consolidado: <span style="color:{'#10B981' if util_cobertura_con_cob >= 0 else '#EF4444'}; font-weight:bold;">${util_cobertura_con_cob:,.0f} COP</span>
+                                    <div style="background-color: #F8FAFC; padding: 15px; border-radius: 6px; border: 1px solid #CBD5E1; height: 100%;">
+                                        <b style="color: #1E293B; font-size: 0.9rem;">OPCIÓN A: Seguro Total</b><br>
+                                        <span style="font-size: 0.8rem; color:#64748B;">Paz mental absoluta.</span><br><br>
+                                        • Pagar Seguro: <b>${monto_inyectar_a:,.0f}</b><br>
+                                        • Si Ganas: <span style="color:{'#10B981' if util_si_gana_a >= 0 else '#EF4444'}; font-weight:bold;">${util_si_gana_a:,.0f}</span><br>
+                                        • Si Pierdes: <span style="color:{'#10B981' if util_si_pierde_a >= 0 else '#EF4444'}; font-weight:bold;">${util_si_pierde_a:,.0f}</span>
                                     </div>
                                     """, unsafe_allow_html=True)
                                     
                                 with col_sc2:
                                     st.markdown(f"""
-                                    <div style="background-color: #FFFBEB; padding: 15px; border-radius: 6px; border: 1px solid #FDE68A;">
-                                        <b style="color: #78350F;">OPCIÓN B: Abandono de Seguro</b><br>
-                                        • Consolidación Inicial: <b>${util_inicial_sin_cob:,.0f} COP</b> (Si ganas)<br>
-                                        • Consolidación Pérdida: <span style="color:#EF4444; font-weight:bold;">-${op['stake_1']:,.0f} COP</span> (Si pierdes)
+                                    <div style="background-color: #F0FDF4; padding: 15px; border-radius: 6px; border: 1px solid #86EFAC; height: 100%;">
+                                        <b style="color: #166534; font-size: 0.9rem;">OPCIÓN B: Freebet (Cero Riesgo)</b><br>
+                                        <span style="font-size: 0.8rem; color:#15803D;">Salva tu dinero, busca el premio.</span><br><br>
+                                        • Pagar Seguro: <b>${monto_inyectar_c:,.0f}</b><br>
+                                        • Si Ganas: <span style="color:#10B981; font-weight:bold;">${util_si_gana_c:,.0f}</span><br>
+                                        • Si Pierdes: <span style="color:#64748B; font-weight:bold;">$0 COP</span>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
+                                with col_sc3:
+                                    st.markdown(f"""
+                                    <div style="background-color: #FFFBEB; padding: 15px; border-radius: 6px; border: 1px solid #FDE68A; height: 100%;">
+                                        <b style="color: #78350F; font-size: 0.9rem;">OPCIÓN C: Modo Suicida</b><br>
+                                        <span style="font-size: 0.8rem; color:#B45309;">Sin seguro. A todo o nada.</span><br><br>
+                                        • Pagar Seguro: <b>$0 COP</b><br>
+                                        • Si Ganas: <span style="color:#10B981; font-weight:bold;">${util_si_gana_b:,.0f}</span><br>
+                                        • Si Pierdes: <span style="color:#EF4444; font-weight:bold;">-${st1:,.0f}</span>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 
-                                costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
-                                capital_rescatado = util_cobertura_con_cob - util_perdida_sin_cob
+                                # Lógica para saber si el botón de Cashout domina (Asumiendo Cobertura Total como base comparativa)
+                                costo_seguro = util_si_gana_b - util_si_gana_a
+                                capital_rescatado = util_si_pierde_a - util_si_pierde_b
                                 
                                 if costo_seguro > 0:
                                     ratio_eficiencia = capital_rescatado / costo_seguro
@@ -1797,7 +1837,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 st.markdown(f"""
                                 <div style="background-color: #F1F5F9; padding: 15px; border-radius: 6px; border-left: 5px solid {color_ratio}; margin-top: 15px;">
-                                    <h5 style="margin-top: 0; color: #334155;">⚖️ Auditoría de Costo-Beneficio (La Póliza)</h5>
+                                    <h5 style="margin-top: 0; color: #334155;">⚖️ Auditoría de Costo-Beneficio (De la Opción A)</h5>
                                     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                                         <span>📉 <b>Costo de la Prima (Sacrificio si ganas):</b></span>
                                         <span style="color: #EF4444; font-weight: bold;">${costo_seguro:,.0f} COP</span>
@@ -1819,14 +1859,14 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 # =====================================================================
                                 if oferta_cashout > 0:
                                     utilidad_cashout = oferta_cashout - op['stake_1']
-                                    diferencia_cashout = utilidad_proyectada - utilidad_cashout
+                                    diferencia_cashout = util_si_gana_a - utilidad_cashout # Compara contra cobertura total
                                     
                                     if diferencia_cashout > 0:
                                         # Te están robando en el Cashout
                                         st.markdown(f"""
                                         <div style="background-color: #F0FDF4; border-left: 5px solid #22C55E; padding: 12px; border-radius: 4px; margin-top: 10px;">
                                             <span style="font-size: 1.05em; color: #166534;">🛡️ <b>¡NO USES EL BOTÓN DE LA CASA!</b></span><br>
-                                            <span style="font-size: 0.95em; color: #15803D;">El botón te deja un balance de <b>${utilidad_cashout:,.0f}</b>. Cubrir matemáticamente la cuota te deja en <b>${utilidad_proyectada:,.0f}</b>.</span><br>
+                                            <span style="font-size: 0.95em; color: #15803D;">El botón te deja un balance de <b>${utilidad_cashout:,.0f}</b>. Cubrir matemáticamente la cuota te deja en <b>${util_si_gana_a:,.0f}</b>.</span><br>
                                             <span style="font-weight: bold; color: #16A34A;">👉 Cazar la cuota tú mismo te salva ${diferencia_cashout:,.0f} COP adicionales.</span>
                                         </div>
                                         """, unsafe_allow_html=True)
@@ -1835,7 +1875,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         st.markdown(f"""
                                         <div style="background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 12px; border-radius: 4px; margin-top: 10px;">
                                             <span style="font-size: 1.05em; color: #991B1B;">🚨 <b>¡TOMA EL CASHOUT DE LA CASA INMEDIATAMENTE!</b></span><br>
-                                            <span style="font-size: 0.95em; color: #B91C1C;">Cubrir matemáticamente te deja en <b>${utilidad_proyectada:,.0f}</b>. El botón de la casa es más generoso y te deja en <b>${utilidad_cashout:,.0f}</b>.</span><br>
+                                            <span style="font-size: 0.95em; color: #B91C1C;">Cubrir matemáticamente te deja en <b>${util_si_gana_a:,.0f}</b>. El botón de la casa es más generoso y te deja en <b>${utilidad_cashout:,.0f}</b>.</span><br>
                                             <span style="font-weight: bold; color: #DC2626;">👉 Usar el botón de la casa te salva ${abs(diferencia_cashout):,.0f} COP. ¡Tómalo ya!</span>
                                         </div>
                                         """, unsafe_allow_html=True)
@@ -1844,11 +1884,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
 
                                 st.markdown("---")
                                 
-                                # Lógica para saber si el botón de Cashout domina
                                 es_mejor_cashout = False
                                 if oferta_cashout > 0:
                                     utilidad_cashout = oferta_cashout - op['stake_1']
-                                    if (utilidad_proyectada - utilidad_cashout) < 0:
+                                    if (util_si_gana_a - utilidad_cashout) < 0:
                                         es_mejor_cashout = True
 
                                 if es_mejor_cashout:
@@ -1870,7 +1909,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         if st.button("✅ LIQUIDAR POR CASHOUT", key=f"btn_cash_{op['codigo']}", use_container_width=True):
                                             hora_actual = datetime.datetime.now().strftime("%H:%M")
                                             supabase.table("historial_trading").update({
-                                                "estado": "CERRADA", # Pasa directamente a cerrada, no a cubierta
+                                                "estado": "CERRADA",
                                                 "resultado_final": "Cashout (Cierre Anticipado)",
                                                 "utilidad_neta_real": float(utilidad_cashout),
                                                 "roi_real": float((utilidad_cashout / op['stake_1']) * 100),
@@ -1884,9 +1923,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_es_{op['codigo']}")
                                     plataforma_cob = st.text_input("Especifica la plataforma:", key=f"otra_plat_es_{op['codigo']}") if plataforma_cob_sel == "Otra" else plataforma_cob_sel
                                     
-                                    col_btn1, col_btn2 = st.columns(2)
+                                    col_btn1, col_btn2, col_btn3 = st.columns(3)
                                     with col_btn1:
-                                        if st.button("📸 Guardar Foto Táctica (Entrenar IA)", key=f"btn_foto_es_{op['codigo']}", use_container_width=True):
+                                        if st.button("📸 Guardar Foto Táctica", key=f"btn_foto_es_{op['codigo']}", use_container_width=True):
                                             try:
                                                 supabase.table("registro_fotos").insert({
                                                     "codigo_posicion": str(op['codigo']), "minuto_evaluado": int(minuto_actual),
@@ -1894,19 +1933,33 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                     "atkp_local": int(atkp_local), "atkp_vis": int(atkp_vis),
                                                     "ird_calculado": float(round(ird, 2)), "cuota_ofrecida": float(cuota_salida)
                                                 }).execute()
-                                                st.success(f"✅ Foto capturada min {minuto_actual}. Datos inyectados.")
+                                                st.success(f"✅ Foto capturada min {minuto_actual}.")
                                                 st.rerun()
                                             except Exception as e: st.error(f"❌ Error al guardar foto: {str(e)}")
                                     with col_btn2:
-                                        if st.button("⚡ REGISTRAR COBERTURA CONTABLE", key=f"btn_cob_es_{op['codigo']}", use_container_width=True):
+                                        if st.button("⚡ SEGURO TOTAL (Opción A)", key=f"btn_cob_a_{op['codigo']}", use_container_width=True):
                                             hora_actual = datetime.datetime.now().strftime("%H:%M")
                                             supabase.table("historial_trading").update({
                                                 "estado": "CUBIERTA",
                                                 "cuota_cazada_real": float(cuota_salida),
                                                 "hora_cobertura": hora_actual,
-                                                "plataforma_cobertura": plataforma_cob
+                                                "plataforma_cobertura": plataforma_cob,
+                                                # Guardamos qué tipo de seguro tomó en un campo oculto o en el nombre de plataforma para usarlo en la liquidación final
+                                                "reserva_stake_2": float(monto_inyectar_a) 
                                             }).eq("codigo", op['codigo']).execute()
-                                            st.success(f"¡Cobertura fijada a cuota {cuota_salida} en {plataforma_cob}! Pasa a liquidación.")
+                                            st.success(f"¡Cobertura TOTAL fijada a cuota {cuota_salida}! Pasa a liquidación.")
+                                            st.rerun()
+                                    with col_btn3:
+                                        if st.button("🛡️ FREEBET (Opción B)", key=f"btn_cob_b_{op['codigo']}", use_container_width=True):
+                                            hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                            supabase.table("historial_trading").update({
+                                                "estado": "CUBIERTA",
+                                                "cuota_cazada_real": float(cuota_salida),
+                                                "hora_cobertura": hora_actual,
+                                                "plataforma_cobertura": f"{plataforma_cob} [FREEBET]", # Etiqueta vital para la conciliación final
+                                                "reserva_stake_2": float(monto_inyectar_c)
+                                            }).eq("codigo", op['codigo']).execute()
+                                            st.success(f"¡FREEBET fijada a cuota {cuota_salida}! Riesgo $0 consolidado.")
                                             st.rerun()
                                     
                             else:
