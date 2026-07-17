@@ -1367,14 +1367,27 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 is_ambos_anotan = "Ambos Anotan" in texto_mercado
                                 is_linea_goles = "Línea de Goles" in texto_mercado
                                 
-                                # A. ADN del Partido (Jerarquía)
-                                c_loc_hist = float(op.get('cuota_inicial', 2.0)) # Asumimos cuota inicial local si no hay base
+                                # A. ADN del Partido (Jerarquía con Nombres Reales)
+                                # Extraemos los nombres igual que en el Radar
+                                partido_str_seg = str(op.get('partido', ''))
+                                solo_partido_seg = partido_str_seg.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str_seg else partido_str_seg
+                                txt_norm_seg = solo_partido_seg.lower().replace("vs.", "vs").replace("-", "vs")
+                                
+                                if "vs" in txt_norm_seg:
+                                    eq_local_seg = txt_norm_seg.split("vs")[0].strip().title()
+                                    eq_vis_seg = txt_norm_seg.split("vs")[1].strip().title()
+                                else:
+                                    eq_local_seg = "Local"
+                                    eq_vis_seg = "Visita"
+
+                                # Buscamos la cuota con la que entraste realmente a la operación
+                                c_loc_hist = float(op.get('cuota_inicial', 2.0))
                                 c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
                                 
-                                if c_loc_hist <= 1.35: jerarquia = "👑 Súper Favorito Local"
-                                elif c_vis_hist <= 1.35: jerarquia = "👑 Súper Favorito Visita"
-                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = "⚔️ Local Favorito"
-                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = "⚔️ Visita Favorito"
+                                if c_loc_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_local_seg}"
+                                elif c_vis_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_vis_seg}"
+                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_local_seg}"
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_vis_seg}"
                                 else: jerarquia = "⚖️ Fuerzas Parejas"
 
                                 st.markdown(f"""
@@ -2350,11 +2363,11 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     except:
                                         dom_vivo = "Local" if apm_nuestros > apm_rival and (atkp_nuestros - atkp_rival) > 10 else ("Visita" if apm_rival > apm_nuestros and (atkp_rival - atkp_nuestros) > 10 else "Empate/Asedio Dividido")
 
-                                    # B. CEREBRO HISTÓRICO
-                                    c_loc_hist = float(op.get('cuota_base_audit', 2.0))
-                                    c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
-                                    if c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: fav_global = "Local"
-                                    elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: fav_global = "Visita"
+                                    # B. CEREBRO HISTÓRICO (Vinculado a los Nombres)
+                                    c_loc_hist_final = float(op.get('cuota_inicial', 2.0))
+                                    c_vis_hist_final = float(op.get('cuota_amenaza_audit', 2.0))
+                                    if c_loc_hist_final < c_vis_hist_final and (c_vis_hist_final - c_loc_hist_final) > 0.3: fav_global = eq_local_seg
+                                    elif c_vis_hist_final < c_loc_hist_final and (c_loc_hist_final - c_vis_hist_final) > 0.3: fav_global = eq_vis_seg
                                     else: fav_global = "Fuerzas Parejas"
 
                                     # C. CEREBRO PATRIMONIAL (Cálculos de Riesgo)
