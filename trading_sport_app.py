@@ -3319,19 +3319,31 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 color_btts = "#10B981" if pred_btts_rad == 1 else "#EF4444"
                                 
                                 # ------------------------------------------------------------------
-                                # ⚖️ 1. LECTURA DE JERARQUÍA HISTÓRICA
+                                # ⚖️ 1. LECTURA DE JERARQUÍA HISTÓRICA (CON NOMBRES REALES)
                                 # ------------------------------------------------------------------
+                                # Extraer nombres de los equipos
+                                partido_str_rad = str(pr.get('partido', ''))
+                                solo_partido_rad = partido_str_rad.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str_rad else partido_str_rad
+                                txt_norm_rad = solo_partido_rad.lower().replace("vs.", "vs").replace("-", "vs")
+                                
+                                if "vs" in txt_norm_rad:
+                                    eq_local_rad = txt_norm_rad.split("vs")[0].strip().title()
+                                    eq_vis_rad = txt_norm_rad.split("vs")[1].strip().title()
+                                else:
+                                    eq_local_rad = "Local"
+                                    eq_vis_rad = "Visita"
+
                                 c_loc_hist = float(pr.get('cuota_base_audit', 2.0))
                                 c_vis_hist = float(pr.get('cuota_amenaza_audit', 2.0))
                                 
-                                if c_loc_hist <= 1.35: jerarquia = "Súper Favorito Local"
-                                elif c_vis_hist <= 1.35: jerarquia = "Súper Favorito Visita"
-                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = "Local Favorito"
-                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = "Visita Favorito"
-                                else: jerarquia = "Fuerzas Parejas"
+                                if c_loc_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_local_rad}"
+                                elif c_vis_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_vis_rad}"
+                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_local_rad}"
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_vis_rad}"
+                                else: jerarquia = "⚖️ Fuerzas Parejas"
 
-                                if al_rad > av_rad and (al_rad - av_rad) > 10: dom_vivo = "Local"
-                                elif av_rad > al_rad and (av_rad - al_rad) > 10: dom_vivo = "Visita"
+                                if al_rad > av_rad and (al_rad - av_rad) > 10: dom_vivo = eq_local_rad
+                                elif av_rad > al_rad and (av_rad - al_rad) > 10: dom_vivo = eq_vis_rad
                                 else: dom_vivo = "Asedio Dividido"
 
                                 # ------------------------------------------------------------------
