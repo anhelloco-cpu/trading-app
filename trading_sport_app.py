@@ -3622,10 +3622,55 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     import datetime
                                     import joblib
                                     import pandas as pd
-                                    import time # Lo usamos para el sufijo
                                     
                                     try:
-                                        # [ ... EL RE-CÁLCULO SILENCIOSO DE LA IA (DEJALO INTACTO) ... ]
+                                        # -------------------------------------------------------------
+                                        # 🧠 RE-CÁLCULO SILENCIOSO (TESTIGO DE LA IA)
+                                        # -------------------------------------------------------------
+                                        m1x2_rad = joblib.load('modelo_1x2.pkl')
+                                        mgoles_rad = joblib.load('modelo_goles.pkl')
+                                        mbtts_rad = joblib.load('modelo_btts.pkl')
+                                        
+                                        apm_rad = (al_rad + av_rad) / max(1, m_rad)
+                                        ird_rad = min(100.0, apm_rad * 45.0)
+                                        
+                                        X_rad = pd.DataFrame([{'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad}])
+                                        
+                                        pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
+                                        pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
+                                        pred_btts_testigo = mbtts_rad.predict(X_rad)[0]
+                                        
+                                        g_totales_actuales = gl_rad + gv_rad
+                                        g_nuevos_esp = max(0, round(pred_goles_testigo) - g_totales_actuales)
+                                        
+                                        c_loc, c_vis = gl_rad, gv_rad
+                                        if pred_1x2_testigo == 1: 
+                                            if c_loc > c_vis: c_vis = c_loc 
+                                            elif c_vis > c_loc: c_loc = c_vis 
+                                            elif g_nuevos_esp >= 2: c_loc += 1; c_vis += 1
+                                        elif pred_1x2_testigo == 2:
+                                            if c_loc <= c_vis: c_loc = c_vis + max(1, g_nuevos_esp)
+                                            else: c_loc += g_nuevos_esp
+                                        else:
+                                            if c_vis <= c_loc: c_vis = c_loc + max(1, g_nuevos_esp)
+                                            else: c_vis += g_nuevos_esp
+
+                                        if pred_btts_testigo == 1:
+                                            if c_loc == 0: c_loc = 1
+                                            if c_vis == 0: c_vis = 1
+
+                                        marcador_ia_testigo = f"{c_loc}-{c_vis}"
+
+                                        # -------------------------------------------------------------
+                                        # 🔒 CANDADO DE NOMBRE Y ENSAMBLE (El que faltaba)
+                                        # -------------------------------------------------------------
+                                        if seleccion_final_rad in ["Sí", "No"]: mdo_str = "Ambos Anotan"
+                                        elif "Más" in seleccion_final_rad or "Menos" in seleccion_final_rad: mdo_str = "Línea de Goles"
+                                        else: mdo_str = mercado_actual if mercado_actual else "Mercado 1X2"
+                                        
+                                        partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
+                                        partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
+                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
                                         
                                         datos_inyeccion = {
                                             "estado": "EN VIVO",
@@ -3649,12 +3694,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         # 🧬 LÓGICA DEL CLONADOR CON SUFIJOS (-01, -02)
                                         # -------------------------------------------------------------
                                         if retener_radar:
-                                            # 1. Contamos cuántos "Hijos" ya tiene este partido para darle el siguiente número
-                                            # Usamos .like() para contar cuántos empiezan con ese código
+                                            # Buscamos cuántos Hijos existen para sumar 1
                                             res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{pr['codigo']}-%").execute()
                                             numero_hijo = len(res_hijos.data) + 1
-                                            
-                                            # Generamos el código hijo (Ej: A1B2-01)
                                             codigo_hijo = f"{pr['codigo']}-{numero_hijo:02d}"
                                             
                                             registro_clonado = dict(pr)
@@ -3663,10 +3705,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             
                                             if 'id' in registro_clonado: del registro_clonado['id']
                                             
-                                            # Insertamos el clon en la BD (Este se va al Seguimiento)
+                                            # Insertamos el clon
                                             supabase.table("historial_trading").insert(registro_clonado).execute()
                                             
-                                            # 2. Reseteamos la plata del original en el Radar para futuras entradas
+                                            # Reseteamos la plata del Radar a 0 para no doblar cuentas
                                             supabase.table("historial_trading").update({
                                                 "stake_1": 0.0,
                                                 "capital_total": 0.0
@@ -3674,7 +3716,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             
                                             st.success(f"✅ ¡Disparo exitoso! Operación enviada a Seguimiento bajo la sub-referencia {codigo_hijo}.")
                                         else:
-                                            # Flujo normal: el partido abandona el Radar (le ponemos el sufijo -01 de todos modos por si acaso)
+                                            # Flujo normal sin retener
                                             datos_inyeccion['codigo'] = f"{pr['codigo']}-01"
                                             supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
                                             st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
