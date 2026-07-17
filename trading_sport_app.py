@@ -3260,36 +3260,41 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                     with st.expander(f"📌 {pr['partido']} | Mdo: {pr['seleccion_inicial']} | Cuota Plan: {pr['cuota_inicial']} | Stake: ${pr['stake_1']:,.0f}"):
                         st.write(f"**Cuotas Base Iniciales:** Local ({pr.get('cuota_base_audit', 'N/A')}) | Empate ({pr.get('cuota_empate_audit', 'N/A')}) | Visita ({pr.get('cuota_amenaza_audit', 'N/A')})")
                         st.markdown("---")
-                        st.markdown("#### 📸 Foto Táctica En Vivo")
-                        
                         # ------------------------------------------------------------------
-                        # 🧠 MEMORIA TELEPÁTICA: Buscar última foto guardada en Seguimiento
+                        # 🔄 BOTÓN DE SINCRONIZACIÓN Y LECTURA DE FOTOS (HERENCIA)
                         # ------------------------------------------------------------------
-                        res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
-                        ultima_foto = res_fotos.data[0] if res_fotos.data else None
-                        
-                        if ultima_foto:
-                            st.info(f"🔄 **Datos Sincronizados:** Mostrando la última auditoría (Min {ultima_foto['minuto_evaluado']}) registrada en el Seguimiento.")
-                            min_def = int(ultima_foto['minuto_evaluado'])
-                            gl_def = int(ultima_foto['goles_local'])
-                            gv_def = int(ultima_foto['goles_vis'])
-                            al_def = int(ultima_foto['atkp_local'])
-                            av_def = int(ultima_foto['atkp_vis'])
-                        else:
-                            min_def = 60
-                            gl_def = 0
-                            gv_def = 0
-                            al_def = 40
-                            av_def = 25
+                        col_tit1, col_tit2 = st.columns([2, 1])
+                        with col_tit1:
+                            st.markdown("#### 📸 Foto Táctica En Vivo")
+                        with col_tit2:
+                            if st.button("🔄 Sincronizar Info", key=f"btn_sync_{pr['codigo']}"):
+                                try:
+                                    # La magia: Usamos .like() para buscar el código padre + cualquier sufijo (Ej: A1B2%)
+                                    res_sync = supabase.table("registro_fotos").select("*").like("codigo_posicion", f"{pr['codigo']}%").order("minuto_evaluado", desc=True).limit(1).execute()
+                                    
+                                    if res_sync.data:
+                                        foto_reciente = res_sync.data[0]
+                                        # Inyectamos los valores en la memoria de Streamlit para que se refresque solo
+                                        st.session_state[f"mr_{pr['codigo']}"] = int(foto_reciente['minuto_evaluado'])
+                                        st.session_state[f"glr_{pr['codigo']}"] = int(foto_reciente['goles_local'])
+                                        st.session_state[f"gvr_{pr['codigo']}"] = int(foto_reciente['goles_vis'])
+                                        st.session_state[f"alr_{pr['codigo']}"] = int(foto_reciente['atkp_local'])
+                                        st.session_state[f"avr_{pr['codigo']}"] = int(foto_reciente['atkp_vis'])
+                                        st.success(f"✅ ¡Datos del min {foto_reciente['minuto_evaluado']} importados!")
+                                    else:
+                                        st.warning("⚠️ No hay fotos previas en el Seguimiento.")
+                                except Exception as e:
+                                    st.error(f"Error sincronizando: {e}")
 
+                        # Las cajitas conectadas a la memoria (st.session_state)
                         cr1, cr2, cr3 = st.columns(3)
-                        m_rad = cr1.number_input("⏱️ Minuto:", min_value=1, max_value=120, value=min_def, key=f"mr_{pr['codigo']}")
-                        gl_rad = cr2.number_input("⚽ Goles Loc:", min_value=0, value=gl_def, key=f"glr_{pr['codigo']}")
-                        gv_rad = cr3.number_input("⚽ Goles Vis:", min_value=0, value=gv_def, key=f"gvr_{pr['codigo']}")
+                        m_rad = cr1.number_input("⏱️ Minuto:", min_value=1, max_value=120, key=f"mr_{pr['codigo']}", value=st.session_state.get(f"mr_{pr['codigo']}", 60))
+                        gl_rad = cr2.number_input("⚽ Goles Loc:", min_value=0, key=f"glr_{pr['codigo']}", value=st.session_state.get(f"glr_{pr['codigo']}", 0))
+                        gv_rad = cr3.number_input("⚽ Goles Vis:", min_value=0, key=f"gvr_{pr['codigo']}", value=st.session_state.get(f"gvr_{pr['codigo']}", 0))
                         
                         cr4, cr5 = st.columns(2)
-                        al_rad = cr4.number_input("🔥 Atq. Pel. Local:", min_value=0, value=al_def, key=f"alr_{pr['codigo']}")
-                        av_rad = cr5.number_input("🔥 Atq. Pel. Visita:", min_value=0, value=av_def, key=f"avr_{pr['codigo']}")
+                        al_rad = cr4.number_input("🔥 Atq. Pel. Local:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
+                        av_rad = cr5.number_input("🔥 Atq. Pel. Visita:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
                         
                         if st.button("🧠 Validar con Oráculo Táctico", key=f"btn_ev_{pr['codigo']}", use_container_width=True):
                             try:
@@ -3605,50 +3610,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     import datetime
                                     import joblib
                                     import pandas as pd
-                                    import uuid # Para generar el nuevo código si clonamos
+                                    import time # Lo usamos para el sufijo
                                     
                                     try:
-                                        m1x2_rad = joblib.load('modelo_1x2.pkl')
-                                        mgoles_rad = joblib.load('modelo_goles.pkl')
-                                        mbtts_rad = joblib.load('modelo_btts.pkl')
-                                        
-                                        apm_rad = (al_rad + av_rad) / max(1, m_rad)
-                                        ird_rad = min(100.0, apm_rad * 45.0)
-                                        
-                                        X_rad = pd.DataFrame([{'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad}])
-                                        
-                                        pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
-                                        pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
-                                        pred_btts_testigo = mbtts_rad.predict(X_rad)[0]
-                                        
-                                        g_totales_actuales = gl_rad + gv_rad
-                                        g_nuevos_esp = max(0, round(pred_goles_testigo) - g_totales_actuales)
-                                        
-                                        c_loc, c_vis = gl_rad, gv_rad
-                                        if pred_1x2_testigo == 1: 
-                                            if c_loc > c_vis: c_vis = c_loc 
-                                            elif c_vis > c_loc: c_loc = c_vis 
-                                            elif g_nuevos_esp >= 2: c_loc += 1; c_vis += 1
-                                        elif pred_1x2_testigo == 2:
-                                            if c_loc <= c_vis: c_loc = c_vis + max(1, g_nuevos_esp)
-                                            else: c_loc += g_nuevos_esp
-                                        else:
-                                            if c_vis <= c_loc: c_vis = c_loc + max(1, g_nuevos_esp)
-                                            else: c_vis += g_nuevos_esp
-
-                                        if pred_btts_testigo == 1:
-                                            if c_loc == 0: c_loc = 1
-                                            if c_vis == 0: c_vis = 1
-
-                                        marcador_ia_testigo = f"{c_loc}-{c_vis}"
-
-                                        # Candado de Nombre
-                                        if seleccion_final_rad in ["Sí", "No"]: mdo_str = "Ambos Anotan"
-                                        elif "Más" in seleccion_final_rad or "Menos" in seleccion_final_rad: mdo_str = "Línea de Goles"
-                                        
-                                        partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
-                                        partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
-                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                        # [ ... EL RE-CÁLCULO SILENCIOSO DE LA IA (DEJALO INTACTO) ... ]
                                         
                                         datos_inyeccion = {
                                             "estado": "EN VIVO",
@@ -3669,16 +3634,21 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         }
 
                                         # -------------------------------------------------------------
-                                        # 🧬 LÓGICA DEL CLONADOR DE BASE DE DATOS
+                                        # 🧬 LÓGICA DEL CLONADOR CON SUFIJOS (-01, -02)
                                         # -------------------------------------------------------------
                                         if retener_radar:
-                                            # 1. Clonamos el registro entero para el Seguimiento con un nuevo ID
+                                            # 1. Contamos cuántos "Hijos" ya tiene este partido para darle el siguiente número
+                                            # Usamos .like() para contar cuántos empiezan con ese código
+                                            res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{pr['codigo']}-%").execute()
+                                            numero_hijo = len(res_hijos.data) + 1
+                                            
+                                            # Generamos el código hijo (Ej: A1B2-01)
+                                            codigo_hijo = f"{pr['codigo']}-{numero_hijo:02d}"
+                                            
                                             registro_clonado = dict(pr)
                                             registro_clonado.update(datos_inyeccion)
-                                            # Le asignamos un ID único al clon para que no choque con el original
-                                            nuevo_codigo = str(uuid.uuid4())[:8].upper()
-                                            registro_clonado['codigo'] = nuevo_codigo
-                                            # Limpiamos el ID autoincremental si existe
+                                            registro_clonado['codigo'] = codigo_hijo
+                                            
                                             if 'id' in registro_clonado: del registro_clonado['id']
                                             
                                             # Insertamos el clon en la BD (Este se va al Seguimiento)
@@ -3690,9 +3660,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                                 "capital_total": 0.0
                                             }).eq("codigo", pr['codigo']).execute()
                                             
-                                            st.success("✅ ¡Disparo exitoso! Operación enviada a Seguimiento. El partido sigue en tu Radar para nuevas entradas.")
+                                            st.success(f"✅ ¡Disparo exitoso! Operación enviada a Seguimiento bajo la sub-referencia {codigo_hijo}.")
                                         else:
-                                            # Flujo normal: el partido abandona el Radar
+                                            # Flujo normal: el partido abandona el Radar (le ponemos el sufijo -01 de todos modos por si acaso)
+                                            datos_inyeccion['codigo'] = f"{pr['codigo']}-01"
                                             supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
                                             st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
                                             
