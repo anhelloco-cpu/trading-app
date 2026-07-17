@@ -1423,26 +1423,35 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     
                                     # 🎯 ALERTA FRANCOTIRADOR (COBERTURA ASIMÉTRICA TEMPRANA)
                                     if aposto_si and goles_totales == 1 and minuto_actual <= 45:
-                                        quien_anoto = "Local" if g_local == 1 else "Visita"
-                                        # Si el gol lo hizo el Súper Favorito, el débil sufrirá para empatar.
-                                        if quien_anoto in jerarquia and "Súper" in jerarquia:
+                                        # ¡MAGIA AQUÍ! Evaluamos al equipo por su nombre real
+                                        quien_anoto = eq_local if g_local == 1 else eq_vis
+                                        
+                                        if "Fuerzas Parejas" in jerarquia:
+                                            alerta_franco = f"""
+                                            <div style="background-color: #F8FAFC; border-left: 6px solid #64748B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                                                <h4 style="margin-top:0; color:#334155;">⚖️ CHOQUE DE TRENES (GOL TEMPRANERO)</h4>
+                                                <p style="margin:0; color:#475569;"><b>{quien_anoto}</b> anotó primero en un duelo parejo.
+                                                <br><b>NO CUBRAS AÚN.</b> El partido promete más acción si el asedio mutuo ({apm_total:.1f} APM) se mantiene.</p>
+                                            </div>
+                                            """
+                                        elif quien_anoto in jerarquia and "Favorito" in jerarquia:
                                             alerta_franco = f"""
                                             <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
                                                 <h4 style="margin-top:0; color:#991B1B;">🎯 ALERTA FRANCOTIRADOR (ARBITRAJE ASIMÉTRICO)</h4>
-                                                <p style="margin:0; color:#7F1D1D;">Goliat ({quien_anoto}) anotó temprano. Es probable que David no responda. 
-                                                <br><b>La cuota de la amenaza (NO) debe estar inflada en la plataforma.</b>
-                                                <br>👉 <i>Si la cuota de cobertura es alta, inyecta seguro ahora para garantizar Freebet.</i></p>
+                                                <p style="margin:0; color:#7F1D1D;">Goliat (<b>{quien_anoto}</b>) anotó temprano. El equipo débil sufrirá para responder. 
+                                                <br><b>La cuota de la amenaza (NO) debe estar gigantesca.</b>
+                                                <br>👉 <i>Considera inyectar una Freebet (Opción B) ahora mismo para asegurar Riesgo $0.</i></p>
                                             </div>
                                             """
                                         else:
                                             alerta_franco = f"""
                                             <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
                                                 <h4 style="margin-top:0; color:#1E3A8A;">🛡️ PACIENCIA TÁCTICA (GOL REBELDE)</h4>
-                                                <p style="margin:0; color:#1E3A8A;">El débil ({quien_anoto}) sorprendió temprano. El Favorito se irá con todo a empatar.
-                                                <br><b>NO CUBRAS AÚN.</b> El Asedio Total ({apm_total:.1f}) favorece al BTTS.</p>
+                                                <p style="margin:0; color:#1E3A8A;">El débil (<b>{quien_anoto}</b>) sorprendió temprano. El Favorito se irá con todo a empatar.
+                                                <br><b>NO CUBRAS AÚN.</b> El Asedio Total ({apm_total:.1f} APM) favorece al Ambos Anotan.</p>
                                             </div>
                                             """
-                                            
+                                        
                                     if alerta_franco: st.markdown(alerta_franco, unsafe_allow_html=True)
                                     
                                     # -------------------------------------------------------------
