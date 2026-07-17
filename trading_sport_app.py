@@ -3751,9 +3751,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
                         with tab_anti_empate:
                             st.markdown("""
-                            <div style='background-color: #F8FAFC; border-left: 4px solid #8B5CF6; padding: 10px; border-radius: 4px; margin-bottom: 15px;'>
-
-                        
+                            <div style='background-color: #F8FAFC; border-left: 4px solid #8B5CF6; padding: 10px; border-radius: 4px; margin-bottom: 15px;'>                        
                         # ------------------------------------------------------------------
                         # 🎛️ PANEL DE EVALUACIÓN MULTI-ESTRATEGIA
                         # ------------------------------------------------------------------
