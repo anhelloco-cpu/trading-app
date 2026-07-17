@@ -1416,128 +1416,278 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 alerta_franco = ""
                                 
                                 # -------------------------------------------------------------
-                                # 🧠 BIFURCACIÓN DEL ORÁCULO (ICEBERG)
+                                # 🧠 BIFURCACIÓN DEL ORÁCULO (ICEBERG) [V2.0 - TÁCTICA 15 MIN]
                                 # -------------------------------------------------------------
+                                # 1. Cálculos Base para la Matriz
+                                is_super_fav_local = "Súper Favorito" in jerarquia and eq_local_seg in jerarquia
+                                is_super_fav_vis = "Súper Favorito" in jerarquia and eq_vis_seg in jerarquia
+                                is_fav_local = "Favorito" in jerarquia and eq_local_seg in jerarquia and not is_super_fav_local
+                                is_fav_vis = "Favorito" in jerarquia and eq_vis_seg in jerarquia and not is_super_fav_vis
+                                is_parejo = "Fuerzas Parejas" in jerarquia
+
                                 if is_ambos_anotan:
                                     aposto_si = (sel_ini.strip().lower() in ["sí", "si", "yes"])
-                                    
-                                    # 🎯 ALERTA FRANCOTIRADOR (COBERTURA ASIMÉTRICA TEMPRANA)
-                                    if aposto_si and goles_totales == 1 and minuto_actual <= 45:
-                                        # ¡MAGIA AQUÍ! Evaluamos al equipo por su nombre real
-                                        quien_anoto = eq_local if g_local == 1 else eq_vis
-                                        
-                                        if "Fuerzas Parejas" in jerarquia:
-                                            alerta_franco = f"""
-                                            <div style="background-color: #F8FAFC; border-left: 6px solid #64748B; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                                                <h4 style="margin-top:0; color:#334155;">⚖️ CHOQUE DE TRENES (GOL TEMPRANERO)</h4>
-                                                <p style="margin:0; color:#475569;"><b>{quien_anoto}</b> anotó primero en un duelo parejo.
-                                                <br><b>NO CUBRAS AÚN.</b> El partido promete más acción si el asedio mutuo ({apm_total:.1f} APM) se mantiene.</p>
-                                            </div>
-                                            """
-                                        elif quien_anoto in jerarquia and "Favorito" in jerarquia:
-                                            alerta_franco = f"""
-                                            <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                                                <h4 style="margin-top:0; color:#991B1B;">🎯 ALERTA FRANCOTIRADOR (ARBITRAJE ASIMÉTRICO)</h4>
-                                                <p style="margin:0; color:#7F1D1D;">Goliat (<b>{quien_anoto}</b>) anotó temprano. El equipo débil sufrirá para responder. 
-                                                <br><b>La cuota de la amenaza (NO) debe estar gigantesca.</b>
-                                                <br>👉 <i>Considera inyectar una Freebet (Opción B) ahora mismo para asegurar Riesgo $0.</i></p>
-                                            </div>
-                                            """
-                                        else:
-                                            alerta_franco = f"""
-                                            <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                                                <h4 style="margin-top:0; color:#1E3A8A;">🛡️ PACIENCIA TÁCTICA (GOL REBELDE)</h4>
-                                                <p style="margin:0; color:#1E3A8A;">El débil (<b>{quien_anoto}</b>) sorprendió temprano. El Favorito se irá con todo a empatar.
-                                                <br><b>NO CUBRAS AÚN.</b> El Asedio Total ({apm_total:.1f} APM) favorece al Ambos Anotan.</p>
-                                            </div>
-                                            """
-                                        
-                                    if alerta_franco: st.markdown(alerta_franco, unsafe_allow_html=True)
-                                    
-                                    # -------------------------------------------------------------
-                                    # LÓGICA DE ASEDIO BTTS (SÍ y NO)
-                                    # -------------------------------------------------------------
-                                    # 1. Valores por defecto (Salva-errores)
                                     estado_btts = "⏳ EVALUANDO..."
                                     color_btts = "#64748B"
+                                    msj_ia = "Procesando datos tácticos..."
                                     
-                                    if aposto_si:
-                                        if g_local > 0 and g_vis > 0:
-                                            msj_ia = "🎉 **¡OBJETIVO CUMPLIDO!** Ambos marcaron. Ganaste el SÍ. Liquida ya."
-                                            ird = 0.0
-                                            estado_btts = "✅ GARANTIZADO"
-                                            color_btts = "#10B981"
-                                        elif g_local == 0 and g_vis == 0:
-                                            if minuto_actual < 20:
-                                                msj_ia = f"⏳ **Fase de Estudio:** Minuto {minuto_actual}. Es temprano, deja correr."
-                                                ird = 20.0
-                                                estado_btts = "🟡 EN CALIBRACIÓN"
-                                                color_btts = "#F59E0B"
-                                            else:
-                                                if apm_local >= 0.5 and apm_vis >= 0.5:
-                                                    msj_ia = f"🔥 **Ida y Vuelta:** Ambos equipos atacan constantemente."
-                                                    ird = 25.0
-                                                    estado_btts = "🟢 ALTA PROBABILIDAD"
-                                                    color_btts = "#10B981"
+                                    # --- EVALUACIÓN MAESTRA BTTS ---
+                                    if g_local > 0 and g_vis > 0:
+                                        # ESTADO: BTTS CUMPLIDO
+                                        msj_ia = "🎉 **¡OBJETIVO CUMPLIDO!** Ambos marcaron." if aposto_si else "❌ **SINIESTRO:** Ambos marcaron. Perdiste el NO."
+                                        ird = 0.0 if aposto_si else 100.0
+                                        estado_btts = "✅ GARANTIZADO" if aposto_si else "💀 PERDIDO"
+                                        color_btts = "#10B981" if aposto_si else "#EF4444"
+                                        
+                                    else:
+                                        # --- EL PARTIDO ESTÁ VIVO (0-0 o Falta 1 Gol) ---
+                                        
+                                        # 🕒 BLOQUE 1: MINUTO 1 - 15
+                                        if minuto_actual <= 15:
+                                            if goles_totales == 0:
+                                                if apm_total < 1.2:
+                                                    msj_ia = "🟡 **CALIBRACIÓN TÁCTICA:** Fase de estudio. Equipos midiéndose."
+                                                    estado_btts = "FASE 1: ESTUDIO"
+                                                    color_btts = "#F59E0B"
+                                                    ird = 30.0
                                                 else:
-                                                    msj_ia = f"⚠️ **Ritmo Asimétrico:** Un equipo no está atacando. BTTS en riesgo."
-                                                    ird = 85.0
-                                                    estado_btts = "🔴 EN PELIGRO CRÍTICO"
-                                                    color_btts = "#EF4444"
-                                        else: # Falta un gol
-                                            eq_necesitado = eq_local if g_local == 0 else eq_vis
-                                            apm_necesitado = apm_local if g_local == 0 else apm_vis
-                                            if apm_necesitado >= 0.7:
-                                                msj_ia = f"⚔️ **ASEDIO TOTAL:** {eq_necesitado} domina buscando su gol. ¡Aguanta!"
-                                                ird = 35.0
-                                                estado_btts = "🟢 GOL INMINENTE"
-                                                color_btts = "#10B981"
-                                            elif apm_necesitado < 0.4:
-                                                msj_ia = f"🚨 **ASFIXIA TÁCTICA:** {eq_necesitado} no llega al arco. ¡Sal de ahí!"
-                                                ird = 95.0
-                                                estado_btts = "🔴 MUERTE OFENSIVA"
-                                                color_btts = "#EF4444"
+                                                    msj_ia = f"🔥 **INICIO ELÉCTRICO:** Ritmo altísimo ({apm_total:.2f} APM). Alta probabilidad de gol temprano."
+                                                    estado_btts = "FASE 1: FRENESÍ"
+                                                    color_btts = "#3B82F6"
+                                                    ird = 60.0
+                                            else: # Hay 1 gol temprano
+                                                quien_anoto = eq_local if g_local == 1 else eq_vis
+                                                if (quien_anoto == eq_local and (is_super_fav_local or is_fav_local)) or (quien_anoto == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                    msj_ia = f"👑 **GOLPE DE AUTORIDAD:** El Favorito ({quien_anoto}) pegó temprano. Riesgo de asfixia táctica si controla el balón."
+                                                    estado_btts = "GOL DEL FAVORITO"
+                                                    color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                    ird = 85.0 if aposto_si else 25.0
+                                                else:
+                                                    msj_ia = f"🩸 **LA BESTIA HERIDA:** El Débil sorprendió. Espera un bombardeo inminente del Favorito."
+                                                    estado_btts = "REBELDÍA TEMPRANA"
+                                                    color_btts = "#10B981" if aposto_si else "#EF4444"
+                                                    ird = 35.0 if aposto_si else 85.0
+
+                                        # 🕒 BLOQUE 2: MINUTO 16 - 30
+                                        elif minuto_actual <= 30:
+                                            if goles_totales == 0:
+                                                if apm_total < 0.8:
+                                                    msj_ia = "🧱 **JUEGO TRABADO:** Mucha fricción en el medio. El SÍ se complica, el NO respira."
+                                                    estado_btts = "TENDENCIA UNDER"
+                                                    color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                    ird = 80.0 if aposto_si else 20.0
+                                                else:
+                                                    msj_ia = "⚔️ **GOLPE A GOLPE:** El partido se abrió. Pisan el área. El gol madura."
+                                                    estado_btts = "GOL MADURANDO"
+                                                    color_btts = "#10B981" if aposto_si else "#F59E0B"
+                                                    ird = 40.0 if aposto_si else 70.0
                                             else:
-                                                msj_ia = f"🛡️ **INTENTO TÍMIDO:** Prepara cobertura. {eq_necesitado} ataca lento."
-                                                ird = 75.0
-                                                estado_btts = "🟡 DUDOSO"
-                                                color_btts = "#F59E0B"
+                                                eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                apm_gana = apm_local if g_local == 1 else apm_vis
                                                 
-                                    else: # APOSTÓ AL "NO"
-                                        if g_local > 0 and g_vis > 0:
-                                            msj_ia = "❌ **SINIESTRO:** Ambos marcaron. Perdiste el NO."
-                                            ird = 100.0
-                                            estado_btts = "💀 PERDIDO"
-                                            color_btts = "#EF4444"
-                                        elif g_local == 0 and g_vis == 0:
-                                            msj_ia = f"✅ **BAJO CONTROL:** Ninguno ha marcado. Ritmo bajo de {apm_total:.2f} APM."
-                                            ird = 20.0
-                                            estado_btts = "🟢 SEGURO"
-                                            color_btts = "#10B981"
-                                        else: # Hay un gol (Riesgo activado)
-                                            if apm_total > 1.2:
-                                                msj_ia = f"🚨 **ALERTA ROJA:** El partido está FRENÉTICO ({apm_total:.2f} APM). Gran riesgo de que empaten."
-                                                ird = 90.0
-                                                estado_btts = "🔴 EN PELIGRO"
-                                                color_btts = "#EF4444"
+                                                if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                    # Favorito perdiendo
+                                                    if apm_pierde > 0.6:
+                                                        msj_ia = f"🔥 **LA MAQUINARIA ENCENDIDA:** El Favorito asedia ({apm_pierde:.2f} APM) buscando el empate rápido."
+                                                        estado_btts = "ASEDIO DEL FAVORITO"
+                                                        color_btts = "#10B981" if aposto_si else "#EF4444"
+                                                        ird = 20.0 if aposto_si else 90.0
+                                                    else:
+                                                        msj_ia = f"🧊 **FAVORITO ANESTESIADO:** Sorpresa total. El Débil pegó y supo anular al Favorito."
+                                                        estado_btts = "BLOQUEO TÁCTICO"
+                                                        color_btts = "#EF4444" if aposto_si else "#F59E0B"
+                                                        ird = 85.0 if aposto_si else 35.0
+                                                else:
+                                                    # Favorito Ganando (o parejo)
+                                                    if apm_gana > apm_pierde and apm_gana > 0.6:
+                                                        msj_ia = f"🛡️ **MONÓLOGO TÁCTICO:** El que gana domina a placer. El perdedor no cruza la cancha."
+                                                        estado_btts = "MUERTE OFENSIVA"
+                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                        ird = 95.0 if aposto_si else 15.0
+                                                    else:
+                                                        msj_ia = f"💪 **ORGULLO DEL DÉBIL:** El perdedor responde y busca el empate. Hay esperanza."
+                                                        estado_btts = "REACCIÓN ACTIVA"
+                                                        color_btts = "#F59E0B"
+                                                        ird = 50.0
+
+                                        # 🕒 BLOQUE 3: MINUTO 31 - 45
+                                        elif minuto_actual <= 45:
+                                            if goles_totales == 0:
+                                                if apm_total < 0.8:
+                                                    msj_ia = "🧊 **PACTO DE NO AGRESIÓN (1T):** Se firmó el empate al descanso. Reloj en contra para el SÍ."
+                                                    estado_btts = "CIERRE LENTO"
+                                                    color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                    ird = 90.0 if aposto_si else 15.0
+                                                else:
+                                                    msj_ia = "⚔️ **ASALTO FINAL (1T):** Intentan abrirlo antes del vestuario. Cuida tu posición."
+                                                    estado_btts = "PRESIÓN DE CIERRE"
+                                                    color_btts = "#F59E0B"
+                                                    ird = 65.0
                                             else:
-                                                msj_ia = f"⚖️ **TENDENCIA FAVORABLE:** Hay un gol, pero el asedio total está controlado ({apm_total:.2f} APM)."
-                                                ird = 40.0
-                                                estado_btts = "🟡 RESISTIENDO"
-                                                color_btts = "#F59E0B"
-                                    
+                                                eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                
+                                                if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                    if apm_pierde > 0.8:
+                                                        msj_ia = f"🔥 **FRENESÍ DEL FAVORITO:** No quieren irse perdiendo. Asedio infernal antes del descanso."
+                                                        estado_btts = "ALERTA MÁXIMA DE GOL"
+                                                        color_btts = "#10B981" if aposto_si else "#EF4444"
+                                                        ird = 15.0 if aposto_si else 95.0
+                                                    else:
+                                                        msj_ia = f"🥶 **SHOCK PROLONGADO:** Incapaces de asimilar el gol. Necesitan la charla del entretiempo urgente."
+                                                        estado_btts = "CRISIS DE IDEAS"
+                                                        color_btts = "#EF4444" if aposto_si else "#F59E0B"
+                                                        ird = 85.0 if aposto_si else 35.0
+                                                else:
+                                                    if apm_pierde < 0.4:
+                                                        msj_ia = f"🔒 **CANDADO TÁCTICO:** El dominador resolvió la tarea y controla. El perdedor pide la hora."
+                                                        estado_btts = "DOMINIO TOTAL"
+                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                        ird = 95.0 if aposto_si else 10.0
+                                                    else:
+                                                        msj_ia = f"🐾 **ZARPAZO DE AHOGADO:** El perdedor presiona para dañar la fiesta antes del pitazo."
+                                                        estado_btts = "INTENTO FINAL"
+                                                        color_btts = "#F59E0B"
+                                                        ird = 55.0
+
+                                        # 🕒 BLOQUE 4: MINUTO 46 - 60
+                                        elif minuto_actual <= 60:
+                                            if goles_totales == 0:
+                                                if apm_total > 1.2:
+                                                    msj_ia = "⚡ **IDA Y VUELTA RECARGADO:** Las charlas funcionaron. El partido se rompió."
+                                                    estado_btts = "REINICIO FRENÉTICO"
+                                                    color_btts = "#10B981" if aposto_si else "#EF4444"
+                                                    ird = 30.0 if aposto_si else 80.0
+                                                else:
+                                                    msj_ia = "🛡️ **MIEDO A PERDER:** Salieron a cuidarse. El empate a cero parece conformar a ambos."
+                                                    estado_btts = "ESTANCAMIENTO TÁCTICO"
+                                                    color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                    ird = 90.0 if aposto_si else 15.0
+                                            else:
+                                                eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                
+                                                if (eq_pierde == eq_local and is_super_fav_local) or (eq_pierde == eq_vis and is_super_fav_vis):
+                                                    if apm_pierde > 1.0:
+                                                        msj_ia = f"👑🔥 **LA FURIA DEL REY:** El Súper Favorito salió a demoler el arco ({apm_pierde:.2f} APM). Empate inminente."
+                                                        estado_btts = "ASEDIO INFERNAL"
+                                                        color_btts = "#10B981" if aposto_si else "#EF4444"
+                                                        ird = 10.0 if aposto_si else 95.0
+                                                    else:
+                                                        msj_ia = f"👑🧊 **DECEPCIÓN HISTÓRICA:** El Súper Favorito está bloqueado ({apm_pierde:.2f} APM). El peso de la camiseta no alcanza."
+                                                        estado_btts = "FRACASO TÁCTICO"
+                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                        ird = 90.0 if aposto_si else 25.0
+                                                elif (eq_pierde == eq_local and is_fav_local) or (eq_pierde == eq_vis and is_fav_vis):
+                                                    if apm_pierde > 0.8:
+                                                        msj_ia = f"⚔️ **LA MAQUINARIA A TODA MARCHA:** El Favorito salió furioso del vestuario. Bombardeo total."
+                                                        estado_btts = "PRESIÓN ALTA"
+                                                        color_btts = "#10B981" if aposto_si else "#EF4444"
+                                                        ird = 25.0 if aposto_si else 85.0
+                                                    else:
+                                                        msj_ia = f"🧱 **BLOQUEO TÁCTICO:** El Favorito no encuentra caminos. El tiempo empieza a ser un enemigo mortal."
+                                                        estado_btts = "FRUSTRACIÓN TOTAL"
+                                                        color_btts = "#EF4444" if aposto_si else "#F59E0B"
+                                                        ird = 85.0 if aposto_si else 40.0
+                                                else:
+                                                    if apm_pierde > 0.6:
+                                                        msj_ia = f"💪 **REBELDÍA PURA:** El perdedor no se rinde. Salieron a buscar el empate."
+                                                        estado_btts = "ESPERANZA VIVA"
+                                                        color_btts = "#F59E0B"
+                                                        ird = 50.0
+                                                    else:
+                                                        msj_ia = f"🏳️ **RENDICIÓN TÁCTICA:** No hay argumentos ofensivos. El 1-0 es una roca."
+                                                        estado_btts = "MUERTE LENTA"
+                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                        ird = 95.0 if aposto_si else 10.0
+
+                                        # 🕒 BLOQUE 5: MINUTO 61 - 75
+                                        elif minuto_actual <= 75:
+                                            if goles_totales == 0:
+                                                if apm_total > 1.2:
+                                                    msj_ia = "⚖️ **CAOS SIN PUNTERÍA:** Llegan pero no la meten. El reloj ya no perdona al SÍ."
+                                                    estado_btts = "LOTERÍA FINAL"
+                                                    color_btts = "#F59E0B"
+                                                    ird = 75.0
+                                                else:
+                                                    msj_ia = "💀 **ESTANCAMIENTO CRÍTICO:** Partido en un pozo ciego. No hay piernas. SÍ liquidado."
+                                                    estado_btts = "AGOTAMIENTO"
+                                                    color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                    ird = 95.0 if aposto_si else 10.0
+                                            else:
+                                                eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                
+                                                if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                    if apm_pierde > 0.9:
+                                                        msj_ia = f"🔥 **OLLA A PRESIÓN:** Asedio insoportable del Favorito. El empate caerá por peso específico."
+                                                        estado_btts = "GOL INMINENTE"
+                                                        color_btts = "#10B981" if aposto_si else "#EF4444"
+                                                        ird = 10.0 if aposto_si else 98.0
+                                                    else:
+                                                        msj_ia = f"📉 **COLAPSO MENTAL:** El Favorito se quedó sin ideas y sin oxígeno. El milagro del Débil es real."
+                                                        estado_btts = "MILAGRO EN CURSO"
+                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                        ird = 90.0 if aposto_si else 20.0
+                                                else:
+                                                    if apm_pierde > 0.6:
+                                                        msj_ia = f"🌬️ **ÚLTIMO ALIENTO:** El perdedor quema sus naves. Riesgo moderado por error defensivo."
+                                                        estado_btts = "PRESIÓN FINAL"
+                                                        color_btts = "#F59E0B"
+                                                        ird = 60.0
+                                                    else:
+                                                        msj_ia = f"🧊 **CONTROL DE DAÑOS:** El ganador congeló el partido con posesión. Tu BTTS huele a pérdida."
+                                                        estado_btts = "PARTIDO CERRADO"
+                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                        ird = 95.0 if aposto_si else 10.0
+
+                                        # 🕒 BLOQUE 6: MINUTO 76 - 90+
+                                        else:
+                                            if goles_totales == 0:
+                                                msj_ia = "💀 **MUERTE POR RELOJ:** Se acabó el tiempo." if aposto_si else "🎉 **BLINDAJE DE ACERO:** Solo un milagro arruina esto."
+                                                estado_btts = "TIEMPO AGOTADO" if aposto_si else "VICTORIA CASI SEGURA"
+                                                color_btts = "#EF4444" if aposto_si else "#10B981"
+                                                ird = 100.0 if aposto_si else 5.0
+                                            else:
+                                                eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                
+                                                if apm_pierde > 1.0:
+                                                    if aposto_si:
+                                                        msj_ia = "⚔️ **ASEDIO FINAL:** Agonía pura. Tienen al rival en el área. ¡Aguanta, el gol está caliente!"
+                                                        estado_btts = "CAOS OFENSIVO"
+                                                        color_btts = "#10B981"
+                                                        ird = 20.0
+                                                    else:
+                                                        msj_ia = "🚨 **EVACUACIÓN URGENTE:** El asedio te va a quemar. Sal de ahí YA usando la cobertura."
+                                                        estado_btts = "ALERTA ROJA EXTREMA"
+                                                        color_btts = "#EF4444"
+                                                        ird = 99.0
+                                                else:
+                                                    if aposto_si:
+                                                        msj_ia = "🔴 **MUERTE TÁCTICA:** El rival secuestró la pelota. Salva los centavos en Cashout."
+                                                        estado_btts = "SIN OPCIONES"
+                                                        color_btts = "#EF4444"
+                                                        ird = 99.0
+                                                    else:
+                                                        msj_ia = "🛡️ **CERROJO ABSOLUTO:** El herido no tiene piernas. Asegura la utilidad."
+                                                        estado_btts = "PAZ TOTAL"
+                                                        color_btts = "#10B981"
+                                                        ird = 10.0
+
                                     # PANEL GIGANTE BTTS
                                     st.markdown(f"""
                                     <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
                                         <h3 style="margin-top:0; color:#0F172A;">📊 ESTADO DEL BTTS (Ambos Anotan)</h3>
                                         <h1 style="color:{color_btts}; font-size: 2.5rem; margin: 10px 0;">{estado_btts}</h1>
                                         <p style="margin:0; font-size: 1.1rem; color:#475569;">{msj_ia}</p>
-                                        <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">Nivel de Caos (Asedio Mutuo): {ird:.1f}% IRD | Velocidad: {apm_total:.2f} APM</p>
+                                        <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">Nivel de Caos / Peligro Táctico: {ird:.1f}% IRD | Velocidad Total: {apm_total:.2f} APM</p>
                                     </div>
                                     """, unsafe_allow_html=True)
 
                                 elif is_linea_goles:
-                                    # [Mantenemos la lógica de Línea de Goles igual que la tenías, solo la metemos en el Panel Gigante]
+                                    # LÓGICA DE LÍNEA DE GOLES
                                     import re
                                     match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
                                     linea_obj = float(match_linea.group()) if match_linea else 2.5
@@ -1602,11 +1752,156 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         <p style="margin:0; font-size: 1.1rem; color:#475569;">{msj_ia}</p>
                                     </div>
                                     """, unsafe_allow_html=True)
+                                
+                                # =====================================================================
+                                # 4. ORÁCULO TRI-FACTOR (IA + HISTORIA + RIESGO PATRIMONIAL)
+                                # =====================================================================
+                                import joblib
+                                import pandas as pd
+                                
+                                # A. CEREBRO FÍSICO (IA)
+                                try:
+                                    X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird}])
+                                    m1x2_liq = joblib.load('modelo_1x2.pkl')
+                                    pred_1x2 = m1x2_liq.predict(X_liq)[0]
+                                    dom_vivo = "Local" if pred_1x2 == 2 else ("Visita" if pred_1x2 == 3 else "Empate/Asedio Dividido")
+                                except:
+                                    dom_vivo = "Local" if apm_local > apm_vis and (atkp_local - atkp_vis) > 10 else ("Visita" if apm_vis > apm_local and (atkp_vis - atkp_local) > 10 else "Empate/Asedio Dividido")
 
-                                # Barra de Progreso General (Termómetro)
-                                color_barra = "#10B981" if ird < 45 else "#F59E0B" if ird < 75 else "#EF4444"
-                                st.progress(int(ird) / 100)
-                                st.markdown(f"<h5 style='text-align: center; color: {color_barra}; margin-top:5px;'>Termómetro General (IRD): {ird:.1f}%</h5>", unsafe_allow_html=True)
+                                # B. CEREBRO HISTÓRICO
+                                c_loc_hist = float(op.get('cuota_base_audit', 2.0))
+                                c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
+                                if c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: fav_global = eq_local_seg
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: fav_global = eq_vis_seg
+                                else: fav_global = "Fuerzas Parejas"
+
+                                # C. CEREBRO PATRIMONIAL (Gestión del Umbral de Riesgo)
+                                pct_rescate_banca = (oferta_cashout / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
+                                exposicion_pct = (op['stake_1'] / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
+                                
+                                # D. LÓGICA DE COMPRENSIÓN DE MERCADO (¿Va Ganando?)
+                                sel_lower = sel_ini.lower()
+                                palabras_sel = sel_lower.replace("(", "").replace(")", "").split()
+                                
+                                aposto_btts_si = "sí" in palabras_sel or "si" in palabras_sel or ("ambos" in sel_lower and ("sí" in sel_lower or "si" in palabras_sel))
+                                aposto_btts_no = "no" in palabras_sel or ("ambos" in sel_lower and "no" in palabras_sel)
+                                aposto_over = "más" in palabras_sel or "mas" in palabras_sel or "over" in palabras_sel
+                                aposto_under = "menos" in palabras_sel or "under" in palabras_sel
+                                aposto_local = "local" in sel_lower or "1" in palabras_sel
+                                aposto_visita = "visita" in sel_lower or "2" in palabras_sel
+                                aposto_empate = "empate" in sel_lower or "x" in palabras_sel
+
+                                ganando_actualmente = False
+                                estamos_dominando = False
+                                tipo_mercado = "1X2"
+                                
+                                if aposto_btts_si or aposto_over:
+                                    tipo_mercado = "GOLES"
+                                    if apm_total >= 1.2: estamos_dominando = True
+                                    if aposto_btts_si and g_local > 0 and g_vis > 0: ganando_actualmente = True
+                                    elif aposto_over:
+                                        import re
+                                        match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
+                                        if match_linea and (g_local + g_vis) > float(match_linea.group()): ganando_actualmente = True
+                                elif aposto_btts_no or aposto_under:
+                                    tipo_mercado = "GOLES"
+                                    if apm_total < 0.6: estamos_dominando = True
+                                    if aposto_btts_no and (g_local == 0 or g_vis == 0): ganando_actualmente = True
+                                    elif aposto_under:
+                                        import re
+                                        match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
+                                        if match_linea and (g_local + g_vis) < float(match_linea.group()): ganando_actualmente = True
+                                else:
+                                    if aposto_local and dom_vivo == "Local": estamos_dominando = True
+                                    elif aposto_visita and dom_vivo == "Visita": estamos_dominando = True
+                                    elif aposto_empate and dom_vivo == "Empate/Asedio Dividido": estamos_dominando = True
+                                    
+                                    if aposto_local and g_local > g_vis: ganando_actualmente = True
+                                    elif aposto_visita and g_vis > g_local: ganando_actualmente = True
+                                    elif aposto_empate and g_local == g_vis: ganando_actualmente = True
+
+                                if tipo_mercado == "GOLES":
+                                    texto_fav = "La física proyecta el ritmo que necesitas." if (aposto_btts_si or aposto_over) else "El partido está trabado, ideal para ti."
+                                    texto_apoyo = "El ritmo del partido te respalda."
+                                    eres_favorito = False
+                                else:
+                                    eres_favorito = True if (fav_global == eq_local_seg and aposto_local) or (fav_global == eq_vis_seg and aposto_visita) else False
+                                    texto_fav = f"Tienes jerarquía ({fav_global})." if eres_favorito else "La táctica en cancha compensa no ser favorito."
+                                    texto_apoyo = "Tu equipo domina físicamente."
+
+                                # =====================================================================
+                                # DICTAMEN MAESTRO INSTITUCIONAL (CON REGLAS DE ORO APLICADAS)
+                                # =====================================================================
+                                veredicto_titulo = ""
+                                veredicto_desc = ""
+                                color_alerta = "#E2E8F0"
+                                bg_alerta = "#F8FAFC"
+
+                                # REGLA DE ORO 1: QUEMAR CUENTA (Umbral de Riesgo Real)
+                                if exposicion_pct > umbral_permitido and not ganando_actualmente:
+                                    veredicto_titulo = "🔥 QUEMA DE CUENTA INMINENTE (Exposición Crítica)"
+                                    veredicto_desc = f"Has metido el <b>{exposicion_pct:.1f}%</b> de tu capital real en este partido, superando tu límite máximo del <b>{umbral_permitido:.1f}%</b>. No estás ganando. ¡Liquida o inyecta seguro YA MISMO para proteger el patrimonio!"
+                                    color_alerta = "#991B1B"; bg_alerta = "#FEF2F2"
+                                    
+                                # REGLA DE ORO 2: STOP LOSS (Precio)
+                                elif cuota_sl > 0 and cuota_salida <= cuota_sl:
+                                    veredicto_titulo = "🛑 STOP LOSS ESTRUCTURAL ROTO"
+                                    veredicto_desc = f"La cuota ({cuota_salida:.2f}) perforó tu límite. El riesgo financiero es inaceptable. EVACUACIÓN OBLIGATORIA AHORA."
+                                    color_alerta = "#B91C1C"; bg_alerta = "#FEF2F2"
+                                    
+                                # REGLA DE ORO 3: MUERTE POR RELOJ (Tiempo)
+                                elif tiempo_restante <= 10 and not ganando_actualmente:
+                                    veredicto_titulo = "⏳ MUERTE TÁCTICA POR RELOJ"
+                                    if oferta_cashout > 0:
+                                        texto_rescate = f"Toma los ${oferta_cashout:,.0f} de inmediato antes de que caiga a $0."
+                                    else:
+                                        texto_rescate = "Ejecuta la cobertura o cierra la operación de inmediato asumiendo la pérdida."
+                                    veredicto_desc = f"Faltan {tiempo_restante} minutos. No importa si los ataques están en {apm_total:.1f} APM, el tiempo se acabó y vas perdiendo. {texto_rescate}"
+                                    color_alerta = "#DC2626"; bg_alerta = "#FEF2F2"
+                                    
+                                # REGLA DE ORO 4: RELOJ A FAVOR
+                                elif tiempo_restante <= 10 and ganando_actualmente:
+                                    veredicto_titulo = "🛡️ RELOJ A FAVOR (Blindaje Temporal)"
+                                    veredicto_desc = f"Quedan solo {tiempo_restante} min y llevas la ventaja. El tiempo es tu mejor amigo ahora. Aguanta fuerte, la casa está desesperada por comprarte barato."
+                                    color_alerta = "#10B981"; bg_alerta = "#ECFDF5"
+                                    
+                                # Riesgo Cero
+                                elif pct_rescate_banca < 0.5 and oferta_cashout > 0:
+                                    veredicto_titulo = "🛡️ RIESGO CERO (Marginalidad Absoluta)"
+                                    veredicto_desc = f"La casa te ofrece migajas (${oferta_cashout:,.0f}, {pct_rescate_banca:.2f}% de tu banca). No salves centavos. Deja correr el partido."
+                                    color_alerta = "#64748B"; bg_alerta = "#F1F5F9"
+                                    
+                                # Fusión Táctica vs Historia
+                                elif estamos_dominando:
+                                    veredicto_titulo = "🟢 MANTENER POSICIÓN (Respaldo Táctico IA)"
+                                    veredicto_desc = f"{texto_apoyo} {texto_fav} Queda tiempo ({tiempo_restante} min). Dejar correr maximiza tu ROI a largo plazo."
+                                    color_alerta = "#10B981"; bg_alerta = "#ECFDF5"
+                                elif not estamos_dominando and not eres_favorito:
+                                    if pct_rescate_banca >= 2.0:
+                                        veredicto_titulo = "🚨 EVACUACIÓN (Amputación Vital)"
+                                        veredicto_desc = f"Muerte táctica confirmada. Toma los ${oferta_cashout:,.0f} para salvar el {pct_rescate_banca:.1f}% de tu banca."
+                                        color_alerta = "#EF4444"; bg_alerta = "#FEF2F2"
+                                    else:
+                                        veredicto_titulo = "🟡 COBERTURA ESTRATÉGICA (Mitigación)"
+                                        veredicto_desc = f"El partido luce oscuro frente al favorito ({fav_global}). Inyectar ${monto_a_inyectar:,.0f} frena la sangría si logras Break-Even."
+                                        color_alerta = "#F59E0B"; bg_alerta = "#FFFBEB"
+                                elif not estamos_dominando and eres_favorito:
+                                    veredicto_titulo = "⚠️ ALERTA DE TRAMPA (Jerarquía vs Física)"
+                                    veredicto_desc = f"Eres Favorito, pero el asedio en contra es real. Mantén con precaución. Si el asedio te quema (IRD > 75%), busca la salida."
+                                    color_alerta = "#3B82F6"; bg_alerta = "#EFF6FF"
+
+                                st.markdown(f"""
+                                <div style="background-color: {bg_alerta}; border-left: 8px solid {color_alerta}; padding: 20px; border-radius: 8px; margin: 15px 0;">
+                                    <h3 style="margin-top:0; color:{color_alerta}; font-size:1.3rem;">{veredicto_titulo}</h3>
+                                    <p style="font-size: 1.05rem; color:#334155; margin-bottom:15px;">{veredicto_desc}</p>
+                                    <hr style="border-color:{color_alerta}; opacity:0.3; margin: 10px 0;">
+                                    <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
+                                        <span style="color:#0F172A;"><b>Táctica (IA):</b> {dom_vivo}</span>
+                                        <span style="color:#0F172A;"><b>Exp. Capital:</b> {exposicion_pct:.1f}% (Max: {umbral_permitido:.1f}%)</span>
+                                        <span style="color:#0F172A;"><b>Reloj:</b> {tiempo_restante} min</span>
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
                                 
                                 # =====================================================================
                                 # 4. ORÁCULO TRI-FACTOR (IA + HISTORIA + RIESGO PATRIMONIAL)
