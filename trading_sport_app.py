@@ -1416,7 +1416,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 alerta_franco = ""
                                 
                                 # -------------------------------------------------------------
-                                # 🧠 BIFURCACIÓN DEL ORÁCULO (ICEBERG) [V2.0 - TÁCTICA 15 MIN]
+                                # 🧠 BIFURCACIÓN DEL ORÁCULO (ICEBERG) [V3.0 - SPLIT SÍ/NO TÁCTICO]
                                 # -------------------------------------------------------------
                                 # 1. Cálculos Base para la Matriz
                                 is_super_fav_local = "Súper Favorito" in jerarquia and eq_local_seg in jerarquia
@@ -1426,255 +1426,318 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 is_parejo = "Fuerzas Parejas" in jerarquia
 
                                 if is_ambos_anotan:
-                                    aposto_si = (sel_ini.strip().lower() in ["sí", "si", "yes"])
+                                    # 🐛 CORRECCIÓN DE LECTURA DE APUESTA
+                                    sel_lower_btts = sel_ini.lower()
+                                    palabras_btts = sel_lower_btts.replace(":", " ").replace("-", " ").replace("(", "").replace(")", "").split()
+                                    aposto_si = "sí" in palabras_btts or "si" in palabras_btts or "yes" in palabras_btts or ("ambos" in sel_lower_btts and ("sí" in sel_lower_btts or "si" in palabras_btts))
+                                    
                                     estado_btts = "⏳ EVALUANDO..."
                                     color_btts = "#64748B"
                                     msj_ia = "Procesando datos tácticos..."
                                     
-                                    # --- EVALUACIÓN MAESTRA BTTS ---
-                                    if g_local > 0 and g_vis > 0:
-                                        # ESTADO: BTTS CUMPLIDO
-                                        msj_ia = "🎉 **¡OBJETIVO CUMPLIDO!** Ambos marcaron." if aposto_si else "❌ **SINIESTRO:** Ambos marcaron. Perdiste el NO."
-                                        ird = 0.0 if aposto_si else 100.0
-                                        estado_btts = "✅ GARANTIZADO" if aposto_si else "💀 PERDIDO"
-                                        color_btts = "#10B981" if aposto_si else "#EF4444"
-                                        
-                                    else:
-                                        # --- EL PARTIDO ESTÁ VIVO (0-0 o Falta 1 Gol) ---
-                                        
-                                        # 🕒 BLOQUE 1: MINUTO 1 - 15
-                                        if minuto_actual <= 15:
-                                            if goles_totales == 0:
-                                                if apm_total < 1.2:
-                                                    msj_ia = "🟡 **CALIBRACIÓN TÁCTICA:** Fase de estudio. Equipos midiéndose."
-                                                    estado_btts = "FASE 1: ESTUDIO"
-                                                    color_btts = "#F59E0B"
-                                                    ird = 30.0
-                                                else:
-                                                    msj_ia = f"🔥 **INICIO ELÉCTRICO:** Ritmo altísimo ({apm_total:.2f} APM). Alta probabilidad de gol temprano."
-                                                    estado_btts = "FASE 1: FRENESÍ"
-                                                    color_btts = "#3B82F6"
-                                                    ird = 60.0
-                                            else: # Hay 1 gol temprano
-                                                quien_anoto = eq_local if g_local == 1 else eq_vis
-                                                if (quien_anoto == eq_local and (is_super_fav_local or is_fav_local)) or (quien_anoto == eq_vis and (is_super_fav_vis or is_fav_vis)):
-                                                    msj_ia = f"👑 **GOLPE DE AUTORIDAD:** El Favorito ({quien_anoto}) pegó temprano. Riesgo de asfixia táctica si controla el balón."
-                                                    estado_btts = "GOL DEL FAVORITO"
-                                                    color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                    ird = 85.0 if aposto_si else 25.0
-                                                else:
-                                                    msj_ia = f"🩸 **LA BESTIA HERIDA:** El Débil sorprendió. Espera un bombardeo inminente del Favorito."
-                                                    estado_btts = "REBELDÍA TEMPRANA"
-                                                    color_btts = "#10B981" if aposto_si else "#EF4444"
-                                                    ird = 35.0 if aposto_si else 85.0
-
-                                        # 🕒 BLOQUE 2: MINUTO 16 - 30
-                                        elif minuto_actual <= 30:
-                                            if goles_totales == 0:
-                                                if apm_total < 0.8:
-                                                    msj_ia = "🧱 **JUEGO TRABADO:** Mucha fricción en el medio. El SÍ se complica, el NO respira."
-                                                    estado_btts = "TENDENCIA UNDER"
-                                                    color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                    ird = 80.0 if aposto_si else 20.0
-                                                else:
-                                                    msj_ia = "⚔️ **GOLPE A GOLPE:** El partido se abrió. Pisan el área. El gol madura."
-                                                    estado_btts = "GOL MADURANDO"
-                                                    color_btts = "#10B981" if aposto_si else "#F59E0B"
-                                                    ird = 40.0 if aposto_si else 70.0
-                                            else:
-                                                eq_pierde = eq_local if g_local == 0 else eq_vis
-                                                apm_pierde = apm_local if g_local == 0 else apm_vis
-                                                apm_gana = apm_local if g_local == 1 else apm_vis
-                                                
-                                                if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
-                                                    # Favorito perdiendo
-                                                    if apm_pierde > 0.6:
-                                                        msj_ia = f"🔥 **LA MAQUINARIA ENCENDIDA:** El Favorito asedia ({apm_pierde:.2f} APM) buscando el empate rápido."
-                                                        estado_btts = "ASEDIO DEL FAVORITO"
-                                                        color_btts = "#10B981" if aposto_si else "#EF4444"
-                                                        ird = 20.0 if aposto_si else 90.0
-                                                    else:
-                                                        msj_ia = f"🧊 **FAVORITO ANESTESIADO:** Sorpresa total. El Débil pegó y supo anular al Favorito."
-                                                        estado_btts = "BLOQUEO TÁCTICO"
-                                                        color_btts = "#EF4444" if aposto_si else "#F59E0B"
-                                                        ird = 85.0 if aposto_si else 35.0
-                                                else:
-                                                    # Favorito Ganando (o parejo)
-                                                    if apm_gana > apm_pierde and apm_gana > 0.6:
-                                                        msj_ia = f"🛡️ **MONÓLOGO TÁCTICO:** El que gana domina a placer. El perdedor no cruza la cancha."
-                                                        estado_btts = "MUERTE OFENSIVA"
-                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                        ird = 95.0 if aposto_si else 15.0
-                                                    else:
-                                                        msj_ia = f"💪 **ORGULLO DEL DÉBIL:** El perdedor responde y busca el empate. Hay esperanza."
-                                                        estado_btts = "REACCIÓN ACTIVA"
-                                                        color_btts = "#F59E0B"
-                                                        ird = 50.0
-
-                                        # 🕒 BLOQUE 3: MINUTO 31 - 45
-                                        elif minuto_actual <= 45:
-                                            if goles_totales == 0:
-                                                if apm_total < 0.8:
-                                                    msj_ia = "🧊 **PACTO DE NO AGRESIÓN (1T):** Se firmó el empate al descanso. Reloj en contra para el SÍ."
-                                                    estado_btts = "CIERRE LENTO"
-                                                    color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                    ird = 90.0 if aposto_si else 15.0
-                                                else:
-                                                    msj_ia = "⚔️ **ASALTO FINAL (1T):** Intentan abrirlo antes del vestuario. Cuida tu posición."
-                                                    estado_btts = "PRESIÓN DE CIERRE"
-                                                    color_btts = "#F59E0B"
-                                                    ird = 65.0
-                                            else:
-                                                eq_pierde = eq_local if g_local == 0 else eq_vis
-                                                apm_pierde = apm_local if g_local == 0 else apm_vis
-                                                
-                                                if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
-                                                    if apm_pierde > 0.8:
-                                                        msj_ia = f"🔥 **FRENESÍ DEL FAVORITO:** No quieren irse perdiendo. Asedio infernal antes del descanso."
-                                                        estado_btts = "ALERTA MÁXIMA DE GOL"
-                                                        color_btts = "#10B981" if aposto_si else "#EF4444"
-                                                        ird = 15.0 if aposto_si else 95.0
-                                                    else:
-                                                        msj_ia = f"🥶 **SHOCK PROLONGADO:** Incapaces de asimilar el gol. Necesitan la charla del entretiempo urgente."
-                                                        estado_btts = "CRISIS DE IDEAS"
-                                                        color_btts = "#EF4444" if aposto_si else "#F59E0B"
-                                                        ird = 85.0 if aposto_si else 35.0
-                                                else:
-                                                    if apm_pierde < 0.4:
-                                                        msj_ia = f"🔒 **CANDADO TÁCTICO:** El dominador resolvió la tarea y controla. El perdedor pide la hora."
-                                                        estado_btts = "DOMINIO TOTAL"
-                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                        ird = 95.0 if aposto_si else 10.0
-                                                    else:
-                                                        msj_ia = f"🐾 **ZARPAZO DE AHOGADO:** El perdedor presiona para dañar la fiesta antes del pitazo."
-                                                        estado_btts = "INTENTO FINAL"
-                                                        color_btts = "#F59E0B"
-                                                        ird = 55.0
-
-                                        # 🕒 BLOQUE 4: MINUTO 46 - 60
-                                        elif minuto_actual <= 60:
-                                            if goles_totales == 0:
-                                                if apm_total > 1.2:
-                                                    msj_ia = "⚡ **IDA Y VUELTA RECARGADO:** Las charlas funcionaron. El partido se rompió."
-                                                    estado_btts = "REINICIO FRENÉTICO"
-                                                    color_btts = "#10B981" if aposto_si else "#EF4444"
-                                                    ird = 30.0 if aposto_si else 80.0
-                                                else:
-                                                    msj_ia = "🛡️ **MIEDO A PERDER:** Salieron a cuidarse. El empate a cero parece conformar a ambos."
-                                                    estado_btts = "ESTANCAMIENTO TÁCTICO"
-                                                    color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                    ird = 90.0 if aposto_si else 15.0
-                                            else:
-                                                eq_pierde = eq_local if g_local == 0 else eq_vis
-                                                apm_pierde = apm_local if g_local == 0 else apm_vis
-                                                
-                                                if (eq_pierde == eq_local and is_super_fav_local) or (eq_pierde == eq_vis and is_super_fav_vis):
-                                                    if apm_pierde > 1.0:
-                                                        msj_ia = f"👑🔥 **LA FURIA DEL REY:** El Súper Favorito salió a demoler el arco ({apm_pierde:.2f} APM). Empate inminente."
-                                                        estado_btts = "ASEDIO INFERNAL"
-                                                        color_btts = "#10B981" if aposto_si else "#EF4444"
-                                                        ird = 10.0 if aposto_si else 95.0
-                                                    else:
-                                                        msj_ia = f"👑🧊 **DECEPCIÓN HISTÓRICA:** El Súper Favorito está bloqueado ({apm_pierde:.2f} APM). El peso de la camiseta no alcanza."
-                                                        estado_btts = "FRACASO TÁCTICO"
-                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                        ird = 90.0 if aposto_si else 25.0
-                                                elif (eq_pierde == eq_local and is_fav_local) or (eq_pierde == eq_vis and is_fav_vis):
-                                                    if apm_pierde > 0.8:
-                                                        msj_ia = f"⚔️ **LA MAQUINARIA A TODA MARCHA:** El Favorito salió furioso del vestuario. Bombardeo total."
-                                                        estado_btts = "PRESIÓN ALTA"
-                                                        color_btts = "#10B981" if aposto_si else "#EF4444"
-                                                        ird = 25.0 if aposto_si else 85.0
-                                                    else:
-                                                        msj_ia = f"🧱 **BLOQUEO TÁCTICO:** El Favorito no encuentra caminos. El tiempo empieza a ser un enemigo mortal."
-                                                        estado_btts = "FRUSTRACIÓN TOTAL"
-                                                        color_btts = "#EF4444" if aposto_si else "#F59E0B"
-                                                        ird = 85.0 if aposto_si else 40.0
-                                                else:
-                                                    if apm_pierde > 0.6:
-                                                        msj_ia = f"💪 **REBELDÍA PURA:** El perdedor no se rinde. Salieron a buscar el empate."
-                                                        estado_btts = "ESPERANZA VIVA"
-                                                        color_btts = "#F59E0B"
-                                                        ird = 50.0
-                                                    else:
-                                                        msj_ia = f"🏳️ **RENDICIÓN TÁCTICA:** No hay argumentos ofensivos. El 1-0 es una roca."
-                                                        estado_btts = "MUERTE LENTA"
-                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                        ird = 95.0 if aposto_si else 10.0
-
-                                        # 🕒 BLOQUE 5: MINUTO 61 - 75
-                                        elif minuto_actual <= 75:
-                                            if goles_totales == 0:
-                                                if apm_total > 1.2:
-                                                    msj_ia = "⚖️ **CAOS SIN PUNTERÍA:** Llegan pero no la meten. El reloj ya no perdona al SÍ."
-                                                    estado_btts = "LOTERÍA FINAL"
-                                                    color_btts = "#F59E0B"
-                                                    ird = 75.0
-                                                else:
-                                                    msj_ia = "💀 **ESTANCAMIENTO CRÍTICO:** Partido en un pozo ciego. No hay piernas. SÍ liquidado."
-                                                    estado_btts = "AGOTAMIENTO"
-                                                    color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                    ird = 95.0 if aposto_si else 10.0
-                                            else:
-                                                eq_pierde = eq_local if g_local == 0 else eq_vis
-                                                apm_pierde = apm_local if g_local == 0 else apm_vis
-                                                
-                                                if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
-                                                    if apm_pierde > 0.9:
-                                                        msj_ia = f"🔥 **OLLA A PRESIÓN:** Asedio insoportable del Favorito. El empate caerá por peso específico."
-                                                        estado_btts = "GOL INMINENTE"
-                                                        color_btts = "#10B981" if aposto_si else "#EF4444"
-                                                        ird = 10.0 if aposto_si else 98.0
-                                                    else:
-                                                        msj_ia = f"📉 **COLAPSO MENTAL:** El Favorito se quedó sin ideas y sin oxígeno. El milagro del Débil es real."
-                                                        estado_btts = "MILAGRO EN CURSO"
-                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                        ird = 90.0 if aposto_si else 20.0
-                                                else:
-                                                    if apm_pierde > 0.6:
-                                                        msj_ia = f"🌬️ **ÚLTIMO ALIENTO:** El perdedor quema sus naves. Riesgo moderado por error defensivo."
-                                                        estado_btts = "PRESIÓN FINAL"
-                                                        color_btts = "#F59E0B"
-                                                        ird = 60.0
-                                                    else:
-                                                        msj_ia = f"🧊 **CONTROL DE DAÑOS:** El ganador congeló el partido con posesión. Tu BTTS huele a pérdida."
-                                                        estado_btts = "PARTIDO CERRADO"
-                                                        color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                        ird = 95.0 if aposto_si else 10.0
-
-                                        # 🕒 BLOQUE 6: MINUTO 76 - 90+
+                                    if aposto_si:
+                                        # ====================================================================
+                                        # 🟢 CAMINO EXCLUSIVO: APOSTASTE AL "SÍ" (BTTS SÍ)
+                                        # ====================================================================
+                                        if g_local > 0 and g_vis > 0:
+                                            msj_ia = "🎉 **¡OBJETIVO CUMPLIDO!** Ambos marcaron. Ganaste el SÍ. Liquida ya."
+                                            ird = 0.0; estado_btts = "✅ GARANTIZADO"; color_btts = "#10B981"
                                         else:
-                                            if goles_totales == 0:
-                                                msj_ia = "💀 **MUERTE POR RELOJ:** Se acabó el tiempo." if aposto_si else "🎉 **BLINDAJE DE ACERO:** Solo un milagro arruina esto."
-                                                estado_btts = "TIEMPO AGOTADO" if aposto_si else "VICTORIA CASI SEGURA"
-                                                color_btts = "#EF4444" if aposto_si else "#10B981"
-                                                ird = 100.0 if aposto_si else 5.0
-                                            else:
-                                                eq_pierde = eq_local if g_local == 0 else eq_vis
-                                                apm_pierde = apm_local if g_local == 0 else apm_vis
-                                                
-                                                if apm_pierde > 1.0:
-                                                    if aposto_si:
-                                                        msj_ia = "⚔️ **ASEDIO FINAL:** Agonía pura. Tienen al rival en el área. ¡Aguanta, el gol está caliente!"
-                                                        estado_btts = "CAOS OFENSIVO"
-                                                        color_btts = "#10B981"
-                                                        ird = 20.0
+                                            if minuto_actual <= 15:
+                                                if goles_totales == 0:
+                                                    if apm_total < 1.2:
+                                                        msj_ia = "🟡 **CALIBRACIÓN TÁCTICA:** Fase de estudio. Los equipos se están midiendo. El SÍ tiene tiempo."
+                                                        estado_btts = "FASE DE ESTUDIO"; color_btts = "#F59E0B"; ird = 30.0
                                                     else:
-                                                        msj_ia = "🚨 **EVACUACIÓN URGENTE:** El asedio te va a quemar. Sal de ahí YA usando la cobertura."
-                                                        estado_btts = "ALERTA ROJA EXTREMA"
-                                                        color_btts = "#EF4444"
-                                                        ird = 99.0
+                                                        msj_ia = f"🔥 **INICIO ELÉCTRICO:** Ritmo altísimo ({apm_total:.2f} APM). Promesa de goles tempranos para tu SÍ."
+                                                        estado_btts = "FRENESÍ"; color_btts = "#3B82F6"; ird = 60.0
                                                 else:
-                                                    if aposto_si:
-                                                        msj_ia = "🔴 **MUERTE TÁCTICA:** El rival secuestró la pelota. Salva los centavos en Cashout."
-                                                        estado_btts = "SIN OPCIONES"
-                                                        color_btts = "#EF4444"
-                                                        ird = 99.0
+                                                    quien_anoto = eq_local if g_local == 1 else eq_vis
+                                                    if (quien_anoto == eq_local and (is_super_fav_local or is_fav_local)) or (quien_anoto == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                        msj_ia = f"👑 **GOLPE DE AUTORIDAD:** El Favorito ({quien_anoto}) pegó temprano. Riesgo para tu SÍ si deciden dormir el partido."
+                                                        estado_btts = "ALERTA TÁCTICA"; color_btts = "#EF4444"; ird = 85.0
                                                     else:
-                                                        msj_ia = "🛡️ **CERROJO ABSOLUTO:** El herido no tiene piernas. Asegura la utilidad."
-                                                        estado_btts = "PAZ TOTAL"
-                                                        color_btts = "#10B981"
-                                                        ird = 10.0
+                                                        msj_ia = f"🩸 **LA BESTIA HERIDA:** El Débil sorprendió. Espera un bombardeo inminente del Favorito. Excelente para tu SÍ."
+                                                        estado_btts = "REBELDÍA TEMPRANA"; color_btts = "#10B981"; ird = 35.0
+
+                                            elif minuto_actual <= 30:
+                                                if goles_totales == 0:
+                                                    if apm_total < 0.8:
+                                                        msj_ia = "🧱 **JUEGO TRABADO:** Mucha fricción en el medio. El cero no se rompe y el SÍ se complica."
+                                                        estado_btts = "TENDENCIA UNDER"; color_btts = "#EF4444"; ird = 80.0
+                                                    else:
+                                                        msj_ia = "⚔️ **GOLPE A GOLPE:** El partido se abrió. Pisan el área. El gol madura para tu SÍ."
+                                                        estado_btts = "GOL MADURANDO"; color_btts = "#10B981"; ird = 40.0
+                                                else:
+                                                    eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    apm_gana = apm_local if g_local == 1 else apm_vis
+                                                    
+                                                    if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                        if apm_pierde > 0.6:
+                                                            msj_ia = f"🔥 **LA MAQUINARIA ENCENDIDA:** El Favorito asedia ({apm_pierde:.2f} APM) buscando el empate. Tu SÍ está vivo."
+                                                            estado_btts = "ASEDIO DEL FAVORITO"; color_btts = "#10B981"; ird = 20.0
+                                                        else:
+                                                            msj_ia = f"🧊 **FAVORITO ANESTESIADO:** Sorpresa total. El Débil pegó y supo anular al Favorito."
+                                                            estado_btts = "BLOQUEO TÁCTICO"; color_btts = "#EF4444"; ird = 85.0
+                                                    else:
+                                                        if apm_gana > apm_pierde and apm_gana > 0.6:
+                                                            msj_ia = f"🛡️ **MONÓLOGO TÁCTICO:** El dominador juega a placer. El perdedor no cruza la cancha. Tu SÍ agoniza."
+                                                            estado_btts = "MUERTE OFENSIVA"; color_btts = "#EF4444"; ird = 95.0
+                                                        else:
+                                                            msj_ia = f"💪 **ORGULLO DEL DÉBIL:** El perdedor responde y busca el empate. Hay esperanza."
+                                                            estado_btts = "REACCIÓN ACTIVA"; color_btts = "#F59E0B"; ird = 50.0
+
+                                            elif minuto_actual <= 45:
+                                                if goles_totales == 0:
+                                                    if apm_total < 0.8:
+                                                        msj_ia = "🧊 **PACTO DE NO AGRESIÓN (1T):** Se firmó el empate al descanso. Reloj en contra para el SÍ."
+                                                        estado_btts = "CIERRE LENTO"; color_btts = "#EF4444"; ird = 90.0
+                                                    else:
+                                                        msj_ia = "⚔️ **ASALTO FINAL (1T):** Intentan abrirlo antes del vestuario. Mantén la calma."
+                                                        estado_btts = "PRESIÓN DE CIERRE"; color_btts = "#F59E0B"; ird = 65.0
+                                                else:
+                                                    eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                        if apm_pierde > 0.8:
+                                                            msj_ia = f"🔥 **FRENESÍ DEL FAVORITO:** Asedio infernal antes del descanso. Tu SÍ está a punto de caramelo."
+                                                            estado_btts = "ALERTA DE GOL"; color_btts = "#10B981"; ird = 15.0
+                                                        else:
+                                                            msj_ia = f"🥶 **SHOCK PROLONGADO:** Incapaces de asimilar el gol. Necesitas la charla del entretiempo urgente."
+                                                            estado_btts = "CRISIS DE IDEAS"; color_btts = "#EF4444"; ird = 85.0
+                                                    else:
+                                                        if apm_pierde < 0.4:
+                                                            msj_ia = f"🔒 **CANDADO TÁCTICO:** El dominador resolvió la tarea. El SÍ entra en coma."
+                                                            estado_btts = "DOMINIO TOTAL"; color_btts = "#EF4444"; ird = 95.0
+                                                        else:
+                                                            msj_ia = f"🐾 **ZARPAZO DE AHOGADO:** El perdedor presiona para dañar la fiesta antes del pitazo."
+                                                            estado_btts = "INTENTO FINAL"; color_btts = "#F59E0B"; ird = 55.0
+
+                                            elif minuto_actual <= 60:
+                                                if goles_totales == 0:
+                                                    if apm_total > 1.2:
+                                                        msj_ia = "⚡ **IDA Y VUELTA RECARGADO:** Las charlas funcionaron. El partido se rompió."
+                                                        estado_btts = "REINICIO FRENÉTICO"; color_btts = "#10B981"; ird = 30.0
+                                                    else:
+                                                        msj_ia = "🛡️ **MIEDO A PERDER:** Salieron a cuidarse. El empate a cero parece conformar a ambos. Escenario letal para el SÍ."
+                                                        estado_btts = "ESTANCAMIENTO TÁCTICO"; color_btts = "#EF4444"; ird = 90.0
+                                                else:
+                                                    eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    if (eq_pierde == eq_local and is_super_fav_local) or (eq_pierde == eq_vis and is_super_fav_vis):
+                                                        if apm_pierde > 1.0:
+                                                            msj_ia = f"👑🔥 **LA FURIA DEL REY:** El Súper Favorito salió a demoler el arco ({apm_pierde:.2f} APM). Empate inminente."
+                                                            estado_btts = "ASEDIO INFERNAL"; color_btts = "#10B981"; ird = 10.0
+                                                        else:
+                                                            msj_ia = f"👑🧊 **DECEPCIÓN HISTÓRICA:** El Súper Favorito está bloqueado ({apm_pierde:.2f} APM). Peligro para tu SÍ."
+                                                            estado_btts = "FRACASO TÁCTICO"; color_btts = "#EF4444"; ird = 90.0
+                                                    elif (eq_pierde == eq_local and is_fav_local) or (eq_pierde == eq_vis and is_fav_vis):
+                                                        if apm_pierde > 0.8:
+                                                            msj_ia = f"⚔️ **LA MAQUINARIA A TODA MARCHA:** El Favorito salió furioso del vestuario. Bombardeo total."
+                                                            estado_btts = "PRESIÓN ALTA"; color_btts = "#10B981"; ird = 25.0
+                                                        else:
+                                                            msj_ia = f"🧱 **BLOQUEO TÁCTICO:** El Favorito no encuentra caminos. El tiempo empieza a ser un enemigo mortal."
+                                                            estado_btts = "FRUSTRACIÓN TOTAL"; color_btts = "#EF4444"; ird = 85.0
+                                                    else:
+                                                        if apm_pierde > 0.6:
+                                                            msj_ia = f"💪 **REBELDÍA PURA:** El perdedor no se rinde y busca el empate. SÍ con esperanza."
+                                                            estado_btts = "ESPERANZA VIVA"; color_btts = "#F59E0B"; ird = 50.0
+                                                        else:
+                                                            msj_ia = f"🏳️ **RENDICIÓN TÁCTICA:** No hay argumentos ofensivos. El 1-0 es una roca."
+                                                            estado_btts = "MUERTE LENTA"; color_btts = "#EF4444"; ird = 95.0
+
+                                            elif minuto_actual <= 75:
+                                                if goles_totales == 0:
+                                                    if apm_total > 1.2:
+                                                        msj_ia = "⚖️ **CAOS SIN PUNTERÍA:** Llegan pero no la meten. El reloj ya no perdona al SÍ."
+                                                        estado_btts = "LOTERÍA FINAL"; color_btts = "#F59E0B"; ird = 75.0
+                                                    else:
+                                                        msj_ia = "💀 **ESTANCAMIENTO CRÍTICO:** Partido en un pozo ciego. No hay piernas. SÍ liquidado."
+                                                        estado_btts = "AGOTAMIENTO"; color_btts = "#EF4444"; ird = 95.0
+                                                else:
+                                                    eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                        if apm_pierde > 0.9:
+                                                            msj_ia = f"🔥 **OLLA A PRESIÓN:** Asedio insoportable del Favorito. Tu SÍ está en el horno a punto de salir."
+                                                            estado_btts = "GOL INMINENTE"; color_btts = "#10B981"; ird = 10.0
+                                                        else:
+                                                            msj_ia = f"📉 **COLAPSO MENTAL:** El Favorito se quedó sin oxígeno. El milagro del Débil es real y tu SÍ muere."
+                                                            estado_btts = "COLAPSO"; color_btts = "#EF4444"; ird = 90.0
+                                                    else:
+                                                        if apm_pierde > 0.6:
+                                                            msj_ia = f"🌬️ **ÚLTIMO ALIENTO:** El perdedor quema sus naves. Riesgo de empate."
+                                                            estado_btts = "PRESIÓN FINAL"; color_btts = "#F59E0B"; ird = 60.0
+                                                        else:
+                                                            msj_ia = f"🧊 **CONTROL DE DAÑOS:** El ganador congeló el partido. Tu BTTS huele a pérdida."
+                                                            estado_btts = "PARTIDO CERRADO"; color_btts = "#EF4444"; ird = 95.0
+
+                                            else: # ZONA DE LA MUERTE
+                                                if goles_totales == 0:
+                                                    msj_ia = "💀 **MUERTE POR RELOJ:** Se acabó el tiempo."
+                                                    estado_btts = "TIEMPO AGOTADO"; color_btts = "#EF4444"; ird = 100.0
+                                                else:
+                                                    eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    if apm_pierde > 1.0:
+                                                        msj_ia = "⚔️ **ASEDIO FINAL:** Agonía pura. Tienen al rival en el área. ¡Aguanta, el gol está caliente!"
+                                                        estado_btts = "CAOS OFENSIVO"; color_btts = "#10B981"; ird = 20.0
+                                                    else:
+                                                        msj_ia = "🔴 **MUERTE TÁCTICA:** El rival secuestró la pelota. Salva los centavos en Cashout."
+                                                        estado_btts = "SIN OPCIONES"; color_btts = "#EF4444"; ird = 99.0
+
+                                    else:
+                                        # ====================================================================
+                                        # 🔴 CAMINO EXCLUSIVO: APOSTASTE AL "NO" (BTTS NO)
+                                        # ====================================================================
+                                        if g_local > 0 and g_vis > 0:
+                                            msj_ia = "❌ **SINIESTRO:** Ambos marcaron. Perdiste el NO."
+                                            ird = 100.0; estado_btts = "💀 PERDIDO"; color_btts = "#EF4444"
+                                        else:
+                                            if minuto_actual <= 15:
+                                                if goles_totales == 0:
+                                                    if apm_total < 1.2:
+                                                        msj_ia = "🟢 **PAZ TÁCTICA:** Fase de estudio. Partido controlado, excelente inicio para tu NO."
+                                                        estado_btts = "TENDENCIA SEGURA"; color_btts = "#10B981"; ird = 20.0
+                                                    else:
+                                                        msj_ia = f"🟡 **ASEDIO TEMPRANO:** Ritmo altísimo ({apm_total:.2f} APM). Hay que vigilar de cerca la cuota."
+                                                        estado_btts = "ALERTA LEVE"; color_btts = "#F59E0B"; ird = 60.0
+                                                else:
+                                                    quien_anoto = eq_local if g_local == 1 else eq_vis
+                                                    if (quien_anoto == eq_local and (is_super_fav_local or is_fav_local)) or (quien_anoto == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                        msj_ia = f"🟢 **GOLPE DE AUTORIDAD:** El Favorito pegó temprano y controlará el balón. El NO se fortalece."
+                                                        estado_btts = "CANDADO FAVORITO"; color_btts = "#10B981"; ird = 25.0
+                                                    else:
+                                                        msj_ia = f"🔴 **LA BESTIA HERIDA:** El Débil sorprendió. Espera un bombardeo del Favorito. Peligro extremo para tu NO."
+                                                        estado_btts = "REACCIÓN INMINENTE"; color_btts = "#EF4444"; ird = 85.0
+
+                                            elif minuto_actual <= 30:
+                                                if goles_totales == 0:
+                                                    if apm_total < 0.8:
+                                                        msj_ia = "🟢 **TENDENCIA SANA:** Partido trabado y mucha fricción. El NO respira profundo."
+                                                        estado_btts = "CONTROL ABSOLUTO"; color_btts = "#10B981"; ird = 20.0
+                                                    else:
+                                                        msj_ia = "🟡 **ALERTA DE FUEGO:** El partido se abrió. Pisan el área. Vigila la cuota de salida."
+                                                        estado_btts = "RIESGO DE GOL"; color_btts = "#F59E0B"; ird = 70.0
+                                                else:
+                                                    eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    apm_gana = apm_local if g_local == 1 else apm_vis
+                                                    
+                                                    if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                        if apm_pierde > 0.6:
+                                                            msj_ia = f"🔴 **LA MAQUINARIA ENCENDIDA:** El Favorito asedia ({apm_pierde:.2f} APM) buscando el empate. Huye ahora."
+                                                            estado_btts = "ASEDIO DEL FAVORITO"; color_btts = "#EF4444"; ird = 90.0
+                                                        else:
+                                                            msj_ia = f"🟡 **FAVORITO ANESTESIADO:** El Débil pegó y anuló al Favorito. Tu NO resiste la sorpresa."
+                                                            estado_btts = "BLOQUEO TÁCTICO"; color_btts = "#F59E0B"; ird = 35.0
+                                                    else:
+                                                        if apm_gana > apm_pierde and apm_gana > 0.6:
+                                                            msj_ia = f"🟢 **MONÓLOGO TÁCTICO:** El que gana domina a placer. El NO se solidifica cada minuto."
+                                                            estado_btts = "MUERTE OFENSIVA"; color_btts = "#10B981"; ird = 15.0
+                                                        else:
+                                                            msj_ia = f"🟡 **ORGULLO DEL DÉBIL:** El perdedor responde y busca el empate. Cuidado con el rebote."
+                                                            estado_btts = "REACCIÓN ACTIVA"; color_btts = "#F59E0B"; ird = 50.0
+
+                                            elif minuto_actual <= 45:
+                                                if goles_totales == 0:
+                                                    if apm_total < 0.8:
+                                                        msj_ia = "🟢 **CONTROL ABSOLUTO (1T):** Pacto de no agresión al descanso. Cero asegurado en la primera mitad."
+                                                        estado_btts = "CIERRE SEGURO"; color_btts = "#10B981"; ird = 15.0
+                                                    else:
+                                                        msj_ia = "🟡 **ASALTO FINAL (1T):** Intentan abrirlo antes del vestuario. Mantente alerta."
+                                                        estado_btts = "PRESIÓN DE CIERRE"; color_btts = "#F59E0B"; ird = 65.0
+                                                else:
+                                                    eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                        if apm_pierde > 0.8:
+                                                            msj_ia = f"🔴 **FRENESÍ DEL FAVORITO:** Asedio infernal antes del descanso. Pánico para tu NO."
+                                                            estado_btts = "ALERTA MÁXIMA DE GOL"; color_btts = "#EF4444"; ird = 95.0
+                                                        else:
+                                                            msj_ia = f"🟡 **SHOCK PROLONGADO:** Incapaces de asimilar el gol. El NO sobrevive al primer tiempo."
+                                                            estado_btts = "CRISIS DE IDEAS"; color_btts = "#F59E0B"; ird = 35.0
+                                                    else:
+                                                        if apm_pierde < 0.4:
+                                                            msj_ia = f"🟢 **CANDADO TÁCTICO:** El dominador resolvió la tarea. Excelente panorama para el NO."
+                                                            estado_btts = "DOMINIO TOTAL"; color_btts = "#10B981"; ird = 10.0
+                                                        else:
+                                                            msj_ia = f"🟡 **ZARPAZO DE AHOGADO:** El perdedor presiona. Ligera alerta antes del pitazo."
+                                                            estado_btts = "INTENTO FINAL"; color_btts = "#F59E0B"; ird = 55.0
+
+                                            elif minuto_actual <= 60:
+                                                if goles_totales == 0:
+                                                    if apm_total > 1.2:
+                                                        msj_ia = "🔴 **IDA Y VUELTA RECARGADO:** El partido se rompió en el 2T. Alto riesgo para el NO."
+                                                        estado_btts = "REINICIO FRENÉTICO"; color_btts = "#EF4444"; ird = 80.0
+                                                    else:
+                                                        msj_ia = "🟢 **MIEDO A PERDER:** Salieron a cuidarse. Escenario ideal para que el NO madure."
+                                                        estado_btts = "ESTANCAMIENTO TÁCTICO"; color_btts = "#10B981"; ird = 15.0
+                                                else:
+                                                    eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    if (eq_pierde == eq_local and is_super_fav_local) or (eq_pierde == eq_vis and is_super_fav_vis):
+                                                        if apm_pierde > 1.0:
+                                                            msj_ia = f"🔴👑 **LA FURIA DEL REY:** Asedio infernal. El empate caerá. ¡Huye ahora mismo!"
+                                                            estado_btts = "EVACUACIÓN"; color_btts = "#EF4444"; ird = 95.0
+                                                        else:
+                                                            msj_ia = f"🟢👑 **DECEPCIÓN HISTÓRICA:** El Súper Favorito bloqueado. El NO sobrevive milagrosamente."
+                                                            estado_btts = "FRACASO TÁCTICO"; color_btts = "#10B981"; ird = 25.0
+                                                    elif (eq_pierde == eq_local and is_fav_local) or (eq_pierde == eq_vis and is_fav_vis):
+                                                        if apm_pierde > 0.8:
+                                                            msj_ia = f"🔴 **LA MAQUINARIA A TODA MARCHA:** Bombardeo total. Ten el botón de salida listo."
+                                                            estado_btts = "PRESIÓN ALTA"; color_btts = "#EF4444"; ird = 85.0
+                                                        else:
+                                                            msj_ia = f"🟡 **FRUSTRACIÓN TOTAL:** El Favorito no encuentra caminos. Tu NO aguanta bien."
+                                                            estado_btts = "RESISTENCIA"; color_btts = "#F59E0B"; ird = 40.0
+                                                    else:
+                                                        if apm_pierde > 0.6:
+                                                            msj_ia = f"🟡 **REBELDÍA PURA:** El perdedor no se rinde y busca el empate. Precaución."
+                                                            estado_btts = "ESPERANZA VIVA"; color_btts = "#F59E0B"; ird = 50.0
+                                                        else:
+                                                            msj_ia = f"🟢 **RENDICIÓN TÁCTICA:** No hay argumentos ofensivos. El 1-0 es una roca blindada."
+                                                            estado_btts = "PAZ TÁCTICA"; color_btts = "#10B981"; ird = 10.0
+
+                                            elif minuto_actual <= 75:
+                                                if goles_totales == 0:
+                                                    if apm_total > 1.2:
+                                                        msj_ia = "🟡 **CAOS SIN PUNTERÍA:** Llegan pero no la meten. Alerta amarilla por un gol de rebote."
+                                                        estado_btts = "LOTERÍA FINAL"; color_btts = "#F59E0B"; ird = 75.0
+                                                    else:
+                                                        msj_ia = "🟢 **ESTANCAMIENTO CRÍTICO:** Partido en un pozo ciego. El NO está ganando la partida."
+                                                        estado_btts = "AGOTAMIENTO"; color_btts = "#10B981"; ird = 10.0
+                                                else:
+                                                    eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    if (eq_pierde == eq_local and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis and (is_super_fav_vis or is_fav_vis)):
+                                                        if apm_pierde > 0.9:
+                                                            msj_ia = f"🔴 **OLLA A PRESIÓN:** Asedio insoportable. El empate es cuestión de física. ¡Evacúa YA!"
+                                                            estado_btts = "PELIGRO CRÍTICO"; color_btts = "#EF4444"; ird = 98.0
+                                                        else:
+                                                            msj_ia = f"🟢 **COLAPSO MENTAL:** El Favorito se quedó sin ideas. El milagro es real, tu NO factura."
+                                                            estado_btts = "MILAGRO EN CURSO"; color_btts = "#10B981"; ird = 20.0
+                                                    else:
+                                                        if apm_pierde > 0.6:
+                                                            msj_ia = f"🟡 **ÚLTIMO ALIENTO:** El perdedor quema sus naves. Riesgo de error."
+                                                            estado_btts = "PRESIÓN FINAL"; color_btts = "#F59E0B"; ird = 60.0
+                                                        else:
+                                                            msj_ia = f"🟢 **CONTROL DE DAÑOS:** El ganador congeló el partido. El NO respira ultra tranquilo."
+                                                            estado_btts = "PARTIDO CERRADO"; color_btts = "#10B981"; ird = 10.0
+
+                                            else: # ZONA DE LA MUERTE
+                                                if goles_totales == 0:
+                                                    msj_ia = "🎉 **BLINDAJE DE ACERO:** Solo un milagro arruina esto. Disfruta tu verde."
+                                                    estado_btts = "VICTORIA CASI SEGURA"; color_btts = "#10B981"; ird = 5.0
+                                                else:
+                                                    eq_pierde = eq_local if g_local == 0 else eq_vis
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    if apm_pierde > 1.0:
+                                                        msj_ia = "🚨 **EVACUACIÓN URGENTE:** El asedio te va a quemar. Sal de ahí YA usando la cobertura."
+                                                        estado_btts = "ALERTA ROJA EXTREMA"; color_btts = "#EF4444"; ird = 99.0
+                                                    else:
+                                                        msj_ia = "🟢 **CERROJO ABSOLUTO:** El herido no tiene piernas. Asegura la utilidad."
+                                                        estado_btts = "PAZ TOTAL"; color_btts = "#10B981"; ird = 10.0
 
                                     # PANEL GIGANTE BTTS
                                     st.markdown(f"""
