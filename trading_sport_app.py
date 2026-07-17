@@ -1824,7 +1824,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 # A. CEREBRO FÍSICO (IA)
                                 try:
-                                    X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird}])
+                                    X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird, 'cuota_base_audit': float(op.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(op.get('cuota_amenaza_audit', 2.0))}])
                                     m1x2_liq = joblib.load('modelo_1x2.pkl')
                                     pred_1x2 = m1x2_liq.predict(X_liq)[0]
                                     dom_vivo = "Local" if pred_1x2 == 2 else ("Visita" if pred_1x2 == 3 else "Empate/Asedio Dividido")
@@ -1974,7 +1974,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 # A. CEREBRO FÍSICO (IA)
                                 try:
-                                    X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird}])
+                                    X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird, 'cuota_base_audit': float(op.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(op.get('cuota_amenaza_audit', 2.0))}])
                                     m1x2_liq = joblib.load('modelo_1x2.pkl')
                                     pred_1x2 = m1x2_liq.predict(X_liq)[0]
                                     dom_vivo = "Local" if pred_1x2 == 2 else ("Visita" if pred_1x2 == 3 else "Empate/Asedio Dividido")
@@ -2776,7 +2776,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     
                                     # A. CEREBRO FÍSICO (IA)
                                     try:
-                                        X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird}])
+                                        X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird, 'cuota_base_audit': float(op.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(op.get('cuota_amenaza_audit', 2.0))}])
                                         m1x2_liq = joblib.load('modelo_1x2.pkl')
                                         pred_1x2 = m1x2_liq.predict(X_liq)[0]
                                         dom_vivo = "Local" if pred_1x2 == 2 else ("Visita" if pred_1x2 == 3 else "Empate/Asedio Dividido")
@@ -3815,7 +3815,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 
                                 X_rad = pd.DataFrame([{
                                     'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad,
-                                    'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad
+                                    'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad,
+                                    'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 
+                                    'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))
                                 }])
                                 
                                 pred_1x2_rad = m1x2_rad.predict(X_rad)[0]
@@ -4142,7 +4144,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         apm_rad = (al_rad + av_rad) / max(1, m_rad)
                                         ird_rad = min(100.0, apm_rad * 45.0)
                                         
-                                        X_rad = pd.DataFrame([{'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad}])
+                                        X_rad = pd.DataFrame([{'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))}])
                                         
                                         pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
                                         pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
@@ -4274,7 +4276,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         
                         X_input = pd.DataFrame([{
                             'minuto_evaluado': minuto_sim, 'goles_local': g_loc_sim, 'goles_vis': g_vis_sim,
-                            'atkp_local': atq_loc_sim, 'atkp_vis': atq_vis_sim, 'ird_calculado': ird_sim
+                            'atkp_local': atq_loc_sim, 'atkp_vis': atq_vis_sim, 'ird_calculado': ird_sim,
+                            'cuota_base_audit': 2.0, 
+                            'cuota_amenaza_audit': 2.0
                         }])
                         
                         pred_1x2_v = modelo_1x2_v.predict(X_input)[0]
