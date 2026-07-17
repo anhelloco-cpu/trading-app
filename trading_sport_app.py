@@ -3802,14 +3802,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 else:
                                     st.warning("⚠️ Ajusta la cuota del Débil, no permite cobertura matemática.")
 # Las cajitas conectadas a la memoria (st.session_state) CON NOMBRES REALES
-                        cr1, cr2, cr3 = st.columns(3)
-                        m_rad = cr1.number_input("⏱️ Minuto:", min_value=1, max_value=120, key=f"mr_{pr['codigo']}", value=st.session_state.get(f"mr_{pr['codigo']}", 60))
-                        gl_rad = cr2.number_input(f"⚽ Goles {eq_loc_ui}:", min_value=0, key=f"glr_{pr['codigo']}", value=st.session_state.get(f"glr_{pr['codigo']}", 0))
-                        gv_rad = cr3.number_input(f"⚽ Goles {eq_vis_ui}:", min_value=0, key=f"gvr_{pr['codigo']}", value=st.session_state.get(f"gvr_{pr['codigo']}", 0))
                         
-                        cr4, cr5 = st.columns(2)
-                        al_rad = cr4.number_input(f"🔥 Atq. {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
-                        av_rad = cr5.number_input(f"🔥 Atq. {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
                         
                         if st.button("🧠 Validar con Oráculo Táctico", key=f"btn_ev_{pr['codigo']}", use_container_width=True):
                             try:
