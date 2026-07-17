@@ -3751,7 +3751,13 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
                         with tab_anti_empate:
                             st.markdown("""
-                            <div style='background-color: #F8FAFC; border-left: 4px solid #8B5CF6; padding: 10px; border-radius: 4px; margin-bottom: 15px;'>                        
+                            <div style='background-color: #F8FAFC; border-left: 4px solid #8B5CF6; padding: 10px; border-radius: 4px; margin-bottom: 15px;'>
+                                <h4 style='margin:0; color: #4C1D95;'>Estrategia Asimetrica (Riesgo al Empate)</h4>
+                                <p style='margin:0; font-size:0.85rem; color: #64748B;'>Ideal para usar en Vivo (Min > 45) cuando el Super Favorito asedia (APM > 1.0) y el marcador va 0-0.</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            c_ae1, c_ae2, c_ae3 = st.columns(3)                        
                         # ------------------------------------------------------------------
                         # 🎛️ PANEL DE EVALUACIÓN MULTI-ESTRATEGIA
                         # ------------------------------------------------------------------
