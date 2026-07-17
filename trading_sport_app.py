@@ -3353,15 +3353,29 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 except Exception as e:
                                     st.error(f"Error sincronizando: {e}")
 
-                        # Las cajitas conectadas a la memoria (st.session_state)
+                        # ------------------------------------------------------------------
+                        # 🏷️ EXTRACCIÓN DE NOMBRES PARA LAS CAJITAS DE TEXTO
+                        # ------------------------------------------------------------------
+                        partido_str_ui = str(pr.get('partido', ''))
+                        solo_partido_ui = partido_str_ui.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str_ui else partido_str_ui
+                        txt_norm_ui = solo_partido_ui.lower().replace("vs.", "vs").replace("-", "vs")
+                        
+                        if "vs" in txt_norm_ui:
+                            eq_loc_ui = txt_norm_ui.split("vs")[0].strip().title()
+                            eq_vis_ui = txt_norm_ui.split("vs")[1].strip().title()
+                        else:
+                            eq_loc_ui = "Local"
+                            eq_vis_ui = "Visita"
+
+                        # Las cajitas conectadas a la memoria (st.session_state) CON NOMBRES REALES
                         cr1, cr2, cr3 = st.columns(3)
                         m_rad = cr1.number_input("⏱️ Minuto:", min_value=1, max_value=120, key=f"mr_{pr['codigo']}", value=st.session_state.get(f"mr_{pr['codigo']}", 60))
-                        gl_rad = cr2.number_input("⚽ Goles Loc:", min_value=0, key=f"glr_{pr['codigo']}", value=st.session_state.get(f"glr_{pr['codigo']}", 0))
-                        gv_rad = cr3.number_input("⚽ Goles Vis:", min_value=0, key=f"gvr_{pr['codigo']}", value=st.session_state.get(f"gvr_{pr['codigo']}", 0))
+                        gl_rad = cr2.number_input(f"⚽ Goles {eq_loc_ui}:", min_value=0, key=f"glr_{pr['codigo']}", value=st.session_state.get(f"glr_{pr['codigo']}", 0))
+                        gv_rad = cr3.number_input(f"⚽ Goles {eq_vis_ui}:", min_value=0, key=f"gvr_{pr['codigo']}", value=st.session_state.get(f"gvr_{pr['codigo']}", 0))
                         
                         cr4, cr5 = st.columns(2)
-                        al_rad = cr4.number_input("🔥 Atq. Pel. Local:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
-                        av_rad = cr5.number_input("🔥 Atq. Pel. Visita:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
+                        al_rad = cr4.number_input(f"🔥 Atq. {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
+                        av_rad = cr5.number_input(f"🔥 Atq. {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
                         
                         if st.button("🧠 Validar con Oráculo Táctico", key=f"btn_ev_{pr['codigo']}", use_container_width=True):
                             try:
