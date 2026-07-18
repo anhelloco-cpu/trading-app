@@ -4423,18 +4423,18 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         
 
 # ------------------------------------------------------------------
-                                # 🛡️ FILTRO DE SENTIDO COMÚN: SINCRONIZAR PLATA CON FÍSICA
-                                # ------------------------------------------------------------------
-                                # Si un equipo está asfixiado (< 0.4 APM) y no ha marcado, 
-                                # es suicida apostar al SÍ, castigamos la probabilidad de la IA un 80%
-                                if (apm_local_dinamico < 0.4 and gl_rad == 0) or (apm_vis_dinamico < 0.4 and gv_rad == 0):
-                                    prob_si = prob_si * 0.20
-                                    prob_no = 1.0 - prob_si
-                                
-                                # Si ambos equipos son aplanadoras (> 1.0 APM), el SÍ es casi seguro
-                                elif apm_local_dinamico >= 1.0 and apm_vis_dinamico >= 1.0:
-                                    prob_si = min(0.95, prob_si * 1.50)
-                                    prob_no = 1.0 - prob_si
+                        # 🛡️ FILTRO DE SENTIDO COMÚN: SINCRONIZAR PLATA CON FÍSICA
+                        # ------------------------------------------------------------------
+                        # Si un equipo está asfixiado (< 0.4 APM) y no ha marcado, 
+                        # es suicida apostar al SÍ, castigamos la probabilidad de la IA un 80%
+                        if (apm_local_dinamico < 0.4 and gl_rad == 0) or (apm_vis_dinamico < 0.4 and gv_rad == 0):
+                            prob_si = prob_si * 0.20
+                            prob_no = 1.0 - prob_si
+                        
+                        # Si ambos equipos son aplanadoras (> 1.0 APM), el SÍ es casi seguro
+                        elif apm_local_dinamico >= 1.0 and apm_vis_dinamico >= 1.0:
+                            prob_si = min(0.95, prob_si * 1.50)
+                            prob_no = 1.0 - prob_si
 
                         ganador_str = "Empate" if pred_1x2_v == 1 else "Equipo Local" if pred_1x2_v == 2 else "Equipo Visitante"
                         btts_str = "SÍ" if pred_btts_v == 1 else "NO"
