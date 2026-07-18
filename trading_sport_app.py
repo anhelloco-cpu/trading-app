@@ -3804,6 +3804,33 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             al_rad = cr4.number_input(f"🔥 Atq. {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
                             av_rad = cr5.number_input(f"🔥 Atq. {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
 
+                            # ==========================================================
+                            # ✨ NUEVO BOTÓN: GUARDAR FOTO MANUAL (PRE-DISPARO)
+                            # ==========================================================
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            if st.button("💾 Guardar Foto en Bitácora (Para Momentum)", key=f"btn_save_rad_{pr['codigo']}", use_container_width=True):
+                                if supabase is not None:
+                                    try:
+                                        # Guardamos también la cuota si la ingresó abajo, para nutrir nuestro simulador a futuro
+                                        cuota_act = st.session_state.get(f"c_ent_{pr['codigo']}", float(pr['cuota_inicial']))
+                                        
+                                        nueva_foto = {
+                                            "codigo_posicion": pr['codigo'],
+                                            "minuto_evaluado": m_rad,
+                                            "goles_local": gl_rad,
+                                            "goles_vis": gv_rad,
+                                            "atkp_local": al_rad,
+                                            "atkp_vis": av_rad,
+                                            "cuota_ofrecida": float(cuota_act)
+                                        }
+                                        
+                                        supabase.table("registro_fotos").insert(nueva_foto).execute()
+                                        st.success(f"✅ ¡Foto del minuto {m_rad} guardada! Ya hay un punto de anclaje para medir la velocidad de este partido.")
+                                    except Exception as e:
+                                        st.error(f"❌ Error al guardar en Supabase: {e}")
+                                else:
+                                    st.error("Supabase no conectado.")
+
                         with tab_anti_empate:
                             st.markdown("""
                             <div style='background-color: #F8FAFC; border-left: 4px solid #8B5CF6; padding: 10px; border-radius: 4px; margin-bottom: 15px;'>
