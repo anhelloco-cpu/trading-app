@@ -3980,22 +3980,25 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             key=f"perfil_{pr['codigo']}"
                         )
                         
-                        # Asignación de variables dinámicas y MARGEN DE SEGURIDAD FINANCIERO
+                        # Asignación de variables dinámicas, MARGEN FINANCIERO y BARRERA DE TIEMPO
                         if "CONSERVADOR" in perfil_riesgo:
                             umbral_asfixia = 0.8
                             mult_castigo = 0.10
                             umbral_gigante = 0.9
                             ventaja_min_exigida = 0.50  # 👈 Exige un error garrafal de la casa
+                            minuto_limite_si = 70       # ⏳ Límite para buscar goles
                         elif "MODERADO" in perfil_riesgo:
                             umbral_asfixia = 0.6
                             mult_castigo = 0.20
                             umbral_gigante = 0.7
                             ventaja_min_exigida = 0.20  # 👈 Exige una ventaja clara
+                            minuto_limite_si = 78       # ⏳ Límite para buscar goles
                         else: # AGRESIVO
                             umbral_asfixia = 0.4
                             mult_castigo = 0.50
                             umbral_gigante = 0.5
                             ventaja_min_exigida = 0.0   # 👈 Entra con cualquier margen positivo
+                            minuto_limite_si = 85       # ⏳ Límite para buscar goles (Kamikaze)
 
                         # ==================================================================
                         # 🧠 BOTÓN DEL ORÁCULO TÁCTICO (EL NÚCLEO)
@@ -4101,12 +4104,16 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         prob_mercado = prob_si
                                         cuota_justa = cuota_justa_si
                                         
-                                        if ventaja >= ventaja_min_exigida:
+                                        # NUEVO CANDADO DE RELOJ APLICADO AQUÍ
+                                        if m_rad >= minuto_limite_si:
+                                            alerta_accion = f"⏳ **BLOQUEO POR RELOJ (LOTERÍA)**"
+                                            texto_accion = f"Tu Perfil {perfil_riesgo.split(' ')[1]} prohíbe apostar a goles después del minuto {minuto_limite_si}. No entres a ruletas de última hora."
+                                            bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
+                                        elif ventaja >= ventaja_min_exigida:
                                             alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
                                             texto_accion = f"El mercado es tuyo. La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_ent_rad:.2f}**. Entra ya."
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
                                         elif ventaja >= 0:
-                                            # La matemática es ligeramente positiva, pero no alcanza el umbral de tu Perfil de Riesgo
                                             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
                                             texto_accion = f"Hay valor matemático (Justa: **{cuota_justa:.2f}**), pero tu Perfil {perfil_riesgo.split(' ')[1]} exige una ganancia superior para compensar el riesgo. Mantente al margen."
                                             bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
