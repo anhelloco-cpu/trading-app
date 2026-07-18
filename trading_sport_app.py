@@ -3804,8 +3804,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             al_rad = cr4.number_input(f"🔥 Atq. {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
                             av_rad = cr5.number_input(f"🔥 Atq. {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
 
-                            
-
                         with tab_anti_empate:
                             st.markdown("""
                             <div style='background-color: #F8FAFC; border-left: 4px solid #8B5CF6; padding: 10px; border-radius: 4px; margin-bottom: 15px;'>
@@ -3919,14 +3917,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         with col_ent3:
                             valor_base_stake = max(5000, int(pr.get('stake_1', 5000)))
                             stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=valor_base_stake, step=5000, key=f"stk_ent_{pr['codigo']}")
-# ==================================================================
+                            
+                        # ==================================================================
                         # 📸 BOTÓN DE BITÁCORA (CAPTURAR MOMENTUM + CUOTAS SI/NO)
                         # ==================================================================
                         st.markdown("<br>", unsafe_allow_html=True)
                         if st.button("📸 Tomar Foto Táctica y Financiera", key=f"btn_foto_live_{pr['codigo']}", use_container_width=True):
                             if supabase is not None:
                                 try:
-                                    # Lógica para detectar qué cuota es el SÍ y cuál es el NO en pantalla
                                     if seleccion_final_rad == "Sí":
                                         val_cuota_si = float(cuota_ent_rad)
                                         val_cuota_no = float(cuota_amenaza_rad)
@@ -3934,7 +3932,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         val_cuota_si = float(cuota_amenaza_rad)
                                         val_cuota_no = float(cuota_ent_rad)
                                     else:
-                                        # Si el mercado no es de Ambos Anotan, las manda en cero por seguridad
                                         val_cuota_si = 0.0
                                         val_cuota_no = 0.0
 
@@ -3955,6 +3952,33 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     st.error(f"❌ Error guardando foto en la base de datos: {e}")
                             else:
                                 st.error("Supabase no está conectado.")
+
+                        # ==================================================================
+                        # 🎛️ SELECTOR DE PERFIL DE RIESGO
+                        # ==================================================================
+                        st.markdown("---")
+                        st.markdown("#### 🎛️ Perfil de Riesgo Operativo")
+                        perfil_riesgo = st.selectbox(
+                            "Selecciona la rigidez de los candados matemáticos:",
+                            ["🛡️ CONSERVADOR (Modo Francotirador)", "⚖️ MODERADO (Modo Táctico)", "🔥 AGRESIVO (Modo Kamikaze)"],
+                            index=1,
+                            key=f"perfil_{pr['codigo']}"
+                        )
+                        
+                        # Asignación de variables dinámicas según perfil
+                        if "CONSERVADOR" in perfil_riesgo:
+                            umbral_asfixia = 0.8
+                            mult_castigo = 0.10
+                            umbral_gigante = 0.9
+                        elif "MODERADO" in perfil_riesgo:
+                            umbral_asfixia = 0.6
+                            mult_castigo = 0.20
+                            umbral_gigante = 0.7
+                        else: # AGRESIVO
+                            umbral_asfixia = 0.4
+                            mult_castigo = 0.50
+                            umbral_gigante = 0.5
+
                         # ==================================================================
                         # 🧠 BOTÓN DEL ORÁCULO TÁCTICO (EL NÚCLEO)
                         # ==================================================================
@@ -4017,10 +4041,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 # ------------------------------------------------------------------
                                 # 🛡️ FILTRO DE SENTIDO COMÚN: SINCRONIZAR PLATA CON FÍSICA
                                 # ------------------------------------------------------------------
-                                # Si un equipo está asfixiado (< 0.4 APM) y no ha marcado, 
-                                # es suicida apostar al SÍ, castigamos la probabilidad de la IA un 80%
-                                if (apm_local_dinamico < 0.4 and gl_rad == 0) or (apm_vis_dinamico < 0.4 and gv_rad == 0):
-                                    prob_si = prob_si * 0.20
+                                # Si un equipo está asfixiado según tu Perfil de Riesgo y no ha marcado
+                                if (apm_local_dinamico < umbral_asfixia and gl_rad == 0) or (apm_vis_dinamico < umbral_asfixia and gv_rad == 0):
+                                    prob_si = prob_si * mult_castigo
                                     prob_no = 1.0 - prob_si
                                 
                                 # Si ambos equipos son aplanadoras (> 1.0 APM), el SÍ es casi seguro
@@ -4110,28 +4133,28 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 fav_es_visita = "Visita" in jerarquia
                                 
                                 if tiene_momentum:
-                                    # ESCENARIO 1: EL GIGANTE HERIDO (Basado en Momentum)
-                                    if (fav_es_local and gv_rad == 1 and gl_rad == 0 and apm_local_dinamico >= 0.8) or \
-                                       (fav_es_visita and gl_rad == 1 and gv_rad == 0 and apm_vis_dinamico >= 0.8):
+                                    # ESCENARIO 1: EL GIGANTE HERIDO (Basado en Momentum y Perfil de Riesgo)
+                                    if (fav_es_local and gv_rad == 1 and gl_rad == 0 and apm_local_dinamico >= umbral_gigante) or \
+                                       (fav_es_visita and gl_rad == 1 and gv_rad == 0 and apm_vis_dinamico >= umbral_gigante):
                                         equipo_atacando = eq_loc_ui if fav_es_local else eq_vis_ui
                                         alerta_señal = f"""
                                         <div style="background-color: #F0FDF4; border-left: 6px solid #16A34A; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
                                             <h4 style="margin-top:0; color:#15803D;">🔥 SEÑAL TÁCTICA: EL GIGANTE HERIDO</h4>
                                             <p style="margin:0; font-size: 0.95rem; color:#14532D;">
-                                            El débil anotó, pero el Favorito ({equipo_atacando}) acaba de meter el acelerador ({max(apm_local_dinamico, apm_vis_dinamico):.2f} APM). Altísima probabilidad de empate inminente.
+                                            El débil anotó, pero el Favorito ({equipo_atacando}) cruzó tu umbral táctico con ({max(apm_local_dinamico, apm_vis_dinamico):.2f} APM recientes). Altísima probabilidad de empate inminente.
                                             </p>
                                         </div>
                                         """
                                         
-                                    # ESCENARIO 2: ASFIXIA TOTAL (Basado en Momentum)
-                                    elif (fav_es_local and gl_rad == 1 and gv_rad == 0 and apm_local_dinamico >= 0.8 and apm_vis_dinamico <= 0.4) or \
-                                         (fav_es_visita and gv_rad == 1 and gl_rad == 0 and apm_vis_dinamico >= 0.8 and apm_local_dinamico <= 0.4):
+                                    # ESCENARIO 2: ASFIXIA TOTAL (Basado en Momentum y Perfil de Riesgo)
+                                    elif (fav_es_local and gl_rad == 1 and gv_rad == 0 and apm_local_dinamico >= umbral_gigante and apm_vis_dinamico <= umbral_asfixia) or \
+                                         (fav_es_visita and gv_rad == 1 and gl_rad == 0 and apm_vis_dinamico >= umbral_gigante and apm_local_dinamico <= umbral_asfixia):
                                         equipo_asfixiado = eq_vis_ui if fav_es_local else eq_loc_ui
                                         alerta_señal = f"""
                                         <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
                                             <h4 style="margin-top:0; color:#991B1B;">🛡️ SEÑAL TÁCTICA: ASFIXIA TOTAL</h4>
                                             <p style="margin:0; font-size: 0.95rem; color:#7F1D1D;">
-                                            El Favorito anotó y no quita el pie del acelerador. El equipo {equipo_asfixiado} está anulado en este tramo ({min(apm_local_dinamico, apm_vis_dinamico):.2f} APM). Excelente escenario para el NO.
+                                            El Favorito anotó y no quita el pie del acelerador. El equipo {equipo_asfixiado} está completamente anulado para tu Perfil ({min(apm_local_dinamico, apm_vis_dinamico):.2f} APM). Escenario letal para el SÍ.
                                             </p>
                                         </div>
                                         """
