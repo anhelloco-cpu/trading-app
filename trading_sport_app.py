@@ -3804,32 +3804,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             al_rad = cr4.number_input(f"🔥 Atq. {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
                             av_rad = cr5.number_input(f"🔥 Atq. {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
 
-                            # ==========================================================
-                            # ✨ NUEVO BOTÓN: GUARDAR FOTO MANUAL (PRE-DISPARO)
-                            # ==========================================================
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            if st.button("💾 Guardar Foto en Bitácora (Para Momentum)", key=f"btn_save_rad_{pr['codigo']}", use_container_width=True):
-                                if supabase is not None:
-                                    try:
-                                        # Guardamos también la cuota si la ingresó abajo, para nutrir nuestro simulador a futuro
-                                        cuota_act = st.session_state.get(f"c_ent_{pr['codigo']}", float(pr['cuota_inicial']))
-                                        
-                                        nueva_foto = {
-                                            "codigo_posicion": pr['codigo'],
-                                            "minuto_evaluado": m_rad,
-                                            "goles_local": gl_rad,
-                                            "goles_vis": gv_rad,
-                                            "atkp_local": al_rad,
-                                            "atkp_vis": av_rad,
-                                            "cuota_ofrecida": float(cuota_act)
-                                        }
-                                        
-                                        supabase.table("registro_fotos").insert(nueva_foto).execute()
-                                        st.success(f"✅ ¡Foto del minuto {m_rad} guardada! Ya hay un punto de anclaje para medir la velocidad de este partido.")
-                                    except Exception as e:
-                                        st.error(f"❌ Error al guardar en Supabase: {e}")
-                                else:
-                                    st.error("Supabase no conectado.")
+                            
 
                         with tab_anti_empate:
                             st.markdown("""
@@ -3944,7 +3919,42 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         with col_ent3:
                             valor_base_stake = max(5000, int(pr.get('stake_1', 5000)))
                             stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=valor_base_stake, step=5000, key=f"stk_ent_{pr['codigo']}")
+# ==================================================================
+                        # 📸 BOTÓN DE BITÁCORA (CAPTURAR MOMENTUM + CUOTAS SI/NO)
+                        # ==================================================================
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if st.button("📸 Tomar Foto Táctica y Financiera", key=f"btn_foto_live_{pr['codigo']}", use_container_width=True):
+                            if supabase is not None:
+                                try:
+                                    # Lógica para detectar qué cuota es el SÍ y cuál es el NO en pantalla
+                                    if seleccion_final_rad == "Sí":
+                                        val_cuota_si = float(cuota_ent_rad)
+                                        val_cuota_no = float(cuota_amenaza_rad)
+                                    elif seleccion_final_rad == "No":
+                                        val_cuota_si = float(cuota_amenaza_rad)
+                                        val_cuota_no = float(cuota_ent_rad)
+                                    else:
+                                        # Si el mercado no es de Ambos Anotan, las manda en cero por seguridad
+                                        val_cuota_si = 0.0
+                                        val_cuota_no = 0.0
 
+                                    nueva_foto = {
+                                        "codigo_posicion": pr['codigo'],
+                                        "minuto_evaluado": m_rad,
+                                        "goles_local": gl_rad,
+                                        "goles_vis": gv_rad,
+                                        "atkp_local": al_rad,
+                                        "atkp_vis": av_rad,
+                                        "cuota_si": val_cuota_si,
+                                        "cuota_no": val_cuota_no
+                                    }
+                                    
+                                    supabase.table("registro_fotos").insert(nueva_foto).execute()
+                                    st.success(f"✅ ¡Foto del min {m_rad} anclada con éxito! (SÍ: {val_cuota_si:.2f} | NO: {val_cuota_no:.2f})")
+                                except Exception as e:
+                                    st.error(f"❌ Error guardando foto en la base de datos: {e}")
+                            else:
+                                st.error("Supabase no está conectado.")
                         # ==================================================================
                         # 🧠 BOTÓN DEL ORÁCULO TÁCTICO (EL NÚCLEO)
                         # ==================================================================
