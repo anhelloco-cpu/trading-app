@@ -1416,6 +1416,17 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         apm_vis_dinamico = max(0.0, (atkp_vis - atk_v_ant) / delta_min)
                                         texto_momentum = f"Últimos {delta_min} min"
 
+                                # 🔥 AQUÍ ESTÁN LAS DOS LÍNEAS QUE FALTABAN 🔥
+                                apm_local = apm_local_dinamico 
+                                apm_vis = apm_vis_dinamico     
+
+                                apm_total = apm_local + apm_vis
+                                tiempo_restante = max(0, 90 - minuto_actual)
+                                goles_totales = g_local + g_vis
+                                
+                                # El IRD siempre se calcula con el total crudo desde inicio para la IA
+                                ird = min(100.0, ((atkp_local + atkp_vis) / max(1, minuto_actual)) * 45.0)
+
                                 apm_total = apm_local_dinamico + apm_vis_dinamico
                                 tiempo_restante = max(0, 90 - minuto_actual)
                                 goles_totales = g_local + g_vis
