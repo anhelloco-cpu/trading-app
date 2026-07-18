@@ -3907,17 +3907,32 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             </div>
                             """, unsafe_allow_html=True)
 
+                        # ------------------------------------------------------------------
+                        # 🧲 MEMORIA PARA QUE LAS CUOTAS NO SE BORREN AL EVALUAR
+                        # ------------------------------------------------------------------
+                        c_ent_key = f"c_ent_{pr['codigo']}"
+                        if c_ent_key not in st.session_state:
+                            st.session_state[c_ent_key] = float(pr.get('cuota_inicial', 2.0))
+
+                        c_am_key = f"c_am_{pr['codigo']}"
+                        if c_am_key not in st.session_state:
+                            val_am = float(pr.get('cuota_amenaza_audit') or 1.90)
+                            st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
+
+                        stk_key = f"stk_ent_{pr['codigo']}"
+                        if stk_key not in st.session_state:
+                            st.session_state[stk_key] = int(max(5000, int(pr.get('stake_1', 5000))))
+
                         col_ent1, col_ent2, col_ent3 = st.columns(3)
                         with col_ent1:
-                            cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, value=float(pr['cuota_inicial']), step=0.05, key=f"c_ent_{pr['codigo']}")
+                            # Al quitar el parámetro 'value=' y dejar solo el 'key', obligamos a la app a respetar lo que tú escribes
+                            cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, step=0.05, key=c_ent_key)
                         with col_ent2:
-                            val_amenaza = float(pr.get('cuota_amenaza_audit') or 1.90)
-                            if val_amenaza < 1.01: val_amenaza = 1.90
-                            cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, value=val_amenaza, step=0.05, key=f"c_am_{pr['codigo']}")
+                            cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, step=0.05, key=c_am_key)
                         with col_ent3:
-                            valor_base_stake = max(5000, int(pr.get('stake_1', 5000)))
-                            stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=valor_base_stake, step=5000, key=f"stk_ent_{pr['codigo']}")
-                            
+                            stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, step=5000, key=stk_key)
+
+
                         # ==================================================================
                         # 📸 BOTÓN DE BITÁCORA (CAPTURAR MOMENTUM + CUOTAS SI/NO)
                         # ==================================================================
