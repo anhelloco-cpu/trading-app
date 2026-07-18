@@ -1360,7 +1360,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 st.markdown("---")
                                 
-                                # -------------------------------------------------------------
+# -------------------------------------------------------------
                                 # 3. CÁLCULOS MATEMÁTICOS DE IA Y JERARQUÍA HISTÓRICA
                                 # -------------------------------------------------------------
                                 texto_mercado = str(op.get('partido', ''))
@@ -1397,41 +1397,56 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 """, unsafe_allow_html=True)
 
                                 # ====================================================================
-                                # ⚡ MOTOR DE MOMENTUM (EL VERDADERO RITMO RECIENTE)
+                                # ⚡ MOTOR DE MOMENTUM (EXTRACCIÓN EXPLÍCITA DESDE BASE DE DATOS)
                                 # ====================================================================
+                                st.markdown("#### ⚡ Motor de Momentum (Aceleración Real)")
+                                
+                                if st.button("⏱️ Extraer Foto Anterior y Calcular Momentum", key=f"btn_mom_{op['codigo']}", use_container_width=True):
+                                    try:
+                                        # Buscamos en la BD estrictamente una foto ANTERIOR al minuto actual
+                                        res_mom = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).lt("minuto_evaluado", minuto_actual).order("minuto_evaluado", desc=True).limit(1).execute()
+                                        
+                                        if res_mom.data:
+                                            foto_ant = res_mom.data[0]
+                                            min_ant = int(foto_ant['minuto_evaluado'])
+                                            delta_min = minuto_actual - min_ant
+                                            
+                                            if delta_min >= 2:
+                                                atk_l_ant = int(foto_ant['atkp_local'])
+                                                atk_v_ant = int(foto_ant['atkp_vis'])
+                                                
+                                                # Guardamos el resultado en la memoria de la aplicación
+                                                st.session_state[f"apm_l_din_{op['codigo']}"] = max(0.0, (atkp_local - atk_l_ant) / delta_min)
+                                                st.session_state[f"apm_v_din_{op['codigo']}"] = max(0.0, (atkp_vis - atk_v_ant) / delta_min)
+                                                st.session_state[f"mom_txt_{op['codigo']}"] = f"Últimos {delta_min} min (Desde el {min_ant}')"
+                                                
+                                                # Reiniciamos la UI para que la IA chupe los nuevos datos al instante
+                                                st.rerun() 
+                                            else:
+                                                st.warning(f"⚠️ La última foto es del minuto {min_ant}. Deben pasar al menos 2 minutos para medir aceleración.")
+                                        else:
+                                            st.warning("⚠️ No hay fotos anteriores guardadas en Supabase para comparar.")
+                                    except Exception as e:
+                                        st.error(f"Error de conexión: {str(e)}")
+
+                                # Asignación final de variables para la IA
                                 apm_global_loc = atkp_local / max(1, minuto_actual)
                                 apm_global_vis = atkp_vis / max(1, minuto_actual)
                                 
-                                apm_local_dinamico = apm_global_loc
-                                apm_vis_dinamico = apm_global_vis
-                                texto_momentum = "Promedio Global"
-                                
-                                min_ant = int(ultima_foto.get('minuto_evaluado', 0))
-                                if min_ant > 0 and minuto_actual > min_ant:
-                                    delta_min = minuto_actual - min_ant
-                                    if delta_min >= 2: # Exigimos al menos 2 min de diferencia
-                                        atk_l_ant = int(ultima_foto.get('atkp_local', 0))
-                                        atk_v_ant = int(ultima_foto.get('atkp_vis', 0))
-                                        apm_local_dinamico = max(0.0, (atkp_local - atk_l_ant) / delta_min)
-                                        apm_vis_dinamico = max(0.0, (atkp_vis - atk_v_ant) / delta_min)
-                                        texto_momentum = f"Últimos {delta_min} min"
-
-                                # 🔥 AQUÍ ESTÁN LAS DOS LÍNEAS QUE FALTABAN 🔥
-                                apm_local = apm_local_dinamico 
-                                apm_vis = apm_vis_dinamico     
+                                if f"apm_l_din_{op['codigo']}" in st.session_state:
+                                    apm_local = st.session_state[f"apm_l_din_{op['codigo']}"]
+                                    apm_vis = st.session_state[f"apm_v_din_{op['codigo']}"]
+                                    texto_momentum = st.session_state[f"mom_txt_{op['codigo']}"]
+                                else:
+                                    apm_local = apm_global_loc
+                                    apm_vis = apm_global_vis
+                                    texto_momentum = "Promedio Global"
 
                                 apm_total = apm_local + apm_vis
                                 tiempo_restante = max(0, 90 - minuto_actual)
                                 goles_totales = g_local + g_vis
                                 
-                                # El IRD siempre se calcula con el total crudo desde inicio para la IA
-                                ird = min(100.0, ((atkp_local + atkp_vis) / max(1, minuto_actual)) * 45.0)
-
-                                apm_total = apm_local_dinamico + apm_vis_dinamico
-                                tiempo_restante = max(0, 90 - minuto_actual)
-                                goles_totales = g_local + g_vis
-                                
-                                # El IRD siempre se calcula con el total crudo desde inicio para la IA
+                                # El IRD (Nivel de Caos) siempre usa el crudo para no dañar la red neuronal entrenada
                                 ird = min(100.0, ((atkp_local + atkp_vis) / max(1, minuto_actual)) * 45.0)
 
                                 # Variables Financieras Base
@@ -1511,8 +1526,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                         estado_btts = "GOL MADURANDO"; color_btts = "#10B981"; ird = 40.0
                                                 else:
                                                     eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
-                                                    apm_pierde = apm_local_dinamico if g_local == 0 else apm_vis_dinamico
-                                                    apm_gana = apm_local_dinamico if g_local == 1 else apm_vis_dinamico
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    apm_gana = apm_local if g_local == 1 else apm_vis
                                                     
                                                     if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
                                                         if apm_pierde > 0.6:
@@ -1539,7 +1554,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                         estado_btts = "PRESIÓN DE CIERRE"; color_btts = "#F59E0B"; ird = 65.0
                                                 else:
                                                     eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
-                                                    apm_pierde = apm_local_dinamico if g_local == 0 else apm_vis_dinamico
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
                                                     if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
                                                         if apm_pierde > 0.8:
                                                             msj_ia = f"🔥 **FRENESÍ DEL FAVORITO:** Asedio infernal antes del descanso. Tu SÍ está a punto de caramelo."
@@ -1565,7 +1580,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                         estado_btts = "ESTANCAMIENTO TÁCTICO"; color_btts = "#EF4444"; ird = 90.0
                                                 else:
                                                     eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
-                                                    apm_pierde = apm_local_dinamico if g_local == 0 else apm_vis_dinamico
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
                                                     if (eq_pierde == eq_local_seg and is_super_fav_local) or (eq_pierde == eq_vis_seg and is_super_fav_vis):
                                                         if apm_pierde > 1.0:
                                                             msj_ia = f"👑🔥 **LA FURIA DEL REY:** El Súper Favorito salió a demoler el arco ({apm_pierde:.2f} APM). Empate inminente."
@@ -1598,7 +1613,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                         estado_btts = "AGOTAMIENTO"; color_btts = "#EF4444"; ird = 95.0
                                                 else:
                                                     eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
-                                                    apm_pierde = apm_local_dinamico if g_local == 0 else apm_vis_dinamico
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
                                                     if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
                                                         if apm_pierde > 0.9:
                                                             msj_ia = f"🔥 **OLLA A PRESIÓN:** Asedio insoportable del Favorito. Tu SÍ está en el horno a punto de salir."
@@ -1620,7 +1635,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                     estado_btts = "TIEMPO AGOTADO"; color_btts = "#EF4444"; ird = 100.0
                                                 else:
                                                     eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
-                                                    apm_pierde = apm_local_dinamico if g_local == 0 else apm_vis_dinamico
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
                                                     if apm_pierde > 1.0:
                                                         msj_ia = "⚔️ **ASEDIO FINAL:** Agonía pura. Tienen al rival en el área. ¡Aguanta, el gol está caliente!"
                                                         estado_btts = "CAOS OFENSIVO"; color_btts = "#10B981"; ird = 20.0
@@ -1672,8 +1687,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                         estado_btts = "RIESGO DE GOL"; color_btts = "#F59E0B"; ird = 70.0
                                                 else:
                                                     eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
-                                                    apm_pierde = apm_local_dinamico if g_local == 0 else apm_vis_dinamico
-                                                    apm_gana = apm_local_dinamico if g_local == 1 else apm_vis_dinamico
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+                                                    apm_gana = apm_local if g_local == 1 else apm_vis
                                                     
                                                     if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
                                                         if apm_pierde > 0.6:
@@ -1684,7 +1699,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                             estado_btts = "BLOQUEO TÁCTICO"; color_btts = "#F59E0B"; ird = 35.0
                                                     else:
                                                         if apm_gana > apm_pierde and apm_gana > 0.6:
-                                                            msj_ia = f"🟢 **MONÓLOGO TÁCTICO:** El que gana domina a placer. El NO se solidifica."
+                                                            msj_ia = f"🟢 **MONÓLOGO TÁCTICO:** El que gana domina a placer. El NO se solidifica cada minuto."
                                                             estado_btts = "MUERTE OFENSIVA"; color_btts = "#10B981"; ird = 15.0
                                                         else:
                                                             msj_ia = f"🟡 **ORGULLO DEL DÉBIL:** El perdedor responde y busca el empate. Cuidado con el rebote."
@@ -1700,7 +1715,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                         estado_btts = "PRESIÓN DE CIERRE"; color_btts = "#F59E0B"; ird = 65.0
                                                 else:
                                                     eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
-                                                    apm_pierde = apm_local_dinamico if g_local == 0 else apm_vis_dinamico
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
                                                     if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
                                                         if apm_pierde > 0.8:
                                                             msj_ia = f"🔴 **FRENESÍ DEL FAVORITO:** Asedio infernal antes del descanso. Pánico para tu NO."
@@ -1726,7 +1741,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                         estado_btts = "ESTANCAMIENTO TÁCTICO"; color_btts = "#10B981"; ird = 15.0
                                                 else:
                                                     eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
-                                                    apm_pierde = apm_local_dinamico if g_local == 0 else apm_vis_dinamico
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
                                                     if (eq_pierde == eq_local_seg and is_super_fav_local) or (eq_pierde == eq_vis_seg and is_super_fav_vis):
                                                         if apm_pierde > 1.0:
                                                             msj_ia = f"🔴👑 **LA FURIA DEL REY:** Asedio infernal. El empate caerá. ¡Huye ahora mismo!"
@@ -1759,7 +1774,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                         estado_btts = "AGOTAMIENTO"; color_btts = "#10B981"; ird = 10.0
                                                 else:
                                                     eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
-                                                    apm_pierde = apm_local_dinamico if g_local == 0 else apm_vis_dinamico
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
                                                     if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
                                                         if apm_pierde > 0.9:
                                                             msj_ia = f"🔴 **OLLA A PRESIÓN:** Asedio insoportable. El empate es cuestión de física. ¡Evacúa YA!"
@@ -1781,7 +1796,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                     estado_btts = "VICTORIA CASI SEGURA"; color_btts = "#10B981"; ird = 5.0
                                                 else:
                                                     eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
-                                                    apm_pierde = apm_local_dinamico if g_local == 0 else apm_vis_dinamico
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
                                                     if apm_pierde > 1.0:
                                                         msj_ia = "🚨 **EVACUACIÓN URGENTE:** El asedio te va a quemar. Sal de ahí YA usando la cobertura."
                                                         estado_btts = "ALERTA ROJA EXTREMA"; color_btts = "#EF4444"; ird = 99.0
@@ -1798,7 +1813,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         <p style="margin:10px 0 0 0; font-size: 0.85rem; color:#64748B;">Dinámica actual: {apm_total:.2f} APM ({texto_momentum})</p>
                                     </div>
                                     """, unsafe_allow_html=True)
-
                                 elif is_linea_goles:
                                     # LÓGICA DE LÍNEA DE GOLES
                                     import re
