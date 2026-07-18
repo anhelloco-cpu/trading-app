@@ -3465,7 +3465,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
     st.markdown("## 🔮 Oráculo Predictivo")
     st.write("Planifica tu entrada al mercado y déjala en el Radar para ejecutarla en vivo basándote en la táctica real.")
 
-    # 🚨 AQUÍ AGREGAMOS LA TERCERA PESTAÑA: EL RADAR
+    # 🚨 LAS TRES PESTAÑAS DEL ORÁCULO
     tab_pre, tab_radar, tab_vivo = st.tabs(["📋 Escáner Pre-Partido", "📡 Radar En Vivo (Watchlist)", "⏱️ Laboratorio Táctico (Libre)"])
 
     # ---------------------------------------------------------
@@ -3523,11 +3523,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # En lugar de ejecutar todo directo en el botón, activamos la memoria
             if st.button("🚀 Ejecutar Red Neuronal", use_container_width=True):
                 st.session_state.ia_activa = True
 
-            # Si la memoria está activa, mostramos el panel completo (nunca se recogerá)
             if st.session_state.ia_activa:
                 df_clean = df_global.dropna(subset=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win'])
                 
@@ -3636,26 +3634,23 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             st.error("Debes ponerle un nombre al partido.")
                         else:
                             if supabase is not None:
-                                # ESCUDO 1: Código corto de 5 caracteres para evitar romper límites VARCHAR
                                 nuevo_codigo = generar_codigo() 
-                                
-                                # ESCUDO 2: Diccionario con TODOS los campos obligatorios del esquema mapeados
                                 datos_radar = {
                                     "codigo": nuevo_codigo,
                                     "partido": nombre_partido_radar,
                                     "estrategia": "Estrategia Libre Directa", 
                                     "seleccion_inicial": mercado_display,
-                                    "seleccion_cobertura": "N/A (Radar)", # Blindaje NOT NULL
+                                    "seleccion_cobertura": "N/A (Radar)", 
                                     "plataforma_inicial": plataforma_radar,
                                     "plataforma_dutch_secundaria": "",
                                     "plataforma_cobertura": "",
                                     "capital_total": float(stake_pre),
                                     "cuota_inicial": float(cuota_mercado),
                                     "stake_1": float(stake_pre),
-                                    "reserva_stake_2": 0.0, # Blindaje NOT NULL
-                                    "cuota_objetivo": 0.0, # Blindaje NOT NULL
-                                    "cuota_stop_loss": 0.0, # Blindaje NOT NULL
-                                    "estado": "RADAR", # Sello de tracking
+                                    "reserva_stake_2": 0.0, 
+                                    "cuota_objetivo": 0.0, 
+                                    "cuota_stop_loss": 0.0, 
+                                    "estado": "RADAR", 
                                     "tipo_banca": "SIMULACION",
                                     "cuota_base_audit": float(c_loc_pre), 
                                     "cuota_empate_audit": float(c_emp_pre),
@@ -3668,8 +3663,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 
                                 try:
                                     supabase.table("historial_trading").insert(datos_radar).execute()
-                                    
-                                    # Limpiamos la memoria interna y refrescamos
                                     st.session_state.ia_activa = False 
                                     st.success(f"✅ ¡Partido '{nombre_partido_radar}' guardado con éxito! Ref: {nuevo_codigo}")
                                     st.rerun()
@@ -3678,210 +3671,133 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             else:
                                 st.error("Conecta Supabase primero.")
 
-    # ==================================================================
-                        # 🧠 BOTÓN DEL ORÁCULO (YA TIENE LAS CUOTAS CARGADAS ARRIBA)
-                        # ==================================================================
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        if st.button("🧠 Validar con Oráculo Táctico", key=f"btn_ev_{pr['codigo']}", use_container_width=True):
-                            try:
-                                import joblib
-                                import pandas as pd
-                                m1x2_rad = joblib.load('modelo_1x2.pkl')
-                                mgoles_rad = joblib.load('modelo_goles.pkl')
-                                mbtts_rad = joblib.load('modelo_btts.pkl')
-                                
-                                apm_rad = (al_rad + av_rad) / max(1, m_rad)
-                                ird_rad = min(100.0, apm_rad * 45.0)
-                                
-                                X_rad = pd.DataFrame([{
-                                    'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad,
-                                    'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad,
-                                    'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 
-                                    'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))
-                                }])
-                                
-                                pred_1x2_rad = m1x2_rad.predict(X_rad)[0]
-                                pred_goles_rad = mgoles_rad.predict(X_rad)[0]
-                                pred_btts_rad = mbtts_rad.predict(X_rad)[0]
-                                
-                                # Probabilidades exactas para el Value Betting
-                                probabilidades = mbtts_rad.predict_proba(X_rad)[0]
-                                prob_no = probabilidades[0]
-                                prob_si = probabilidades[1]
-                                
-                                winner_tactico = "Empate" if pred_1x2_rad == 1 else ("Local" if pred_1x2_rad == 2 else "Visita")
-                                btts = "SÍ" if pred_btts_rad == 1 else "NO"
-                                color_btts = "#10B981" if pred_btts_rad == 1 else "#EF4444"
-                                
-                                # ------------------------------------------------------------------
-                                # ⚖️ 1. LECTURA DE JERARQUÍA HISTÓRICA (CON NOMBRES REALES)
-                                # ------------------------------------------------------------------
-                                partido_str_rad = str(pr.get('partido', ''))
-                                solo_partido_rad = partido_str_rad.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str_rad else partido_str_rad
-                                txt_norm_rad = solo_partido_rad.lower().replace("vs.", "vs").replace("-", "vs")
-                                
-                                if "vs" in txt_norm_rad:
-                                    eq_local_rad = txt_norm_rad.split("vs")[0].strip().title()
-                                    eq_vis_rad = txt_norm_rad.split("vs")[1].strip().title()
-                                else:
-                                    eq_local_rad = "Local"
-                                    eq_vis_rad = "Visita"
-
-                                c_loc_hist = float(pr.get('cuota_base_audit', 2.0))
-                                c_vis_hist = float(pr.get('cuota_amenaza_audit', 2.0))
-                                
-                                if c_loc_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_local_rad}"
-                                elif c_vis_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_vis_rad}"
-                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_local_rad}"
-                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_vis_rad}"
-                                else: jerarquia = "⚖️ Fuerzas Parejas"
-
-                                if al_rad > av_rad and (al_rad - av_rad) > 10: dom_vivo = eq_local_rad
-                                elif av_rad > al_rad and (av_rad - al_rad) > 10: dom_vivo = eq_vis_rad
-                                else: dom_vivo = "Asedio Dividido"
-
-                                # ------------------------------------------------------------------
-                                # 🎯 2. MOTOR DE TRIANGULACIÓN E INYECCIÓN FÍSICA
-                                # ------------------------------------------------------------------
-                                goles_actuales_totales = gl_rad + gv_rad
-                                minutos_restantes = 90 - m_rad
-                                apm_loc_crudo = al_rad / max(1, m_rad)
-                                apm_vis_crudo = av_rad / max(1, m_rad)
-
-                                goles_esperados_ia = round(pred_goles_rad)
-                                if apm_loc_crudo >= 1.5 or apm_vis_crudo >= 1.5:
-                                    goles_fisicos = goles_actuales_totales + int((minutos_restantes / 30) * max(apm_loc_crudo, apm_vis_crudo))
-                                    goles_esperados_ia = max(goles_esperados_ia, goles_fisicos)
-
-                                goles_nuevos_esperados = max(0, goles_esperados_ia - goles_actuales_totales)
-                                calc_loc, calc_vis = gl_rad, gv_rad
-
-                                if pred_1x2_rad == 1: 
-                                    if calc_loc > calc_vis: calc_vis = calc_loc 
-                                    elif calc_vis > calc_loc: calc_loc = calc_vis 
-                                    elif goles_nuevos_esperados >= 2:
-                                        calc_loc += (goles_nuevos_esperados // 2)
-                                        calc_vis += (goles_nuevos_esperados // 2)
-                                elif pred_1x2_rad == 2:
-                                    if calc_loc <= calc_vis: calc_loc = calc_vis + max(1, goles_nuevos_esperados)
-                                    else: calc_loc += goles_nuevos_esperados
-                                else:
-                                    if calc_vis <= calc_loc: calc_vis = calc_loc + max(1, goles_nuevos_esperados)
-                                    else: calc_vis += goles_nuevos_esperados
-
-                                if apm_loc_crudo >= 0.6 and apm_vis_crudo >= 0.6:
-                                    calc_loc = max(1, calc_loc)
-                                    calc_vis = max(1, calc_vis)
-                                    btts = "SÍ (Alta Prob. Física)"
-                                    color_btts = "#10B981"
-                                elif apm_loc_crudo < 0.4 or apm_vis_crudo < 0.4:
-                                    btts = "NO (Falta Asedio)"
-                                    color_btts = "#EF4444"
-                                    if apm_loc_crudo < 0.4 and gl_rad == 0: calc_loc = 0
-                                    if apm_vis_crudo < 0.4 and gv_rad == 0: calc_vis = 0
-                                else:
-                                    if pred_btts_rad == 1:
-                                        calc_loc = max(1, calc_loc)
-                                        calc_vis = max(1, calc_vis)
-                                        btts = "SÍ (Proyectado IA)"
-                                        color_btts = "#10B981"
+    # ---------------------------------------------------------
+    # PESTAÑA 2: RADAR EN VIVO (Watchlist y Ejecución)
+    # ---------------------------------------------------------
+    with tab_radar:
+        st.subheader("📡 Tu Radar de Seguimiento")
+        st.write("Partidos aprobados por el Escáner. Inyecta la foto táctica del partido en curso, configura tus límites de ganancia/pérdida, y ejecuta la posición.")
+        
+        if supabase is not None:
+            res_radar = supabase.table("historial_trading").select("*").eq("estado", "RADAR").execute()
+            partidos_radar = res_radar.data
+            
+            if not partidos_radar:
+                st.info("Tu radar está vacío. Escanea partidos en la pestaña 'Escáner Pre-Partido' y mándalos para acá.")
+            else:
+                for pr in partidos_radar:
+                    with st.expander(f"📌 {pr['partido']} | Mdo: {pr['seleccion_inicial']} | Cuota Plan: {pr['cuota_inicial']} | Stake: ${pr['stake_1']:,.0f}"):
+                        st.write(f"**Cuotas Base Iniciales:** Local ({pr.get('cuota_base_audit', 'N/A')}) | Empate ({pr.get('cuota_empate_audit', 'N/A')}) | Visita ({pr.get('cuota_amenaza_audit', 'N/A')})")
+                        st.markdown("---")
+                        
+                        # ------------------------------------------------------------------
+                        # 🔄 BOTÓN DE SINCRONIZACIÓN Y LECTURA DE FOTOS
+                        # ------------------------------------------------------------------
+                        col_tit1, col_tit2 = st.columns([2, 1])
+                        with col_tit1:
+                            st.markdown("#### 📸 Foto Táctica En Vivo")
+                        with col_tit2:
+                            if st.button("🔄 Sincronizar Info", key=f"btn_sync_{pr['codigo']}"):
+                                try:
+                                    res_sync = supabase.table("registro_fotos").select("*").like("codigo_posicion", f"{pr['codigo']}%").order("minuto_evaluado", desc=True).limit(1).execute()
+                                    if res_sync.data:
+                                        foto_reciente = res_sync.data[0]
+                                        st.session_state[f"mr_{pr['codigo']}"] = int(foto_reciente['minuto_evaluado'])
+                                        st.session_state[f"glr_{pr['codigo']}"] = int(foto_reciente['goles_local'])
+                                        st.session_state[f"gvr_{pr['codigo']}"] = int(foto_reciente['goles_vis'])
+                                        st.session_state[f"alr_{pr['codigo']}"] = int(foto_reciente['atkp_local'])
+                                        st.session_state[f"avr_{pr['codigo']}"] = int(foto_reciente['atkp_vis'])
+                                        st.success(f"✅ ¡Datos del min {foto_reciente['minuto_evaluado']} importados!")
                                     else:
-                                        btts = "NO (Proyectado IA)"
-                                        color_btts = "#EF4444"
-                                        
-                                marcador_exacto = f"{calc_loc} - {calc_vis}"
-                                if calc_loc > 0 and calc_vis > 0:
-                                    btts = "SÍ"
-                                    color_btts = "#10B981"
-                                else:
-                                    btts = "NO (Bloqueado por Táctica)" if pred_btts_rad == 1 else "NO"
-                                    color_btts = "#EF4444"
+                                        st.warning("⚠️ No hay fotos previas en el Seguimiento.")
+                                except Exception as e:
+                                    st.error(f"Error sincronizando: {e}")
 
-                                # ==================================================================
-                                # 💎 DICTAMEN DE TRADING Y VALUE BETTING (LO NUEVO INYECTADO AQUÍ)
-                                # ==================================================================
-                                st.markdown("---")
-                                if mdo_str == "Ambos Anotan":
-                                    cuota_justa_si = 1 / prob_si if prob_si > 0.01 else 99.0
-                                    cuota_justa_no = 1 / prob_no if prob_no > 0.01 else 99.0
-                                    
-                                    # Evaluamos la selección del usuario ("Sí" o "No") contra su cuota ingresada (cuota_ent_rad)
-                                    if seleccion_final_rad == "Sí":
-                                        ventaja = cuota_ent_rad - cuota_justa_si
-                                        prob_mercado = prob_si
-                                        cuota_justa = cuota_justa_si
-                                        
-                                        if ventaja >= 0:
-                                            alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
-                                            texto_accion = f"El mercado es tuyo. La cuota justa es **{cuota_justa:.2f}** y la casa te regala **{cuota_ent_rad:.2f}**. Tienes el asedio a tu favor y la matemática también. Entra ya."
-                                            bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
-                                        else:
-                                            if (cuota_justa - cuota_ent_rad) <= 0.40 and m_rad < 75:
-                                                alerta_accion = f"⏳ **PACIENCIA (ESPERA A QUE SUBA EL SÍ)**"
-                                                texto_accion = f"El partido pinta para goles, pero la casa paga muy poco (**{cuota_ent_rad:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera unos 5 a 10 minutos a que alcance ese valor para disparar."
-                                                bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
-                                            else:
-                                                alerta_accion = f"🚫 **DESCARTADO (TRAMPA EN EL SÍ)**"
-                                                texto_accion = f"La IA predice goles, pero la cuota justa es **{cuota_justa:.2f}** y te ofrecen la miseria de **{cuota_ent_rad:.2f}**. La brecha es muy grande para esperar. Aborta."
-                                                bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
-                                                
-                                    else: # Seleccionó "No"
-                                        ventaja = cuota_ent_rad - cuota_justa_no
-                                        prob_mercado = prob_no
-                                        cuota_justa = cuota_justa_no
-                                        
-                                        if ventaja >= 0:
-                                            alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
-                                            texto_accion = f"Las defensas dominan. La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_ent_rad:.2f}**. ¡Mete la plata YA!, porque si esperas la cuota caerá en picada."
-                                            bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
-                                        else:
-                                            alerta_accion = f"🚫 **LLEGASTE TARDE AL NO**"
-                                            texto_accion = f"El partido pinta para el NO, pero la cuota justa era **{cuota_justa:.2f}** y el mercado ya la tumbó a **{cuota_ent_rad:.2f}**. A largo plazo es pérdida entrar aquí. Aborta."
-                                            bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
-                                            
+                        # ------------------------------------------------------------------
+                        # 🏷️ EXTRACCIÓN DE NOMBRES
+                        # ------------------------------------------------------------------
+                        partido_str_ui = str(pr.get('partido', ''))
+                        solo_partido_ui = partido_str_ui.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str_ui else partido_str_ui
+                        txt_norm_ui = solo_partido_ui.lower().replace("vs.", "vs").replace("-", "vs")
+                        
+                        if "vs" in txt_norm_ui:
+                            eq_loc_ui = txt_norm_ui.split("vs")[0].strip().title()
+                            eq_vis_ui = txt_norm_ui.split("vs")[1].strip().title()
+                        else:
+                            eq_loc_ui = "Local"
+                            eq_vis_ui = "Visita"
+                                       
+                        # ------------------------------------------------------------------
+                        # 🎛️ PANEL DE EVALUACIÓN MULTI-ESTRATEGIA
+                        # ------------------------------------------------------------------
+                        tab_datos, tab_anti_empate = st.tabs(["⚙️ Carga de Datos (APM)", "💣 Calculadora Anti-Empate"])
+                        
+                        with tab_datos:
+                            cr1, cr2, cr3 = st.columns(3)
+                            m_rad = cr1.number_input("⏱️ Minuto:", min_value=1, max_value=120, key=f"mr_{pr['codigo']}", value=st.session_state.get(f"mr_{pr['codigo']}", 60))
+                            gl_rad = cr2.number_input(f"⚽ Goles {eq_loc_ui}:", min_value=0, key=f"glr_{pr['codigo']}", value=st.session_state.get(f"glr_{pr['codigo']}", 0))
+                            gv_rad = cr3.number_input(f"⚽ Goles {eq_vis_ui}:", min_value=0, key=f"gvr_{pr['codigo']}", value=st.session_state.get(f"gvr_{pr['codigo']}", 0))
+                            
+                            cr4, cr5 = st.columns(2)
+                            al_rad = cr4.number_input(f"🔥 Atq. {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
+                            av_rad = cr5.number_input(f"🔥 Atq. {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
+
+                        with tab_anti_empate:
+                            st.markdown("""
+                            <div style='background-color: #F8FAFC; border-left: 4px solid #8B5CF6; padding: 10px; border-radius: 4px; margin-bottom: 15px;'>
+                                <h4 style='margin:0; color: #4C1D95;'>⚖️ Estrategia Asimétrica (Riesgo al Empate)</h4>
+                                <p style='margin:0; font-size:0.85rem; color: #64748B;'>Ideal para usar en Vivo (Min > 45) cuando el Súper Favorito asedia (APM > 1.0) y el marcador va 0-0.</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            c_ae1, c_ae2, c_ae3 = st.columns(3)
+                            cuota_sug_fav = min(float(pr.get('cuota_base_audit', 1.08)), float(pr.get('cuota_amenaza_audit', 1.08)))
+                            cuota_sug_deb = max(float(pr.get('cuota_base_audit', 18.20)), float(pr.get('cuota_amenaza_audit', 18.20)))
+                            
+                            cuota_fav_ae = c_ae1.number_input("👑 Cuota Favorito (En Vivo):", min_value=1.01, step=0.01, value=max(1.01, cuota_sug_fav), key=f"c_fav_ae_{pr['codigo']}")
+                            cuota_deb_ae = c_ae2.number_input("🩸 Cuota Débil (En Vivo):", min_value=1.01, step=0.1, value=max(2.0, cuota_sug_deb), key=f"c_deb_ae_{pr['codigo']}")
+                            inv_total_ae = c_ae3.number_input("💰 Inversión Total ($):", min_value=1000, step=10000, value=100000, key=f"inv_ae_{pr['codigo']}")
+                            
+                            if cuota_deb_ae > 0 and cuota_fav_ae > 0:
+                                stake_cobertura = inv_total_ae / cuota_deb_ae
+                                stake_fuerte = inv_total_ae - stake_cobertura
+                                
+                                retorno_fav = stake_fuerte * cuota_fav_ae
+                                utilidad_fav = retorno_fav - inv_total_ae
+                                roi_pct = (utilidad_fav / inv_total_ae) * 100 if inv_total_ae > 0 else 0
+                                
+                                st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+                                if stake_fuerte > 0:
                                     st.markdown(f"""
-                                    <div style="background-color: {bg_color}; border-left: 6px solid {border_color}; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                                        <h3 style="margin-top:0; color:{border_color};">{alerta_accion}</h3>
-                                        <p style="margin:0; font-size:1.05rem; color:{text_color};">{texto_accion}</p>
-                                        <hr style="border-color:{border_color}; opacity:0.3; margin: 10px 0;">
-                                        <div style="font-size:0.9rem; color:#475569; display:flex; justify-content:space-between;">
-                                            <span><b>Prob. IA SÍ:</b> {prob_si*100:.1f}%</span>
-                                            <span><b>Prob. IA NO:</b> {prob_no*100:.1f}%</span>
-                                            <span><b>Velocidad:</b> {apm_rad:.2f} APM</span>
+                                    <div style='display: flex; justify-content: space-between; margin-bottom: 10px;'>
+                                        <div style='background-color: #ECFDF5; padding: 15px; border-radius: 8px; width: 32%; text-align: center; border: 1px solid #A7F3D0;'>
+                                            <h5 style='margin:0; color: #065F46;'>🟢 GANA FAVORITO</h5>
+                                            <p style='margin:5px 0 0 0; font-size:0.8rem; color: #047857;'>Inyectar: <b>${stake_fuerte:,.0f}</b></p>
+                                            <h3 style='margin:10px 0 0 0; color: #10B981;'>+${utilidad_fav:,.0f}</h3>
+                                            <span style='font-size:0.75rem; color:#059669; font-weight:bold;'>ROI: {roi_pct:.1f}%</span>
+                                        </div>
+                                        <div style='background-color: #EFF6FF; padding: 15px; border-radius: 8px; width: 32%; text-align: center; border: 1px solid #BFDBFE;'>
+                                            <h5 style='margin:0; color: #1E3A8A;'>🔵 GANA DÉBIL</h5>
+                                            <p style='margin:5px 0 0 0; font-size:0.8rem; color: #1D4ED8;'>Inyectar: <b>${stake_cobertura:,.0f}</b></p>
+                                            <h3 style='margin:10px 0 0 0; color: #3B82F6;'>$0</h3>
+                                            <span style='font-size:0.75rem; color:#2563EB;'>Break-Even</span>
+                                        </div>
+                                        <div style='background-color: #FEF2F2; padding: 15px; border-radius: 8px; width: 32%; text-align: center; border: 1px solid #FECACA;'>
+                                            <h5 style='margin:0; color: #991B1B;'>🔴 EMPATE</h5>
+                                            <p style='margin:5px 0 0 0; font-size:0.8rem; color: #B91C1C;'>El Agujero Negro</p>
+                                            <h3 style='margin:10px 0 0 0; color: #EF4444;'>-${inv_total_ae:,.0f}</h3>
+                                            <span style='font-size:0.75rem; color:#DC2626;'>Pérdida Total</span>
                                         </div>
                                     </div>
                                     """, unsafe_allow_html=True)
                                 else:
-                                    st.info(f"🔮 Modo Oráculo: Proyectando para el mercado de {mdo_str}.")
+                                    st.warning("⚠️ Ajusta la cuota del Débil, no permite cobertura matemática.")
 
-                                # ------------------------------------------------------------------
-                                # 🖼️ 4. RENDERIZADO VISUAL GIGANTE (ADN Y MARCADOR INTACTOS)
-                                # ------------------------------------------------------------------
-                                st.markdown(f"""
-                                <div style="background-color: #1E293B; border-bottom: 4px solid #3B82F6; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-bottom: 0px;">
-                                    <h4 style="margin:0; color:#94A3B8; font-size: 0.9rem;">ADN DEL PARTIDO</h4>
-                                    <h3 style="color:#FFFFFF; margin: 5px 0;">[{jerarquia}]</h3>
-                                </div>
-                                """, unsafe_allow_html=True)
-                                
-                                color_winner = "#0EA5E9" if winner_tactico == "Local" else ("#F59E0B" if winner_tactico == "Empate" else "#8B5CF6")
-                                st.markdown(f"""
-                                <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 0 0 8px 8px; text-align: center; margin-bottom: 15px;">
-                                    <h3 style="margin-top:0; color:#0F172A;">🎯 PROYECCIÓN TÁCTICA</h3>
-                                    <h1 style="color:{color_winner}; font-size: 2.5rem; margin: 10px 0;">{marcador_exacto}</h1>
-                                    <p style="margin:0; font-size: 1.1rem; color:#475569;">Ganador Físico: <b>{winner_tactico}</b></p>
-                                    <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{dom_vivo}</b> está dominando la cancha (IRD: {ird_rad:.1f}%)</p>
-                                </div>
-                                """, unsafe_allow_html=True)
-
-                            except Exception as e:
-                                st.error(f"Error procesando IA táctica: {e}")
-                                
-                        # ------------------------------------------------------------------
-                        # LÓGICA DE ENTRADA, PLATAFORMA Y CÁLCULO DE RIESGO
-                        # ------------------------------------------------------------------
+                        # ==================================================================
+                        # 💰 LÓGICA DE CONFIGURACIÓN Y CUOTAS (MOVIMOS ESTO ARRIBA)
+                        # ==================================================================
                         st.markdown("---")
-                        st.markdown("#### ⚙️ Configurar Ejecución y Riesgo")
+                        st.markdown("#### ⚙️ Configurar Mercado y Cuotas En Vivo")
                         
                         sel_ini_rad = str(pr.get('seleccion_inicial', ''))
                         mercado_actual = str(pr.get('mercado', ''))
@@ -3937,10 +3853,240 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             if val_amenaza < 1.01: val_amenaza = 1.90
                             cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, value=val_amenaza, step=0.05, key=f"c_am_{pr['codigo']}")
                         with col_ent3:
-                            # Evita el crash si la base de datos viene en 0 por clonación
                             valor_base_stake = max(5000, int(pr.get('stake_1', 5000)))
                             stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, value=valor_base_stake, step=5000, key=f"stk_ent_{pr['codigo']}")
-                        
+
+                        # ==================================================================
+                        # 🧠 BOTÓN DEL ORÁCULO TÁCTICO (EL NÚCLEO)
+                        # ==================================================================
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if st.button("🧠 Validar con Oráculo Táctico", key=f"btn_ev_{pr['codigo']}", use_container_width=True, type="primary"):
+                            try:
+                                import joblib
+                                import pandas as pd
+                                m1x2_rad = joblib.load('modelo_1x2.pkl')
+                                mgoles_rad = joblib.load('modelo_goles.pkl')
+                                mbtts_rad = joblib.load('modelo_btts.pkl')
+                                
+                                apm_rad = (al_rad + av_rad) / max(1, m_rad)
+                                ird_rad = min(100.0, apm_rad * 45.0)
+                                
+                                X_rad = pd.DataFrame([{
+                                    'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad,
+                                    'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad,
+                                    'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 
+                                    'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))
+                                }])
+                                
+                                pred_1x2_rad = m1x2_rad.predict(X_rad)[0]
+                                pred_goles_rad = mgoles_rad.predict(X_rad)[0]
+                                pred_btts_rad = mbtts_rad.predict(X_rad)[0]
+                                
+                                # Extraemos probabilidades exactas de BTTS para Value Betting
+                                probabilidades = mbtts_rad.predict_proba(X_rad)[0]
+                                prob_no = probabilidades[0]
+                                prob_si = probabilidades[1]
+                                
+                                winner_tactico = "Empate" if pred_1x2_rad == 1 else ("Local" if pred_1x2_rad == 2 else "Visita")
+                                btts = "SÍ" if pred_btts_rad == 1 else "NO"
+                                color_btts = "#10B981" if pred_btts_rad == 1 else "#EF4444"
+                                
+                                # ------------------------------------------------------------------
+                                # ⚖️ 1. LECTURA DE JERARQUÍA HISTÓRICA
+                                # ------------------------------------------------------------------
+                                c_loc_hist = float(pr.get('cuota_base_audit', 2.0))
+                                c_vis_hist = float(pr.get('cuota_amenaza_audit', 2.0))
+                                
+                                if c_loc_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_loc_ui}"
+                                elif c_vis_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_vis_ui}"
+                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_loc_ui}"
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_vis_ui}"
+                                else: jerarquia = "⚖️ Fuerzas Parejas"
+
+                                if al_rad > av_rad and (al_rad - av_rad) > 10: dom_vivo = eq_loc_ui
+                                elif av_rad > al_rad and (av_rad - al_rad) > 10: dom_vivo = eq_vis_ui
+                                else: dom_vivo = "Asedio Dividido"
+
+                                # ------------------------------------------------------------------
+                                # 🎯 2. DICTAMEN DE TRADING Y VALUE BETTING (LA ORDEN)
+                                # ------------------------------------------------------------------
+                                if mdo_str == "Ambos Anotan":
+                                    cuota_justa_si = 1 / prob_si if prob_si > 0.01 else 99.0
+                                    cuota_justa_no = 1 / prob_no if prob_no > 0.01 else 99.0
+                                    
+                                    # Evaluamos la selección del usuario ("Sí" o "No") contra su cuota ingresada (cuota_ent_rad)
+                                    if seleccion_final_rad == "Sí":
+                                        ventaja = cuota_ent_rad - cuota_justa_si
+                                        prob_mercado = prob_si
+                                        cuota_justa = cuota_justa_si
+                                        
+                                        if ventaja >= 0:
+                                            alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
+                                            texto_accion = f"El mercado es tuyo. La cuota justa es **{cuota_justa:.2f}** y la casa te regala **{cuota_ent_rad:.2f}**. Tienes el asedio a tu favor y la matemática también. Entra ya."
+                                            bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
+                                        else:
+                                            if (cuota_justa - cuota_ent_rad) <= 0.40 and m_rad < 75:
+                                                alerta_accion = f"⏳ **PACIENCIA (ESPERA A QUE SUBA EL SÍ)**"
+                                                texto_accion = f"El partido pinta para goles, pero la casa paga muy poco (**{cuota_ent_rad:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera unos 5 a 10 minutos a que alcance ese valor para disparar."
+                                                bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
+                                            else:
+                                                alerta_accion = f"🚫 **DESCARTADO (TRAMPA EN EL SÍ)**"
+                                                texto_accion = f"La IA predice goles, pero la cuota justa es **{cuota_justa:.2f}** y te ofrecen la miseria de **{cuota_ent_rad:.2f}**. La brecha es muy grande para esperar. Aborta."
+                                                bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
+                                                
+                                    else: # Seleccionó "No"
+                                        ventaja = cuota_ent_rad - cuota_justa_no
+                                        prob_mercado = prob_no
+                                        cuota_justa = cuota_justa_no
+                                        
+                                        if ventaja >= 0:
+                                            alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
+                                            texto_accion = f"Las defensas dominan. La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_ent_rad:.2f}**. ¡Mete la plata YA!, porque si esperas la cuota caerá en picada."
+                                            bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
+                                        else:
+                                            alerta_accion = f"🚫 **LLEGASTE TARDE AL NO**"
+                                            texto_accion = f"El partido pinta para el NO, pero la cuota justa era **{cuota_justa:.2f}** y el mercado ya la tumbó a **{cuota_ent_rad:.2f}**. Operar aquí es pérdida a largo plazo. Aborta."
+                                            bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
+                                            
+                                    st.markdown(f"""
+                                    <div style="background-color: {bg_color}; border-left: 6px solid {border_color}; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                        <h3 style="margin-top:0; color:{border_color};">{alerta_accion}</h3>
+                                        <p style="margin:0; font-size:1.05rem; color:{text_color};">{texto_accion}</p>
+                                        <hr style="border-color:{border_color}; opacity:0.3; margin: 10px 0;">
+                                        <div style="font-size:0.9rem; color:#475569; display:flex; justify-content:space-between;">
+                                            <span><b>Prob. IA SÍ:</b> {prob_si*100:.1f}%</span>
+                                            <span><b>Prob. IA NO:</b> {prob_no*100:.1f}%</span>
+                                            <span><b>Velocidad:</b> {apm_rad:.2f} APM</span>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    st.markdown("---")
+
+                                # ------------------------------------------------------------------
+                                # 🎯 3. SEÑALES TÁCTICAS CLÁSICAS (GIGANTE HERIDO, ASFIXIA)
+                                # ------------------------------------------------------------------
+                                goles_actuales_totales = gl_rad + gv_rad
+                                apm_loc_crudo = al_rad / max(1, m_rad)
+                                apm_vis_crudo = av_rad / max(1, m_rad)
+                                
+                                alerta_señal = ""
+                                fav_es_local = "Local" in jerarquia
+                                fav_es_visita = "Visita" in jerarquia
+                                
+                                # ESCENARIO 1: EL GIGANTE HERIDO
+                                if (fav_es_local and gv_rad == 1 and gl_rad == 0 and apm_loc_crudo >= 0.8) or \
+                                   (fav_es_visita and gl_rad == 1 and gv_rad == 0 and apm_vis_crudo >= 0.8):
+                                    equipo_atacando = eq_loc_ui if fav_es_local else eq_vis_ui
+                                    alerta_señal = f"""
+                                    <div style="background-color: #F0FDF4; border-left: 6px solid #16A34A; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
+                                        <h4 style="margin-top:0; color:#15803D;">🔥 SEÑAL TÁCTICA: EL GIGANTE HERIDO</h4>
+                                        <p style="margin:0; font-size: 0.95rem; color:#14532D;">
+                                        El débil anotó, pero el Favorito ({equipo_atacando}) tiene la cancha inclinada a su favor ({max(apm_loc_crudo, apm_vis_crudo):.2f} APM). Altísima probabilidad de empate inminente.
+                                        </p>
+                                    </div>
+                                    """
+                                    
+                                # ESCENARIO 2: ASFIXIA TOTAL
+                                elif (fav_es_local and gl_rad == 1 and gv_rad == 0 and apm_loc_crudo >= 0.8 and apm_vis_crudo <= 0.4) or \
+                                     (fav_es_visita and gv_rad == 1 and gl_rad == 0 and apm_vis_crudo >= 0.8 and apm_loc_crudo <= 0.4):
+                                    equipo_asfixiado = eq_vis_ui if fav_es_local else eq_loc_ui
+                                    alerta_señal = f"""
+                                    <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
+                                        <h4 style="margin-top:0; color:#991B1B;">🛡️ SEÑAL TÁCTICA: ASFIXIA TOTAL</h4>
+                                        <p style="margin:0; font-size: 0.95rem; color:#7F1D1D;">
+                                        El Favorito ya anotó y asfixia. El equipo {equipo_asfixiado} está anulado ({min(apm_loc_crudo, apm_vis_crudo):.2f} APM). Excelente escenario para el NO.
+                                        </p>
+                                    </div>
+                                    """
+                                    
+                                # ESCENARIO 3: MOMENTUM 0-0
+                                elif m_rad <= 45 and goles_actuales_totales == 0:
+                                    if apm_loc_crudo >= 1.0 or apm_vis_crudo >= 1.0:
+                                        atacante_fuerte = eq_loc_ui if apm_loc_crudo > apm_vis_crudo else eq_vis_ui
+                                        es_favorito = True if atacante_fuerte in jerarquia else False
+                                        texto_riesgo = "Favorito presionando con furia" if es_favorito else "Peligro de sorpresa del Débil"
+                                        
+                                        alerta_señal = f"""
+                                        <div style="background-color: #FFFBEB; border-left: 6px solid #D97706; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
+                                            <h4 style="margin-top:0; color:#B45309;">⚡ SEÑAL DE MOMENTUM: GOL INMINENTE (1T)</h4>
+                                            <p style="margin:0; font-size: 0.95rem; color:#92400E;">
+                                            El equipo {atacante_fuerte} bombardea el arco ({max(apm_loc_crudo, apm_vis_crudo):.2f} APM). {texto_riesgo}.
+                                            </p>
+                                        </div>
+                                        """
+
+                                if alerta_señal: st.markdown(alerta_señal, unsafe_allow_html=True)
+
+                                # ------------------------------------------------------------------
+                                # 🎯 4. CÁLCULO DE MARCADOR Y RENDERIZADO VISUAL
+                                # ------------------------------------------------------------------
+                                goles_nuevos_esperados = max(0, round(pred_goles_rad) - goles_actuales_totales)
+                                calc_loc, calc_vis = gl_rad, gv_rad
+
+                                if pred_1x2_rad == 1: 
+                                    if calc_loc > calc_vis: calc_vis = calc_loc 
+                                    elif calc_vis > calc_loc: calc_loc = calc_vis 
+                                    elif goles_nuevos_esperados >= 2:
+                                        calc_loc += (goles_nuevos_esperados // 2)
+                                        calc_vis += (goles_nuevos_esperados // 2)
+                                elif pred_1x2_rad == 2:
+                                    if calc_loc <= calc_vis: calc_loc = calc_vis + max(1, goles_nuevos_esperados)
+                                    else: calc_loc += goles_nuevos_esperados
+                                else:
+                                    if calc_vis <= calc_loc: calc_vis = calc_loc + max(1, goles_nuevos_esperados)
+                                    else: calc_vis += goles_nuevos_esperados
+
+                                if apm_loc_crudo >= 0.6 and apm_vis_crudo >= 0.6:
+                                    calc_loc = max(1, calc_loc)
+                                    calc_vis = max(1, calc_vis)
+                                    btts = "SÍ (Alta Prob. Física)"
+                                    color_btts = "#10B981"
+                                elif apm_loc_crudo < 0.4 or apm_vis_crudo < 0.4:
+                                    btts = "NO (Falta Asedio)"
+                                    color_btts = "#EF4444"
+                                    if apm_loc_crudo < 0.4 and gl_rad == 0: calc_loc = 0
+                                    if apm_vis_crudo < 0.4 and gv_rad == 0: calc_vis = 0
+                                else:
+                                    if pred_btts_rad == 1:
+                                        calc_loc = max(1, calc_loc)
+                                        calc_vis = max(1, calc_vis)
+                                        btts = "SÍ (Proyectado IA)"
+                                        color_btts = "#10B981"
+                                    else:
+                                        btts = "NO (Proyectado IA)"
+                                        color_btts = "#EF4444"
+                                        
+                                marcador_exacto = f"{calc_loc} - {calc_vis}"
+                                if calc_loc > 0 and calc_vis > 0:
+                                    btts = "SÍ"
+                                    color_btts = "#10B981"
+                                else:
+                                    btts = "NO (Bloqueado por Táctica)" if pred_btts_rad == 1 else "NO"
+                                    color_btts = "#EF4444"
+
+                                st.markdown(f"""
+                                <div style="background-color: #1E293B; border-bottom: 4px solid #3B82F6; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-bottom: 0px;">
+                                    <h4 style="margin:0; color:#94A3B8; font-size: 0.9rem;">ADN DEL PARTIDO</h4>
+                                    <h3 style="color:#FFFFFF; margin: 5px 0;">[{jerarquia}]</h3>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                                color_winner = "#0EA5E9" if winner_tactico == "Local" else ("#F59E0B" if winner_tactico == "Empate" else "#8B5CF6")
+                                st.markdown(f"""
+                                <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 0 0 8px 8px; text-align: center; margin-bottom: 15px;">
+                                    <h3 style="margin-top:0; color:#0F172A;">🎯 PROYECCIÓN TÁCTICA</h3>
+                                    <h1 style="color:{color_winner}; font-size: 2.5rem; margin: 10px 0;">{marcador_exacto}</h1>
+                                    <p style="margin:0; font-size: 1.1rem; color:#475569;">Ganador Físico: <b>{winner_tactico}</b></p>
+                                    <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{dom_vivo}</b> está dominando la cancha (IRD: {ird_rad:.1f}%)</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            except Exception as e:
+                                st.error(f"Error procesando IA táctica: {e}")
+
+                        # ==================================================================
+                        # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
+                        # ==================================================================
                         lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"]
                         plat_previa = pr.get('plataforma_inicial', 'BetPlay')
                         idx_plat = lista_casas.index(plat_previa) if plat_previa in lista_casas else 0
@@ -3988,10 +4134,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
                         banca_activa_rad = "REAL" if "Real" in banca_ejecutar else "SIMULACION"
                         
-                        # ------------------------------------------------------------------
-                        # 🧬 CHECKBOX: MODO VIGÍA (RETENER EN RADAR)
-                        # ------------------------------------------------------------------
-                        retener_radar = st.checkbox("🔄 Retener partido en el Radar tras disparar (Para buscar múltiples entradas)", value=True, key=f"chk_retener_{pr['codigo']}")
+                        retener_radar = st.checkbox("🔄 Retener partido en el Radar tras disparar", value=True, key=f"chk_retener_{pr['codigo']}")
                         
                         col_disp1, col_disp2 = st.columns(2)
                         with col_disp1:
@@ -4002,9 +4145,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     import pandas as pd
                                     
                                     try:
-                                        # -------------------------------------------------------------
-                                        # 🧠 RE-CÁLCULO SILENCIOSO (TESTIGO DE LA IA)
-                                        # -------------------------------------------------------------
                                         m1x2_rad = joblib.load('modelo_1x2.pkl')
                                         mgoles_rad = joblib.load('modelo_goles.pkl')
                                         mbtts_rad = joblib.load('modelo_btts.pkl')
@@ -4012,7 +4152,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         apm_rad = (al_rad + av_rad) / max(1, m_rad)
                                         ird_rad = min(100.0, apm_rad * 45.0)
                                         
-                                        X_rad = pd.DataFrame([{'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))}])
+                                        X_rad = pd.DataFrame([{
+                                            'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))}])
                                         
                                         pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
                                         pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
@@ -4039,13 +4180,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
                                         marcador_ia_testigo = f"{c_loc}-{c_vis}"
 
-                                        # -------------------------------------------------------------
-                                        # 🔒 CANDADO DE NOMBRE Y ENSAMBLE (El que faltaba)
-                                        # -------------------------------------------------------------
-                                        if seleccion_final_rad in ["Sí", "No"]: mdo_str = "Ambos Anotan"
-                                        elif "Más" in seleccion_final_rad or "Menos" in seleccion_final_rad: mdo_str = "Línea de Goles"
-                                        else: mdo_str = mercado_actual if mercado_actual else "Mercado 1X2"
-                                        
                                         partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
                                         partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
                                         hora_actual = datetime.datetime.now().strftime("%H:%M")
@@ -4067,11 +4201,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             "hora_inicio_partido": hora_actual
                                         }
 
-                                        # -------------------------------------------------------------
-                                        # 🧬 LÓGICA DEL CLONADOR CON SUFIJOS (-01, -02)
-                                        # -------------------------------------------------------------
                                         if retener_radar:
-                                            # Buscamos cuántos Hijos existen para sumar 1
                                             res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{pr['codigo']}-%").execute()
                                             numero_hijo = len(res_hijos.data) + 1
                                             codigo_hijo = f"{pr['codigo']}-{numero_hijo:02d}"
@@ -4079,21 +4209,13 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             registro_clonado = dict(pr)
                                             registro_clonado.update(datos_inyeccion)
                                             registro_clonado['codigo'] = codigo_hijo
-                                            
                                             if 'id' in registro_clonado: del registro_clonado['id']
                                             
-                                            # Insertamos el clon
                                             supabase.table("historial_trading").insert(registro_clonado).execute()
+                                            supabase.table("historial_trading").update({"stake_1": 0.0, "capital_total": 0.0}).eq("codigo", pr['codigo']).execute()
                                             
-                                            # Reseteamos la plata del Radar a 0 para no doblar cuentas
-                                            supabase.table("historial_trading").update({
-                                                "stake_1": 0.0,
-                                                "capital_total": 0.0
-                                            }).eq("codigo", pr['codigo']).execute()
-                                            
-                                            st.success(f"✅ ¡Disparo exitoso! Operación enviada a Seguimiento bajo la sub-referencia {codigo_hijo}.")
+                                            st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
                                         else:
-                                            # Flujo normal sin retener
                                             datos_inyeccion['codigo'] = f"{pr['codigo']}-01"
                                             supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
                                             st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
@@ -4104,11 +4226,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 else:
                                     st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
                         with col_disp2:
-                            if st.button("🗑️ ABORTAR (Descartar Partido)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
+                            if st.button("🗑️ ABORTAR (Descartar)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
                                 supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
-                                st.warning("Partido descartado del Radar.")
+                                st.warning("Partido descartado.")
                                 st.rerun()
-    # ---------------------------------------------------------
+                                    # ---------------------------------------------------------
     # PESTAÑA 3: LABORATORIO TÁCTICO (El código original que ya tenías)
     # ---------------------------------------------------------
     with tab_vivo:
