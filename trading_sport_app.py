@@ -3967,12 +3967,40 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 mgoles_rad = joblib.load('modelo_goles.pkl')
                                 mbtts_rad = joblib.load('modelo_btts.pkl')
                                 
-                                apm_rad = (al_rad + av_rad) / max(1, m_rad)
-                                ird_rad = min(100.0, apm_rad * 45.0)
+                                # ------------------------------------------------------------------
+                                # ⚡ MOTOR DE MOMENTUM (EXTRACCIÓN SILENCIOSA)
+                                # ------------------------------------------------------------------
+                                apm_global_loc = al_rad / max(1, m_rad)
+                                apm_global_vis = av_rad / max(1, m_rad)
+                                
+                                apm_local_dinamico = apm_global_loc
+                                apm_vis_dinamico = apm_global_vis
+                                texto_momentum = "Promedio Global"
+                                tiene_momentum = False
+                                
+                                if supabase is not None:
+                                    try:
+                                        res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lt("minuto_evaluado", m_rad).order("minuto_evaluado", desc=True).limit(1).execute()
+                                        if res_last.data:
+                                            foto_ant = res_last.data[0]
+                                            min_ant = int(foto_ant['minuto_evaluado'])
+                                            delta_min = m_rad - min_ant
+                                            if delta_min >= 2:
+                                                atk_l_ant = int(foto_ant['atkp_local'])
+                                                atk_v_ant = int(foto_ant['atkp_vis'])
+                                                apm_local_dinamico = max(0.0, (al_rad - atk_l_ant) / delta_min)
+                                                apm_vis_dinamico = max(0.0, (av_rad - atk_v_ant) / delta_min)
+                                                texto_momentum = f"Últimos {delta_min} min"
+                                                tiene_momentum = True
+                                    except:
+                                        pass
+
+                                apm_rad = apm_local_dinamico + apm_vis_dinamico
+                                ird_rad_global = min(100.0, (apm_global_loc + apm_global_vis) * 45.0)
                                 
                                 X_rad = pd.DataFrame([{
                                     'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad,
-                                    'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad,
+                                    'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad_global,
                                     'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 
                                     'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))
                                 }])
@@ -4002,18 +4030,17 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_vis_ui}"
                                 else: jerarquia = "⚖️ Fuerzas Parejas"
 
-                                if al_rad > av_rad and (al_rad - av_rad) > 10: dom_vivo = eq_loc_ui
-                                elif av_rad > al_rad and (av_rad - al_rad) > 10: dom_vivo = eq_vis_ui
+                                if apm_local_dinamico > apm_vis_dinamico and (apm_local_dinamico - apm_vis_dinamico) > 10: dom_vivo = eq_loc_ui
+                                elif apm_vis_dinamico > apm_local_dinamico and (apm_vis_dinamico - apm_local_dinamico) > 10: dom_vivo = eq_vis_ui
                                 else: dom_vivo = "Asedio Dividido"
 
                                 # ------------------------------------------------------------------
-                                # 🎯 2. DICTAMEN DE TRADING Y VALUE BETTING (LA ORDEN)
+                                # 💎 DICTAMEN DE TRADING Y VALUE BETTING (LA ORDEN)
                                 # ------------------------------------------------------------------
                                 if mdo_str == "Ambos Anotan":
                                     cuota_justa_si = 1 / prob_si if prob_si > 0.01 else 99.0
                                     cuota_justa_no = 1 / prob_no if prob_no > 0.01 else 99.0
                                     
-                                    # Evaluamos la selección del usuario ("Sí" o "No") contra su cuota ingresada (cuota_ent_rad)
                                     if seleccion_final_rad == "Sí":
                                         ventaja = cuota_ent_rad - cuota_justa_si
                                         prob_mercado = prob_si
@@ -4021,16 +4048,16 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         
                                         if ventaja >= 0:
                                             alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
-                                            texto_accion = f"El mercado es tuyo. La cuota justa es **{cuota_justa:.2f}** y la casa te regala **{cuota_ent_rad:.2f}**. Tienes el asedio a tu favor y la matemática también. Entra ya."
+                                            texto_accion = f"El mercado es tuyo. La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_ent_rad:.2f}**. Entra ya."
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
                                         else:
                                             if (cuota_justa - cuota_ent_rad) <= 0.40 and m_rad < 75:
                                                 alerta_accion = f"⏳ **PACIENCIA (ESPERA A QUE SUBA EL SÍ)**"
-                                                texto_accion = f"El partido pinta para goles, pero la casa paga muy poco (**{cuota_ent_rad:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera unos 5 a 10 minutos a que alcance ese valor para disparar."
+                                                texto_accion = f"Pagan muy poco (**{cuota_ent_rad:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera a que alcance ese valor."
                                                 bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
                                             else:
                                                 alerta_accion = f"🚫 **DESCARTADO (TRAMPA EN EL SÍ)**"
-                                                texto_accion = f"La IA predice goles, pero la cuota justa es **{cuota_justa:.2f}** y te ofrecen la miseria de **{cuota_ent_rad:.2f}**. La brecha es muy grande para esperar. Aborta."
+                                                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_ent_rad:.2f}**. La brecha es muy grande. Aborta."
                                                 bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
                                                 
                                     else: # Seleccionó "No"
@@ -4040,11 +4067,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         
                                         if ventaja >= 0:
                                             alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
-                                            texto_accion = f"Las defensas dominan. La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_ent_rad:.2f}**. ¡Mete la plata YA!, porque si esperas la cuota caerá en picada."
+                                            texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_ent_rad:.2f}**. ¡Mete la plata YA!"
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
                                         else:
                                             alerta_accion = f"🚫 **LLEGASTE TARDE AL NO**"
-                                            texto_accion = f"El partido pinta para el NO, pero la cuota justa era **{cuota_justa:.2f}** y el mercado ya la tumbó a **{cuota_ent_rad:.2f}**. Operar aquí es pérdida a largo plazo. Aborta."
+                                            texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_ent_rad:.2f}**. Operar aquí es pérdida matemática."
                                             bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
                                             
                                     st.markdown(f"""
@@ -4053,9 +4080,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         <p style="margin:0; font-size:1.05rem; color:{text_color};">{texto_accion}</p>
                                         <hr style="border-color:{border_color}; opacity:0.3; margin: 10px 0;">
                                         <div style="font-size:0.9rem; color:#475569; display:flex; justify-content:space-between;">
-                                            <span><b>Prob. IA SÍ:</b> {prob_si*100:.1f}%</span>
-                                            <span><b>Prob. IA NO:</b> {prob_no*100:.1f}%</span>
-                                            <span><b>Velocidad:</b> {apm_rad:.2f} APM</span>
+                                            <span><b>Prob. IA {seleccion_final_rad.upper()}:</b> {prob_mercado*100:.1f}%</span>
+                                            <span><b>Velocidad:</b> {apm_rad:.2f} APM ({texto_momentum})</span>
                                         </div>
                                     </div>
                                     """, unsafe_allow_html=True)
@@ -4065,54 +4091,52 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 # 🎯 3. SEÑALES TÁCTICAS CLÁSICAS (GIGANTE HERIDO, ASFIXIA)
                                 # ------------------------------------------------------------------
                                 goles_actuales_totales = gl_rad + gv_rad
-                                apm_loc_crudo = al_rad / max(1, m_rad)
-                                apm_vis_crudo = av_rad / max(1, m_rad)
-                                
                                 alerta_señal = ""
                                 fav_es_local = "Local" in jerarquia
                                 fav_es_visita = "Visita" in jerarquia
                                 
-                                # ESCENARIO 1: EL GIGANTE HERIDO
-                                if (fav_es_local and gv_rad == 1 and gl_rad == 0 and apm_loc_crudo >= 0.8) or \
-                                   (fav_es_visita and gl_rad == 1 and gv_rad == 0 and apm_vis_crudo >= 0.8):
-                                    equipo_atacando = eq_loc_ui if fav_es_local else eq_vis_ui
-                                    alerta_señal = f"""
-                                    <div style="background-color: #F0FDF4; border-left: 6px solid #16A34A; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
-                                        <h4 style="margin-top:0; color:#15803D;">🔥 SEÑAL TÁCTICA: EL GIGANTE HERIDO</h4>
-                                        <p style="margin:0; font-size: 0.95rem; color:#14532D;">
-                                        El débil anotó, pero el Favorito ({equipo_atacando}) tiene la cancha inclinada a su favor ({max(apm_loc_crudo, apm_vis_crudo):.2f} APM). Altísima probabilidad de empate inminente.
-                                        </p>
-                                    </div>
-                                    """
-                                    
-                                # ESCENARIO 2: ASFIXIA TOTAL
-                                elif (fav_es_local and gl_rad == 1 and gv_rad == 0 and apm_loc_crudo >= 0.8 and apm_vis_crudo <= 0.4) or \
-                                     (fav_es_visita and gv_rad == 1 and gl_rad == 0 and apm_vis_crudo >= 0.8 and apm_loc_crudo <= 0.4):
-                                    equipo_asfixiado = eq_vis_ui if fav_es_local else eq_loc_ui
-                                    alerta_señal = f"""
-                                    <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
-                                        <h4 style="margin-top:0; color:#991B1B;">🛡️ SEÑAL TÁCTICA: ASFIXIA TOTAL</h4>
-                                        <p style="margin:0; font-size: 0.95rem; color:#7F1D1D;">
-                                        El Favorito ya anotó y asfixia. El equipo {equipo_asfixiado} está anulado ({min(apm_loc_crudo, apm_vis_crudo):.2f} APM). Excelente escenario para el NO.
-                                        </p>
-                                    </div>
-                                    """
-                                    
-                                # ESCENARIO 3: MOMENTUM 0-0
-                                elif m_rad <= 45 and goles_actuales_totales == 0:
-                                    if apm_loc_crudo >= 1.0 or apm_vis_crudo >= 1.0:
-                                        atacante_fuerte = eq_loc_ui if apm_loc_crudo > apm_vis_crudo else eq_vis_ui
-                                        es_favorito = True if atacante_fuerte in jerarquia else False
-                                        texto_riesgo = "Favorito presionando con furia" if es_favorito else "Peligro de sorpresa del Débil"
-                                        
+                                if tiene_momentum:
+                                    # ESCENARIO 1: EL GIGANTE HERIDO (Basado en Momentum)
+                                    if (fav_es_local and gv_rad == 1 and gl_rad == 0 and apm_local_dinamico >= 0.8) or \
+                                       (fav_es_visita and gl_rad == 1 and gv_rad == 0 and apm_vis_dinamico >= 0.8):
+                                        equipo_atacando = eq_loc_ui if fav_es_local else eq_vis_ui
                                         alerta_señal = f"""
-                                        <div style="background-color: #FFFBEB; border-left: 6px solid #D97706; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
-                                            <h4 style="margin-top:0; color:#B45309;">⚡ SEÑAL DE MOMENTUM: GOL INMINENTE (1T)</h4>
-                                            <p style="margin:0; font-size: 0.95rem; color:#92400E;">
-                                            El equipo {atacante_fuerte} bombardea el arco ({max(apm_loc_crudo, apm_vis_crudo):.2f} APM). {texto_riesgo}.
+                                        <div style="background-color: #F0FDF4; border-left: 6px solid #16A34A; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
+                                            <h4 style="margin-top:0; color:#15803D;">🔥 SEÑAL TÁCTICA: EL GIGANTE HERIDO</h4>
+                                            <p style="margin:0; font-size: 0.95rem; color:#14532D;">
+                                            El débil anotó, pero el Favorito ({equipo_atacando}) acaba de meter el acelerador ({max(apm_local_dinamico, apm_vis_dinamico):.2f} APM). Altísima probabilidad de empate inminente.
                                             </p>
                                         </div>
                                         """
+                                        
+                                    # ESCENARIO 2: ASFIXIA TOTAL (Basado en Momentum)
+                                    elif (fav_es_local and gl_rad == 1 and gv_rad == 0 and apm_local_dinamico >= 0.8 and apm_vis_dinamico <= 0.4) or \
+                                         (fav_es_visita and gv_rad == 1 and gl_rad == 0 and apm_vis_dinamico >= 0.8 and apm_local_dinamico <= 0.4):
+                                        equipo_asfixiado = eq_vis_ui if fav_es_local else eq_loc_ui
+                                        alerta_señal = f"""
+                                        <div style="background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
+                                            <h4 style="margin-top:0; color:#991B1B;">🛡️ SEÑAL TÁCTICA: ASFIXIA TOTAL</h4>
+                                            <p style="margin:0; font-size: 0.95rem; color:#7F1D1D;">
+                                            El Favorito anotó y no quita el pie del acelerador. El equipo {equipo_asfixiado} está anulado en este tramo ({min(apm_local_dinamico, apm_vis_dinamico):.2f} APM). Excelente escenario para el NO.
+                                            </p>
+                                        </div>
+                                        """
+                                        
+                                    # ESCENARIO 3: MOMENTUM 0-0
+                                    elif m_rad <= 45 and goles_actuales_totales == 0:
+                                        if apm_local_dinamico >= 1.0 or apm_vis_dinamico >= 1.0:
+                                            atacante_fuerte = eq_loc_ui if apm_local_dinamico > apm_vis_dinamico else eq_vis_ui
+                                            es_favorito = True if atacante_fuerte in jerarquia else False
+                                            texto_riesgo = "Favorito presionando con furia" if es_favorito else "Peligro de sorpresa del Débil"
+                                            
+                                            alerta_señal = f"""
+                                            <div style="background-color: #FFFBEB; border-left: 6px solid #D97706; padding: 15px; border-radius: 4px; margin-bottom: 15px; text-align: left;">
+                                                <h4 style="margin-top:0; color:#B45309;">⚡ SEÑAL DE MOMENTUM: GOL INMINENTE (1T)</h4>
+                                                <p style="margin:0; font-size: 0.95rem; color:#92400E;">
+                                                El equipo {atacante_fuerte} bombardea el arco ({max(apm_local_dinamico, apm_vis_dinamico):.2f} APM). {texto_riesgo}.
+                                                </p>
+                                            </div>
+                                            """
 
                                 if alerta_señal: st.markdown(alerta_señal, unsafe_allow_html=True)
 
@@ -4135,16 +4159,16 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     if calc_vis <= calc_loc: calc_vis = calc_loc + max(1, goles_nuevos_esperados)
                                     else: calc_vis += goles_nuevos_esperados
 
-                                if apm_loc_crudo >= 0.6 and apm_vis_crudo >= 0.6:
+                                if apm_global_loc >= 0.6 and apm_global_vis >= 0.6:
                                     calc_loc = max(1, calc_loc)
                                     calc_vis = max(1, calc_vis)
                                     btts = "SÍ (Alta Prob. Física)"
                                     color_btts = "#10B981"
-                                elif apm_loc_crudo < 0.4 or apm_vis_crudo < 0.4:
+                                elif apm_global_loc < 0.4 or apm_global_vis < 0.4:
                                     btts = "NO (Falta Asedio)"
                                     color_btts = "#EF4444"
-                                    if apm_loc_crudo < 0.4 and gl_rad == 0: calc_loc = 0
-                                    if apm_vis_crudo < 0.4 and gv_rad == 0: calc_vis = 0
+                                    if apm_global_loc < 0.4 and gl_rad == 0: calc_loc = 0
+                                    if apm_global_vis < 0.4 and gv_rad == 0: calc_vis = 0
                                 else:
                                     if pred_btts_rad == 1:
                                         calc_loc = max(1, calc_loc)
@@ -4176,13 +4200,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     <h3 style="margin-top:0; color:#0F172A;">🎯 PROYECCIÓN TÁCTICA</h3>
                                     <h1 style="color:{color_winner}; font-size: 2.5rem; margin: 10px 0;">{marcador_exacto}</h1>
                                     <p style="margin:0; font-size: 1.1rem; color:#475569;">Ganador Físico: <b>{winner_tactico}</b></p>
-                                    <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{dom_vivo}</b> está dominando la cancha (IRD: {ird_rad:.1f}%)</p>
+                                    <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{dom_vivo}</b> está dominando la cancha (IRD: {ird_rad_global:.1f}%)</p>
                                 </div>
                                 """, unsafe_allow_html=True)
 
                             except Exception as e:
                                 st.error(f"Error procesando IA táctica: {e}")
-
                         # ==================================================================
                         # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
                         # ==================================================================
