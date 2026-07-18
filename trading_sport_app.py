@@ -3980,19 +3980,22 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             key=f"perfil_{pr['codigo']}"
                         )
                         
-                        # Asignación de variables dinámicas según perfil
+                        # Asignación de variables dinámicas y MARGEN DE SEGURIDAD FINANCIERO
                         if "CONSERVADOR" in perfil_riesgo:
                             umbral_asfixia = 0.8
                             mult_castigo = 0.10
                             umbral_gigante = 0.9
+                            ventaja_min_exigida = 0.50  # 👈 Exige un error garrafal de la casa
                         elif "MODERADO" in perfil_riesgo:
                             umbral_asfixia = 0.6
                             mult_castigo = 0.20
                             umbral_gigante = 0.7
+                            ventaja_min_exigida = 0.20  # 👈 Exige una ventaja clara
                         else: # AGRESIVO
                             umbral_asfixia = 0.4
                             mult_castigo = 0.50
                             umbral_gigante = 0.5
+                            ventaja_min_exigida = 0.0   # 👈 Entra con cualquier margen positivo
 
                         # ==================================================================
                         # 🧠 BOTÓN DEL ORÁCULO TÁCTICO (EL NÚCLEO)
@@ -4098,10 +4101,15 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         prob_mercado = prob_si
                                         cuota_justa = cuota_justa_si
                                         
-                                        if ventaja >= 0:
+                                        if ventaja >= ventaja_min_exigida:
                                             alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
                                             texto_accion = f"El mercado es tuyo. La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_ent_rad:.2f}**. Entra ya."
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
+                                        elif ventaja >= 0:
+                                            # La matemática es ligeramente positiva, pero no alcanza el umbral de tu Perfil de Riesgo
+                                            alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
+                                            texto_accion = f"Hay valor matemático (Justa: **{cuota_justa:.2f}**), pero tu Perfil {perfil_riesgo.split(' ')[1]} exige una ganancia superior para compensar el riesgo. Mantente al margen."
+                                            bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
                                         else:
                                             if (cuota_justa - cuota_ent_rad) <= 0.40 and m_rad < 75:
                                                 alerta_accion = f"⏳ **PACIENCIA (ESPERA A QUE SUBA EL SÍ)**"
@@ -4117,10 +4125,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         prob_mercado = prob_no
                                         cuota_justa = cuota_justa_no
                                         
-                                        if ventaja >= 0:
+                                        if ventaja >= ventaja_min_exigida:
                                             alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
                                             texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_ent_rad:.2f}**. ¡Mete la plata YA!"
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
+                                        elif ventaja >= 0:
+                                            alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
+                                            texto_accion = f"Hay valor matemático (Justa: **{cuota_justa:.2f}**), pero tu Perfil {perfil_riesgo.split(' ')[1]} exige mayor margen de seguridad. No dispares."
+                                            bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
                                         else:
                                             alerta_accion = f"🚫 **LLEGASTE TARDE AL NO**"
                                             texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_ent_rad:.2f}**. Operar aquí es pérdida matemática."
@@ -4138,7 +4150,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     </div>
                                     """, unsafe_allow_html=True)
                                     st.markdown("---")
-
                                 # ------------------------------------------------------------------
                                 # 🎯 3. SEÑALES TÁCTICAS CLÁSICAS (GIGANTE HERIDO, ASFIXIA)
                                 # ------------------------------------------------------------------
