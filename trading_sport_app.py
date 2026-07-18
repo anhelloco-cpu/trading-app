@@ -4246,10 +4246,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
     # PESTAÑA 3: LABORATORIO TÁCTICO (El código original que ya tenías)
     # ---------------------------------------------------------
     with tab_vivo:
-        st.subheader("🧠 Laboratorio Táctico (Machine Learning)")
-        st.write("Ingresa tu Foto Táctica actual de cualquier partido. La IA, operando como un analista puro (ciega a las cuotas), cruzará el asedio en cancha para darte una predicción integral al instante sin guardar nada en base de datos.")
+        st.subheader("🧠 Laboratorio Táctico en Vivo (Proyección + Value Betting)")
+        st.write("Ingresa tu Foto Táctica actual de cualquier partido. La IA cruzará el asedio en cancha para darte una predicción integral y calculará si las cuotas que te ofrece la casa son una estafa o una oportunidad de oro.")
         
-        st.markdown("#### 📸 Foto Táctica En Vivo")
+        st.markdown("#### 📸 1. Escenario Táctico (Lo que pasa en la cancha)")
         c_vivo1, c_vivo2, c_vivo3 = st.columns(3)
         minuto_sim = c_vivo1.number_input("⏱️ Minuto Actual:", min_value=1, max_value=120, value=60)
         g_loc_sim = c_vivo2.number_input("⚽ Goles Local:", min_value=0, value=0)
@@ -4258,6 +4258,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
         c_vivo4, c_vivo5, c_vivo6 = st.columns(3)
         atq_loc_sim = c_vivo4.number_input("🔥 Atq. Pel. Local:", min_value=0, value=40)
         atq_vis_sim = c_vivo5.number_input("🔥 Atq. Pel. Visitante:", min_value=0, value=25)
+        
+        st.markdown("#### 🏦 2. Oferta de la Casa (Ambos Anotan)")
+        c_cuotas1, c_cuotas2 = st.columns(2)
+        cuota_casa_si = c_cuotas1.number_input("Cuota que te ofrecen por el SÍ:", min_value=1.01, value=1.85, step=0.05, key="lab_c_si")
+        cuota_casa_no = c_cuotas2.number_input("Cuota que te ofrecen por el NO:", min_value=1.01, value=1.85, step=0.05, key="lab_c_no")
         
         if st.button("🧠 Despertar Oráculo (Proyectar Escenario)", use_container_width=True):
             import joblib
@@ -4286,6 +4291,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         pred_1x2_v = modelo_1x2_v.predict(X_input)[0]
                         pred_goles_v = modelo_goles_v.predict(X_input)[0]
                         pred_btts_v = modelo_btts_v.predict(X_input)[0]
+                        
+                        # --- NUEVO: OBTENER PROBABILIDADES EXACTAS PARA EL VALUE BETTING ---
+                        probabilidades = modelo_btts_v.predict_proba(X_input)[0]
+                        prob_no = probabilidades[0]
+                        prob_si = probabilidades[1]
                         
                         ganador_str = "Empate" if pred_1x2_v == 1 else "Equipo Local" if pred_1x2_v == 2 else "Equipo Visitante"
                         btts_str = "SÍ" if pred_btts_v == 1 else "NO"
@@ -4352,6 +4362,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 </div>
                                 """, unsafe_allow_html=True)
                         
+                        # =========================================================
+                        # PANALES ORIGINALES DE PROYECCIÓN TÁCTICA
+                        # =========================================================
                         st.markdown("---")
                         st.markdown("### 🔮 Veredicto del Oráculo (Análisis Físico)")
                         st.markdown(f"""
@@ -4369,5 +4382,58 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         with col_r3:
                             st.markdown(f"""<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 8px; text-align: center;"><h4 style="margin-top:0; color:#475569;">🔥 Ambos Anotan</h4><h2 style="color:{color_btts}; margin: 10px 0;">{btts_str}</h2></div>""", unsafe_allow_html=True)
                             
+                        # =========================================================
+                        # NUEVO PANEL: VALUE BETTING (CUOTA JUSTA)
+                        # =========================================================
+                        st.markdown("---")
+                        st.markdown("### ⚖️ Auditoría de Valor (Value Betting)")
+                        
+                        cuota_justa_si = 1 / prob_si if prob_si > 0.01 else 99.0
+                        cuota_justa_no = 1 / prob_no if prob_no > 0.01 else 99.0
+                        
+                        ventaja_si = cuota_casa_si - cuota_justa_si
+                        ventaja_no = cuota_casa_no - cuota_justa_no
+                        
+                        ev_si_pct = (ventaja_si / cuota_justa_si) * 100
+                        ev_no_pct = (ventaja_no / cuota_justa_no) * 100
+                        
+                        c_res1, c_res2 = st.columns(2)
+                        
+                        # PANEL DEL "SÍ"
+                        with c_res1:
+                            if ventaja_si > 0:
+                                bg_color = "#F0FDF4"; border_color = "#10B981"; title_color = "#15803D"; estado = "🟢 SÍ ES VIABLE"
+                                recomendacion = f"La IA exige cuota de {cuota_justa_si:.2f}. La casa te regala {cuota_casa_si:.2f}. Tienes **{ev_si_pct:.1f}% de ventaja (EV+)**."
+                            else:
+                                bg_color = "#FEF2F2"; border_color = "#EF4444"; title_color = "#B91C1C"; estado = "🔴 NO VIABLE"
+                                recomendacion = f"Para que valga la pena, necesitas cuota {cuota_justa_si:.2f}. Te ofrecen {cuota_casa_si:.2f}. **Te están estafando**."
+                                
+                            st.markdown(f"""
+                            <div style="background-color: {bg_color}; border-left: 5px solid {border_color}; padding: 15px; border-radius: 6px; height: 100%;">
+                                <h4 style="margin-top:0; color:{title_color};">🔥 Invertir al SÍ</h4>
+                                <h2 style="color:{border_color}; margin: 5px 0;">{estado}</h2>
+                                <p style="margin:0; font-size:0.9rem; color:#475569;"><b>Probabilidad IA:</b> {prob_si*100:.1f}%</p>
+                                <p style="margin:5px 0 0 0; font-size:0.85rem; color:#334155;"><i>{recomendacion}</i></p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                        # PANEL DEL "NO"
+                        with c_res2:
+                            if ventaja_no > 0:
+                                bg_color = "#F0FDF4"; border_color = "#10B981"; title_color = "#15803D"; estado = "🟢 SÍ ES VIABLE"
+                                recomendacion = f"La IA exige cuota de {cuota_justa_no:.2f}. La casa te regala {cuota_casa_no:.2f}. Tienes **{ev_no_pct:.1f}% de ventaja (EV+)**."
+                            else:
+                                bg_color = "#FEF2F2"; border_color = "#EF4444"; title_color = "#B91C1C"; estado = "🔴 NO VIABLE"
+                                recomendacion = f"Para que valga la pena, necesitas cuota {cuota_justa_no:.2f}. Te ofrecen {cuota_casa_no:.2f}. **Te están estafando**."
+                                
+                            st.markdown(f"""
+                            <div style="background-color: {bg_color}; border-left: 5px solid {border_color}; padding: 15px; border-radius: 6px; height: 100%;">
+                                <h4 style="margin-top:0; color:{title_color};">🛡️ Invertir al NO</h4>
+                                <h2 style="color:{border_color}; margin: 5px 0;">{estado}</h2>
+                                <p style="margin:0; font-size:0.9rem; color:#475569;"><b>Probabilidad IA:</b> {prob_no*100:.1f}%</p>
+                                <p style="margin:5px 0 0 0; font-size:0.85rem; color:#334155;"><i>{recomendacion}</i></p>
+                            </div>
+                            """, unsafe_allow_html=True)
+
                     except Exception as e:
                         st.error(f"❌ Error al procesar la predicción: {str(e)}")
