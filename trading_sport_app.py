@@ -4014,7 +4014,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 prob_no = probabilidades[0]
                                 prob_si = probabilidades[1]
 
-# ------------------------------------------------------------------
+                                # ------------------------------------------------------------------
                                 # 🛡️ FILTRO DE SENTIDO COMÚN: SINCRONIZAR PLATA CON FÍSICA
                                 # ------------------------------------------------------------------
                                 # Si un equipo está asfixiado (< 0.4 APM) y no ha marcado, 
