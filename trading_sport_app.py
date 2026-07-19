@@ -2079,25 +2079,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     veredicto_titulo = "🛡️ RIESGO CERO (Marginalidad Absoluta)"
                                     veredicto_desc = f"La casa te ofrece migajas (${oferta_cashout:,.0f}, {pct_rescate_banca:.2f}% de tu banca). No salves centavos. Deja correr el partido."
                                     color_alerta = "#64748B"; bg_alerta = "#F1F5F9"
-                                    
-                                # Fusión Táctica vs Historia
-                                elif estamos_dominando:
-                                    veredicto_titulo = "🟢 MANTENER POSICIÓN (Respaldo Táctico IA)"
-                                    veredicto_desc = f"{texto_apoyo} {texto_fav} Queda tiempo ({tiempo_restante} min). Dejar correr maximiza tu ROI a largo plazo."
-                                    color_alerta = "#10B981"; bg_alerta = "#ECFDF5"
-                                elif not estamos_dominando and not eres_favorito:
-                                    if pct_rescate_banca >= 2.0:
-                                        veredicto_titulo = "🚨 EVACUACIÓN (Amputación Vital)"
-                                        veredicto_desc = f"Muerte táctica confirmada. Toma los ${oferta_cashout:,.0f} para salvar el {pct_rescate_banca:.1f}% de tu banca."
-                                        color_alerta = "#EF4444"; bg_alerta = "#FEF2F2"
-                                    else:
-                                        veredicto_titulo = "🟡 COBERTURA ESTRATÉGICA (Mitigación)"
-                                        veredicto_desc = f"El partido luce oscuro frente al favorito ({fav_global}). Inyectar ${monto_a_inyectar:,.0f} frena la sangría si logras Break-Even."
-                                        color_alerta = "#F59E0B"; bg_alerta = "#FFFBEB"
-                                elif not estamos_dominando and eres_favorito:
-                                    veredicto_titulo = "⚠️ ALERTA DE TRAMPA (Jerarquía vs Física)"
-                                    veredicto_desc = f"Eres Favorito, pero el asedio en contra es real. Mantén con precaución. Si el asedio te quema (IRD > 75%), busca la salida."
-                                    color_alerta = "#3B82F6"; bg_alerta = "#EFF6FF"
+                                
 
                                 st.markdown(f"""
                                 <div style="background-color: {bg_alerta}; border-left: 8px solid {color_alerta}; padding: 20px; border-radius: 8px; margin: 15px 0;">
