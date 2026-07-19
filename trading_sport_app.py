@@ -1447,57 +1447,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 st.markdown("---")
                                 
-                                # ====================================================================
-                                # ⚡ MOTOR DE MOMENTUM (¡AHORA TOMA LA FOTO Y CALCULA AL MISMO TIEMPO!)
-                                # ====================================================================
-                                st.markdown("#### ⚡ Motor de Momentum (Aceleración Real)")
+       
                                 
-                                if st.button("📸 Extraer Ancestro, Calcular y Guardar Foto Actual", key=f"btn_mom_{op['codigo']}", use_container_width=True, type="primary"):
-                                    try:
-                                        # 1. BUSCAMOS LA FOTO VIEJA PARA EL MOMENTUM
-                                        res_mom = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).lt("minuto_evaluado", minuto_actual).order("minuto_evaluado", desc=True).limit(1).execute()
-                                        
-                                        if res_mom.data:
-                                            foto_ant = res_mom.data[0]
-                                            min_ant = int(foto_ant['minuto_evaluado'])
-                                            delta_min = minuto_actual - min_ant
-                                            
-                                            if delta_min >= 2:
-                                                atk_l_ant = int(foto_ant['atkp_local'])
-                                                atk_v_ant = int(foto_ant['atkp_vis'])
-                                                
-                                                # Guardamos el resultado en la memoria de la aplicación
-                                                st.session_state[f"apm_l_din_{op['codigo']}"] = max(0.0, (atkp_local - atk_l_ant) / delta_min)
-                                                st.session_state[f"apm_v_din_{op['codigo']}"] = max(0.0, (atkp_vis - atk_v_ant) / delta_min)
-                                                st.session_state[f"mom_txt_{op['codigo']}"] = f"Últimos {delta_min} min (Desde el {min_ant}')"
-                                            else:
-                                                st.warning(f"⚠️ La última foto es del minuto {min_ant}. Deben pasar al menos 2 minutos para medir aceleración precisa.")
-                                        else:
-                                            st.warning("⚠️ No hay fotos anteriores para comparar, pero se guardará esta como la primera foto base.")
-
-                                        # 2. INYECTAMOS LA FOTO NUEVA A SUPABASE INMEDIATAMENTE
-                                        nueva_foto = {
-                                            "codigo_posicion": op['codigo'],
-                                            "minuto_evaluado": minuto_actual,
-                                            "goles_local": g_local,
-                                            "goles_vis": g_vis,
-                                            "atqt_local": atqt_local,
-                                            "atqt_vis": atqt_vis,
-                                            "atkp_local": atkp_local,
-                                            "atkp_vis": atkp_vis,
-                                            "cuota_si": cuota_salida, # Guardamos la cuota de la cobertura
-                                            "cuota_no": op['cuota_inicial']
-                                        }
-                                        
-                                        supabase.table("registro_fotos").insert(nueva_foto).execute()
-                                        st.success(f"✅ ¡Foto del min {minuto_actual} calculada y anclada a la BD con éxito!")
-                                        
-                                    except Exception as e:
-                                        st.error(f"Error procesando la foto táctica: {str(e)}")
-
-                                # Asignación final de variables para la IA
-                                apm_global_loc = atkp_local / max(1, minuto_actual)
-                                apm_global_vis = atkp_vis / max(1, minuto_actual)
+                                
                                 
 # -------------------------------------------------------------
                                 # 3. CÁLCULOS MATEMÁTICOS DE IA Y JERARQUÍA HISTÓRICA
