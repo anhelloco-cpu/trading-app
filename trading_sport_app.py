@@ -4102,6 +4102,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         "minuto_evaluado": m_rad,
                                         "goles_local": gl_rad,
                                         "goles_vis": gv_rad,
+                                        "atqt_local": atq_tot_loc, # 👈 NUEVA COLUMNA INYECTADA
+                                        "atqt_vis": atq_tot_vis,   # 👈 NUEVA COLUMNA INYECTADA
                                         "atkp_local": al_rad,
                                         "atkp_vis": av_rad,
                                         "cuota_si": val_cuota_si,
