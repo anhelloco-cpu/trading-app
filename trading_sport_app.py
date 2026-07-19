@@ -1385,7 +1385,35 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             )
                             
                             if accion_esports == "📸 Evaluar Asedio y Cazar Cuota":
-                                st.markdown("#### ⏱️ Auditoría Táctica y Financiera")
+                                # ------------------------------------------------------------------
+                                # 🔄 BOTÓN DE SINCRONIZACIÓN Y LECTURA DE FOTOS (CLON DEL RADAR)
+                                # ------------------------------------------------------------------
+                                col_tit1, col_tit2 = st.columns([2, 1])
+                                with col_tit1:
+                                    st.markdown("#### ⏱️ Auditoría Táctica y Financiera")
+                                with col_tit2:
+                                    if st.button("🔄 Sincronizar Info", key=f"btn_sync_seg_{op['codigo']}"):
+                                        try:
+                                            res_sync = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
+                                            if res_sync.data:
+                                                foto_reciente = res_sync.data[0]
+                                                st.session_state[f"min_es_{op['codigo']}"] = int(foto_reciente['minuto_evaluado'])
+                                                st.session_state[f"g_l_es_{op['codigo']}"] = int(foto_reciente['goles_local'])
+                                                st.session_state[f"g_v_es_{op['codigo']}"] = int(foto_reciente['goles_vis'])
+                                                st.session_state[f"atqt_l_es_{op['codigo']}"] = int(foto_reciente.get('atqt_local', 80))
+                                                st.session_state[f"atqt_v_es_{op['codigo']}"] = int(foto_reciente.get('atqt_vis', 50))
+                                                st.session_state[f"atk_l_es_{op['codigo']}"] = int(foto_reciente['atkp_local'])
+                                                st.session_state[f"atk_v_es_{op['codigo']}"] = int(foto_reciente['atkp_vis'])
+                                                
+                                                # Sincronizar cuota de salida si existe
+                                                if foto_reciente.get('cuota_si') and float(foto_reciente['cuota_si']) > 1.01:
+                                                    st.session_state[f"c_live_es_{op['codigo']}"] = float(foto_reciente['cuota_si'])
+                                                    
+                                                st.success(f"✅ ¡Datos del min {foto_reciente['minuto_evaluado']} importados!")
+                                            else:
+                                                st.warning("⚠️ No hay fotos previas de este partido.")
+                                        except Exception as e:
+                                            st.error(f"Error sincronizando: {e}")
                                 
                                 # 1. Extracción inteligente de equipos para las cajas de goles
                                 partido_str = str(op.get('partido', ''))
