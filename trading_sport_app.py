@@ -382,7 +382,7 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
                 st.markdown("#### 📥 Registrar Depósito en Casa")
                 plat_in = st.selectbox("¿En qué casa vas a fondear?", todas_las_plataformas)
                 plat_in_otra = st.text_input("Especificar plataforma:") if plat_in == "Otra" else ""
-                monto = st.number_input("Monto a Consignar (COP):", min_value=5000, step=5000, value=10000)
+                monto = st.number_input("Monto a Consignar (COP):", min_value=500, step=500, value=10000)
                 
                 if st.form_submit_button("Fijar Depósito (Banca Real)"):
                     plataforma_final = plat_in_otra if plat_in == "Otra" else plat_in
@@ -403,7 +403,7 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
                 st.markdown("#### 📤 Registrar Retiro de Ganancias")
                 plat_out = st.selectbox("¿De qué casa retiras dinero?", todas_las_plataformas)
                 plat_out_otra = st.text_input("Especificar plataforma:") if plat_out == "Otra" else ""
-                monto = st.number_input("Monto a Retirar (COP):", min_value=5000, step=5000, value=10000)
+                monto = st.number_input("Monto a Retirar (COP):", min_value=500, step=500, value=1000)
                 
                 if st.form_submit_button("Fijar Retiro (Banca Real)"):
                     plataforma_final = plat_out_otra if plat_out == "Otra" else plat_out
@@ -444,7 +444,7 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
                 st.markdown("#### 📥 Fondeo Virtual")
                 plat_in = st.selectbox("Plataforma simulada:", todas_las_plataformas)
                 plat_in_otra = st.text_input("Especificar plataforma:") if plat_in == "Otra" else ""
-                monto = st.number_input("Monto a Consignar (COP):", min_value=5000, step=5000, value=50000)
+                monto = st.number_input("Monto a Consignar (COP):", min_value=500, step=500, value=10000)
                 
                 if st.form_submit_button("Fijar Fondeo Virtual"):
                     plataforma_final = plat_in_otra if plat_in == "Otra" else plat_in
@@ -462,7 +462,8 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
                 st.markdown("#### 📤 Retiro Virtual")
                 plat_out = st.selectbox("Plataforma simulada:", todas_las_plataformas)
                 plat_out_otra = st.text_input("Especificar plataforma:") if plat_out == "Otra" else ""
-                monto = st.number_input("Monto a Retirar (COP):", min_value=5000, step=5000, value=50000)
+                monto = st.number_input("Monto a Retirar (COP):", min_value=500, step=500, value=100)
+            
                 
                 if st.form_submit_button("Fijar Retiro Virtual"):
                     plataforma_final = plat_out_otra if plat_out == "Otra" else plat_out
@@ -489,7 +490,7 @@ elif estrategia_activa == "🎯 Estrategia Libre (Apuesta Directa)":
     
     col1, col2 = st.columns(2)
     with col1:
-        capital_total = st.number_input("Inversión Total (Stake COP)", min_value=5000, value=min(20000, int(saldo_disponible)) if saldo_disponible > 5000 else 5000, step=5000)
+        capital_total = st.number_input("Inversión Total (Stake COP)", min_value=500, value=min(20000, int(saldo_disponible)) if saldo_disponible > 500 else 500, step=500)
     with col2:
         cuota_1 = st.number_input("Cuota Fijada", min_value=1.01, value=1.50, step=0.05)
 
@@ -636,7 +637,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        capital_total = st.number_input("Capital Total (COP)", min_value=10000, value=min(50000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
+        capital_total = st.number_input("Capital Total (COP)", min_value=1000, value=min(5000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
     with col2:
         utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=10.0, step=0.5)
     with col3:
@@ -912,7 +913,7 @@ elif estrategia_activa == "⚡ Estrategia 1: eSports (Scalping)":
     st.markdown("---")
     st.markdown("### 💰 2. Asignación de Capital y Riesgo")
     
-    capital_inicial = st.number_input("Capital Inicial a Invertir (Stake 1)", min_value=5000, value=min(20000, int(saldo_disponible)) if saldo_disponible > 5000 else 10000, step=5000)
+    capital_inicial = st.number_input("Capital Inicial a Invertir (Stake 1)", min_value=500, value=min(2000, int(saldo_disponible)) if saldo_disponible > 5000 else 10000, step=5000)
 
     # 🧮 MATEMÁTICA DE LÍMITES DINÁMICOS
     retorno_bruto_esperado = capital_inicial * cuota_efectiva
@@ -4720,7 +4721,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             'seleccion_inicial': mercado_lab,
             'mercado': mercado_lab,
             'cuota_inicial': 1.90,
-            'stake_1': 50000
+            'stake_1': 500
         }
         
         st.markdown("---")
@@ -4856,7 +4857,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
         stk_key = f"stk_ent_{pr['codigo']}"
         if stk_key not in st.session_state:
-            st.session_state[stk_key] = int(max(5000, int(pr.get('stake_1', 5000))))
+            st.session_state[stk_key] = int(max(5000, int(pr.get('stake_1', 500))))
 
         col_ent1, col_ent2, col_ent3 = st.columns(3)
         with col_ent1:
