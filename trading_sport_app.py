@@ -1297,504 +1297,3645 @@ elif estrategia_activa == "3️⃣ Estrategia 3: Binario Personalizado":
                     except Exception as e:
                         st.error(f"❌ Error de Supabase: {str(e)}")
 
-## =====================================================================
-# MÓDULO 2: SEGUIMIENTO Y LIQUIDACIÓN DE POSICIONES
-# =====================================================================
-elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
-    st.markdown("### 📝 Panel de Control y Auditoría")
-    
-    import datetime
-    import pandas as pd
-    
-    if supabase is None:
-        st.error("Conecta Supabase primero.")
-    else:
-        # Consulta organizada por hora de inicio
-        res = supabase.table("historial_trading").select("*").in_("estado", ["EN VIVO", "CUBIERTA"]).order("hora_inicio_partido", desc=False).execute()
-        ops = res.data
-        
-        if not ops:
-            st.info("Libro mayor al día. No hay posiciones abiertas en este momento.")
-        else:
-            for op in ops:
-                tipo_banca_operacion = op.get('tipo_banca', 'SIMULACION')
-                nombre_estrategia = op.get('estrategia', '')
-                
-                # =====================================================================
-                # ⚡ COCKPIT DINÁMICO (eSPORTS Y BINARIO PERSONALIZADO)
-                # =====================================================================
-                if nombre_estrategia in ["Estrategia 1: eSports Scalping", "Estrategia 3: Binario Personalizado"]:
-                    icono_est = "🎯" if "Binario" in nombre_estrategia else "🎮"
-                    etiqueta_db = "Binario" if "Binario" in nombre_estrategia else "eSports"
-                    
-                    with st.expander(f"{icono_est} {op['partido']} | Ref: {op['codigo']} | Estado: {op['estado']}"):
-                        
-                        sel_ini = op.get('seleccion_inicial', 'Apuesta Inicial')
-                        sel_cob = op.get('seleccion_cobertura', 'Cobertura')
-                        saldo_banca_actual = obtener_saldo_banca(tipo_banca_operacion)
-                        umbral_permitido = max_riesgo_real if tipo_banca_operacion == 'REAL' else max_riesgo_simulacion
-                        
-                        st.markdown(f"""
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                            <span style="background:#3B82F6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold;">{tipo_banca_operacion}</span>
-                            <span style="color:#64748B; font-size:0.8rem; font-weight:bold;">{nombre_estrategia}</span>
-                        </div>
-                        <div style="background-color: #F8FAFC; padding: 15px; border-left: 5px solid #F59E0B; border-radius: 4px; margin-bottom: 15px;">
-                            <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Posición Inicial:</b> {sel_ini} (Stake 1: <b>${op['stake_1']:,.0f} COP</b> a cuota {op['cuota_inicial']:.2f})</p>
-                            <p style="margin: 5px 0 0 0; font-size: 0.95rem;">🚀 <b>Amenaza a cubrir en vivo:</b> <span style="color:#D97706; font-weight:bold; font-size:1.05rem;">{sel_cob}</span></p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        c_info1, c_info2, c_info3 = st.columns(3)
-                        c_info1.metric("Punto de Entrada", f"{op['cuota_inicial']:.2f}")
-                        c_info2.metric("🟢 Take Profit", f"{op['cuota_objetivo']:.2f}")
-                        c_info3.metric("🔴 Stop Loss", f"{op.get('cuota_stop_loss', 0.0):.2f}")
-                        st.markdown("---")
-                        
-                        # -------------------------------------------------------------
-                        # FASE 1: EN VIVO (HEDGING DINÁMICO)
-                        # -------------------------------------------------------------
-                        if op['estado'] == "EN VIVO":
-                            retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
-                            utilidad_original_maxima = retorno_bruto_esperado - op['stake_1']
-                            inyeccion_maxima_breakeven = utilidad_original_maxima
-                            cuota_minima_rentable = retorno_bruto_esperado / inyeccion_maxima_breakeven if inyeccion_maxima_breakeven > 0 else 0
-                            
-                            st.markdown(f"""
-                            <div style="background-color: #EFF6FF; padding: 15px; border-left: 4px solid #3B82F6; border-radius: 4px; margin-bottom: 20px;">
-                                <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">📈 <b>Escenario SIN COBERTURA:</b> Si dejas correr y gana {sel_ini}, tu utilidad máxima será <b>${utilidad_original_maxima:,.0f} COP</b>.</p>
-                                <hr style="margin: 8px 0; border-color: #3B82F6; opacity: 0.2;">
-                                <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Punto de Equilibrio:</b> Para ganar asegurando con cobertura, necesitas cazar a <b>cuota mínima de {cuota_minima_rentable:.2f}</b>.</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            
-                            accion_esports = st.radio(
-                                f"Acción Operativa ({etiqueta_db}):", 
-                                ["📸 Evaluar Asedio y Cazar Cuota", "🏁 Liquidar Posición Directa (Sin Cobertura)"],
-                                key=f"acc_es_{op['codigo']}", horizontal=True
-                            )
-                            
-                            if accion_esports == "📸 Evaluar Asedio y Cazar Cuota":
-                                # 🔄 BOTÓN DE SINCRONIZACIÓN Y LECTURA DE FOTOS
-                                col_tit1, col_tit2 = st.columns([2, 1])
-                                with col_tit1:
-                                    st.markdown("#### ⏱️ Auditoría Táctica y Financiera")
-                                with col_tit2:
-                                    if st.button("🔄 Sincronizar Info", key=f"btn_sync_seg_{op['codigo']}"):
-                                        try:
-                                            codigo_base = "-".join(str(op['codigo']).split('-')[:2])
-                                            res_sync = supabase.table("registro_fotos").select("*").like("codigo_posicion", f"{codigo_base}%").order("minuto_evaluado", desc=True).limit(1).execute()
-                                            
-                                            if res_sync.data:
-                                                foto_reciente = res_sync.data[0]
-                                                st.session_state[f"min_es_{op['codigo']}"] = int(foto_reciente['minuto_evaluado'])
-                                                st.session_state[f"g_l_es_{op['codigo']}"] = int(foto_reciente['goles_local'])
-                                                st.session_state[f"g_v_es_{op['codigo']}"] = int(foto_reciente['goles_vis'])
-                                                st.session_state[f"atqt_l_es_{op['codigo']}"] = int(foto_reciente.get('atqt_local', 80))
-                                                st.session_state[f"atqt_v_es_{op['codigo']}"] = int(foto_reciente.get('atqt_vis', 50))
-                                                st.session_state[f"atk_l_es_{op['codigo']}"] = int(foto_reciente['atkp_local'])
-                                                st.session_state[f"atk_v_es_{op['codigo']}"] = int(foto_reciente['atkp_vis'])
-                                                if foto_reciente.get('cuota_si') and float(foto_reciente['cuota_si']) > 1.01:
-                                                    st.session_state[f"c_live_es_{op['codigo']}"] = float(foto_reciente['cuota_si'])
-                                                st.success(f"✅ ¡Datos del min {foto_reciente['minuto_evaluado']} importados!")
-                                            else:
-                                                st.warning("⚠️ No hay fotos previas de este partido.")
-                                        except Exception as e:
-                                            st.error(f"Error sincronizando: {e}")
-                                            
-                                # NOMBRES DE EQUIPOS
-                                partido_str = str(op.get('partido', ''))
-                                solo_partido = partido_str.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str else partido_str
-                                txt_norm = solo_partido.lower().replace("vs.", "vs").replace("-", "vs")
-                                if "vs" in txt_norm:
-                                    eq_local = txt_norm.split("vs")[0].strip().title()
-                                    eq_vis = txt_norm.split("vs")[1].strip().title()
-                                else:
-                                    eq_local = solo_partido if len(solo_partido) > 1 else "Equipo Local"
-                                    eq_vis = "Equipo Visitante"
-                                if "Ambos Anotan" in eq_local or "[" in eq_local: eq_local, eq_vis = "Equipo A", "Equipo B"
+=====================================================================
 
-                                # INPUTS DE DATOS FINANCIEROS Y TÁCTICOS
+# MÓDULO 2: SEGUIMIENTO Y LIQUIDACIÓN DE POSICIONES
+
+# =====================================================================
+
+elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
+
+    st.markdown("### 📝 Panel de Control y Auditoría")
+
+    
+
+    import datetime
+
+    import pandas as pd
+
+    
+
+    if supabase is None:
+
+        st.error("Conecta Supabase primero.")
+
+    else:
+
+        # Consulta organizada por hora de inicio
+
+        res = supabase.table("historial_trading").select("*").in_("estado", ["EN VIVO", "CUBIERTA"]).order("hora_inicio_partido", desc=False).execute()
+
+        ops = res.data
+
+        
+
+        if not ops:
+
+            st.info("Libro mayor al día. No hay posiciones abiertas en este momento.")
+
+        else:
+
+            for op in ops:
+
+                tipo_banca_operacion = op.get('tipo_banca', 'SIMULACION')
+
+                nombre_estrategia = op.get('estrategia', '')
+
+                
+
+                # =====================================================================
+
+                # ⚡ COCKPIT DINÁMICO (eSPORTS Y BINARIO PERSONALIZADO)
+
+                # Comparten el motor de "Reserva Elástica"
+
+                # =====================================================================
+
+                if nombre_estrategia in ["Estrategia 1: eSports Scalping", "Estrategia 3: Binario Personalizado"]:
+
+                    # Identificador visual limpio según estrategia
+
+                    icono_est = "🎯" if "Binario" in nombre_estrategia else "🎮"
+
+                    etiqueta_db = "Binario" if "Binario" in nombre_estrategia else "eSports"
+
+                    
+
+                    with st.expander(f"{icono_est} {op['partido']} | Ref: {op['codigo']} | Estado: {op['estado']}"):
+
+                        
+
+                        sel_ini = op.get('seleccion_inicial', 'Apuesta Inicial')
+
+                        sel_cob = op.get('seleccion_cobertura', 'Cobertura')
+
+                        saldo_banca_actual = obtener_saldo_banca(tipo_banca_operacion)
+
+                        umbral_permitido = max_riesgo_real if tipo_banca_operacion == 'REAL' else max_riesgo_simulacion
+
+                        
+
+                        st.markdown(f"""
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+
+                            <span style="background:#3B82F6; color:white; padding:4px 8px; border-radius:4px; font-size:0.8rem; font-weight:bold;">{tipo_banca_operacion}</span>
+
+                            <span style="color:#64748B; font-size:0.8rem; font-weight:bold;">{nombre_estrategia}</span>
+
+                        </div>
+
+                        """, unsafe_allow_html=True)
+
+                        
+
+                        # BLOQUE INFORMATIVO FIJO
+
+                        st.markdown(f"""
+
+                        <div style="background-color: #F8FAFC; padding: 15px; border-left: 5px solid #F59E0B; border-radius: 4px; margin-bottom: 15px;">
+
+                            <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Posición Inicial:</b> {sel_ini} (Stake 1: <b>${op['stake_1']:,.0f} COP</b> a cuota {op['cuota_inicial']:.2f})</p>
+
+                            <p style="margin: 5px 0 0 0; font-size: 0.95rem;">🚀 <b>Amenaza a cubrir en vivo:</b> <span style="color:#D97706; font-weight:bold; font-size:1.05rem;">{sel_cob}</span></p>
+
+                        </div>
+
+                        """, unsafe_allow_html=True)
+
+                        
+
+                        c_info1, c_info2, c_info3 = st.columns(3)
+
+                        c_info1.metric("Punto de Entrada", f"{op['cuota_inicial']:.2f}")
+
+                        c_info2.metric("🟢 Take Profit", f"{op['cuota_objetivo']:.2f}")
+
+                        c_info3.metric("🔴 Stop Loss", f"{op.get('cuota_stop_loss', 0.0):.2f}")
+
+                        
+
+                        st.markdown("---")
+
+                        
+
+                        # -------------------------------------------------------------
+
+                        # FASE 1: EN VIVO (HEDGING DINÁMICO)
+
+                        # -------------------------------------------------------------
+
+                        if op['estado'] == "EN VIVO":
+
+                            
+
+                            # CÁLCULO DE BREAK-EVEN Y UTILIDAD MÁXIMA
+
+                            retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
+
+                            utilidad_original_maxima = retorno_bruto_esperado - op['stake_1']
+
+                            inyeccion_maxima_breakeven = utilidad_original_maxima
+
+                            cuota_minima_rentable = retorno_bruto_esperado / inyeccion_maxima_breakeven if inyeccion_maxima_breakeven > 0 else 0
+
+                            
+
+                            st.markdown(f"""
+
+                            <div style="background-color: #EFF6FF; padding: 15px; border-left: 4px solid #3B82F6; border-radius: 4px; margin-bottom: 20px;">
+
+                                <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">📈 <b>Escenario SIN COBERTURA:</b> Si dejas correr y gana {sel_ini}, tu utilidad máxima será <b>${utilidad_original_maxima:,.0f} COP</b>.</p>
+
+                                <hr style="margin: 8px 0; border-color: #3B82F6; opacity: 0.2;">
+
+                                <p style="margin: 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Punto de Equilibrio:</b> Para ganar asegurando con cobertura, necesitas cazar a <b>cuota mínima de {cuota_minima_rentable:.2f}</b>.</p>
+
+                            </div>
+
+                            """, unsafe_allow_html=True)
+
+                            
+
+                            accion_esports = st.radio(
+
+                                f"Acción Operativa ({etiqueta_db}):", 
+
+                                ["📸 Evaluar Asedio y Cazar Cuota", "🏁 Liquidar Posición Directa (Sin Cobertura)"],
+
+                                key=f"acc_es_{op['codigo']}",
+
+                                horizontal=True
+
+                            )
+
+                            
+
+                            if accion_esports == "📸 Evaluar Asedio y Cazar Cuota":
+
+                                # ------------------------------------------------------------------
+
+                                # 🔄 BOTÓN DE SINCRONIZACIÓN Y LECTURA DE FOTOS (CLON DEL RADAR)
+
+                                # ------------------------------------------------------------------
+
+                                col_tit1, col_tit2 = st.columns([2, 1])
+
+                                with col_tit1:
+
+                                    st.markdown("#### ⏱️ Auditoría Táctica y Financiera")
+
+                                with col_tit2:
+
+                                    if st.button("🔄 Sincronizar Info", key=f"btn_sync_seg_{op['codigo']}"):
+
+                                        try:
+
+                                            codigo_base = str(op['codigo']).split('-')[0]
+
+                                            res_sync = supabase.table("registro_fotos").select("*").like("codigo_posicion", f"{codigo_base}%").order("minuto_evaluado", desc=True).limit(1).execute()
+
+                                            
+
+                                            if res_sync.data:
+
+                                                foto_reciente = res_sync.data[0]
+
+                                                st.session_state[f"min_es_{op['codigo']}"] = int(foto_reciente['minuto_evaluado'])
+
+                                                st.session_state[f"g_l_es_{op['codigo']}"] = int(foto_reciente['goles_local'])
+
+                                                st.session_state[f"g_v_es_{op['codigo']}"] = int(foto_reciente['goles_vis'])
+
+                                                st.session_state[f"atqt_l_es_{op['codigo']}"] = int(foto_reciente.get('atqt_local', 80))
+
+                                                st.session_state[f"atqt_v_es_{op['codigo']}"] = int(foto_reciente.get('atqt_vis', 50))
+
+                                                st.session_state[f"atk_l_es_{op['codigo']}"] = int(foto_reciente['atkp_local'])
+
+                                                st.session_state[f"atk_v_es_{op['codigo']}"] = int(foto_reciente['atkp_vis'])
+
+                                                
+
+                                                # Sincronizar cuota de salida si existe
+
+                                                if foto_reciente.get('cuota_si') and float(foto_reciente['cuota_si']) > 1.01:
+
+                                                    st.session_state[f"c_live_es_{op['codigo']}"] = float(foto_reciente['cuota_si'])
+
+                                                    
+
+                                                st.success(f"✅ ¡Datos del min {foto_reciente['minuto_evaluado']} importados!")
+
+                                            else:
+
+                                                st.warning("⚠️ No hay fotos previas de este partido.")
+
+                                        except Exception as e:
+
+                                            st.error(f"Error sincronizando: {e}")
+
+                                
+
+                                # 1. Extracción inteligente de equipos para las cajas de goles
+
+                                partido_str = str(op.get('partido', ''))
+
+                                solo_partido = partido_str.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str else partido_str
+
+                                
+
+                                txt_norm = solo_partido.lower().replace("vs.", "vs").replace("-", "vs")
+
+                                
+
+                                if "vs" in txt_norm:
+
+                                    partes = txt_norm.split("vs")
+
+                                    eq_local = partes[0].strip().title()
+
+                                    eq_vis = partes[1].strip().title()
+
+                                else:
+
+                                    eq_local = solo_partido if len(solo_partido) > 1 else "Equipo Local"
+
+                                    eq_vis = "Equipo Visitante"
+
+                                    
+
+                                if "Ambos Anotan" in eq_local or "[" in eq_local:
+
+                                    eq_local, eq_vis = "Equipo A", "Equipo B"
+
+
+
+                                res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
+
+                                ultima_foto = res_fotos.data[0] if res_fotos.data else {'goles_local': 0, 'goles_vis': 0, 'atkp_local': 0, 'atkp_vis': 0, 'atqt_local': 80, 'atqt_vis': 50}
+
+                                min_base = ultima_foto.get('minuto_evaluado', 0) if res_fotos.data else 0
+
+
+
+                                minuto_sugerido = min_base
+
+                                if minuto_sugerido == 0 and op.get("hora_inicio_partido"):
+
+                                    try:
+
+                                        ahora = datetime.datetime.now()
+
+                                        h_ini = datetime.datetime.strptime(op["hora_inicio_partido"], "%H:%M").replace(year=ahora.year, month=ahora.month, day=ahora.day)
+
+                                        if ahora < h_ini: h_ini -= datetime.timedelta(days=1)
+
+                                        diff = int((ahora - h_ini).total_seconds() / 60)
+
+                                        minuto_sugerido = diff if diff <= 45 else (45 if diff < 60 else diff - 15)
+
+                                    except Exception: pass
+
+                                
+
                                 c_top1, c_top2, c_top3 = st.columns(3)
+
                                 with c_top1:
-                                    minuto_actual = st.number_input("⏱️ Minuto:", min_value=0, max_value=120, value=st.session_state.get(f"min_es_{op['codigo']}", 0), step=1, key=f"min_es_in_{op['codigo']}")
+
+                                    minuto_actual = st.number_input("⏱️ Minuto:", min_value=0, max_value=120, value=max(0, min(95, int(minuto_sugerido))), step=1, key=f"min_es_{op['codigo']}")
+
                                 with c_top2:
+
                                     val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
-                                    cuota_input_es = st.number_input("📉 Cuota Cobertura:", min_value=1.01, step=0.01, value=st.session_state.get(f"c_live_es_{op['codigo']}", val_cuota_obj), key=f"c_live_es_in_{op['codigo']}")
+
+                                    if val_cuota_obj < 1.01: val_cuota_obj = 1.01
+
+                                    cuota_input_es = st.number_input("📉 Cuota Cobertura:", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"c_live_es_{op['codigo']}")
+
                                     cuota_salida = cuota_input_es if cuota_input_es is not None else 1.01
+
                                 with c_top3:
-                                    oferta_cashout = st.number_input("💰 Oferta Cashout ($):", min_value=0.0, step=1000.0, value=0.0, key=f"cash_es_{op['codigo']}")
+
+                                    oferta_cashout = st.number_input("💰 Oferta Cashout ($):", min_value=0.0, step=1000.0, value=0.0, key=f"cash_es_{op['codigo']}", help="Escribe lo que te ofrece la casa en el botón de Cerrar Apuesta")
+
+
 
                                 st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+
+                                
+
+                                # SECCIÓN DE DATOS: AÑADIDOS LOS ATAQUES TOTALES
+
                                 st.markdown("<p style='font-size: 13px; color: #64748B; margin-bottom: 5px;'>Estadísticas Actualizadas en Cancha:</p>", unsafe_allow_html=True)
-                                
+
                                 col_t1, col_t2 = st.columns(2)
-                                with col_t1:
-                                    g_local = st.number_input(f"⚽ Goles de {eq_local}", min_value=0, value=st.session_state.get(f"g_l_es_{op['codigo']}", 0), key=f"g_l_es_in_{op['codigo']}")
-                                    atqt_local = st.number_input(f"📊 Atq. Tot. de {eq_local}", min_value=0, value=st.session_state.get(f"atqt_l_es_{op['codigo']}", 80), key=f"atqt_l_es_in_{op['codigo']}")
-                                    atkp_local = st.number_input(f"🔥 Peligro {eq_local}", min_value=0, value=st.session_state.get(f"atk_l_es_{op['codigo']}", 0), key=f"atk_l_es_in_{op['codigo']}")
-                                with col_t2:
-                                    g_vis = st.number_input(f"⚽ Goles de {eq_vis}", min_value=0, value=st.session_state.get(f"g_v_es_{op['codigo']}", 0), key=f"g_v_es_in_{op['codigo']}")
-                                    atqt_vis = st.number_input(f"📊 Atq. Tot. de {eq_vis}", min_value=0, value=st.session_state.get(f"atqt_v_es_{op['codigo']}", 50), key=f"atqt_v_es_in_{op['codigo']}")
-                                    atkp_vis = st.number_input(f"🔥 Peligro {eq_vis}", min_value=0, value=st.session_state.get(f"atk_v_es_{op['codigo']}", 0), key=f"atk_v_es_in_{op['codigo']}")
+
                                 
+
+                                with col_t1:
+
+                                    g_local = st.number_input(f"⚽ Goles de {eq_local}", min_value=0, value=int(ultima_foto.get('goles_local', 0)), key=f"g_l_es_{op['codigo']}")
+
+                                    atqt_local = st.number_input(f"📊 Atq. Tot. de {eq_local}", min_value=0, value=int(ultima_foto.get('atqt_local', 80)), key=f"atqt_l_es_{op['codigo']}")
+
+                                    atkp_local = st.number_input(f"🔥 Peligro {eq_local}", min_value=0, value=int(ultima_foto.get('atkp_local', 0)), key=f"atk_l_es_{op['codigo']}")
+
+                                
+
+                                with col_t2:
+
+                                    g_vis = st.number_input(f"⚽ Goles de {eq_vis}", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_es_{op['codigo']}")
+
+                                    atqt_vis = st.number_input(f"📊 Atq. Tot. de {eq_vis}", min_value=0, value=int(ultima_foto.get('atqt_vis', 50)), key=f"atqt_v_es_{op['codigo']}")
+
+                                    atkp_vis = st.number_input(f"🔥 Peligro {eq_vis}", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_es_{op['codigo']}")
+
+                                
+
                                 st.markdown("---")
 
+
+
                                 # ====================================================================
-                                # ⚡ MOTOR DE MOMENTUM (EXTRAE Y GUARDA AL INSTANTE)
+
+                                # ⚡ MOTOR DE MOMENTUM (¡EXTRAE, CALCULA Y GUARDA EN UN CLICK!)
+
                                 # ====================================================================
+
                                 st.markdown("#### ⚡ Motor de Momentum (Aceleración Real)")
+
+                                
+
                                 if st.button("📸 Extraer Ancestro, Calcular y Guardar Foto Actual", key=f"btn_mom_{op['codigo']}", use_container_width=True, type="primary"):
+
                                     try:
-                                        codigo_base = "-".join(str(op['codigo']).split('-')[:2])
-                                        res_mom = supabase.table("registro_fotos").select("*").like("codigo_posicion", f"{codigo_base}%").lt("minuto_evaluado", minuto_actual).order("minuto_evaluado", desc=True).limit(1).execute()
+
+                                        # 1. BUSCAMOS LA FOTO VIEJA PARA EL MOMENTUM
+
+                                        res_mom = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).lt("minuto_evaluado", minuto_actual).order("minuto_evaluado", desc=True).limit(1).execute()
+
                                         
+
                                         if res_mom.data:
+
                                             foto_ant = res_mom.data[0]
+
                                             min_ant = int(foto_ant['minuto_evaluado'])
+
                                             delta_min = int(minuto_actual) - min_ant
+
+                                            
+
                                             if delta_min >= 2:
+
                                                 atk_l_ant = int(foto_ant['atkp_local'])
+
                                                 atk_v_ant = int(foto_ant['atkp_vis'])
+
+                                                
+
+                                                # Guardamos el resultado en la memoria de la aplicación
+
                                                 st.session_state[f"apm_l_din_{op['codigo']}"] = max(0.0, (float(atkp_local) - atk_l_ant) / delta_min)
+
                                                 st.session_state[f"apm_v_din_{op['codigo']}"] = max(0.0, (float(atkp_vis) - atk_v_ant) / delta_min)
+
                                                 st.session_state[f"mom_txt_{op['codigo']}"] = f"Últimos {delta_min} min (Desde el {min_ant}')"
+
                                             else:
+
                                                 st.warning(f"⚠️ La última foto es del min {min_ant}. Deben pasar al menos 2 minutos para medir aceleración.")
+
                                         else:
-                                            st.warning("⚠️ No hay fotos anteriores. Esta se guardará como la base.")
+
+                                            st.warning("⚠️ No hay fotos anteriores. Esta se guardará como la foto base del partido.")
+
+
+
+                                        # 2. BLINDAJE DE DATOS PARA SUPABASE
 
                                         nueva_foto = {
-                                            "codigo_posicion": str(op['codigo']),
-                                            "minuto_evaluado": int(minuto_actual),
-                                            "goles_local": int(g_local),
-                                            "goles_vis": int(g_vis),
-                                            "atqt_local": int(atqt_local),
-                                            "atqt_vis": int(atqt_vis),
-                                            "atkp_local": int(atkp_local),
-                                            "atkp_vis": int(atkp_vis),
-                                            "cuota_si": float(cuota_salida),
-                                            "cuota_no": float(op.get('cuota_inicial', 2.0))
-                                        }
-                                        res_insert = supabase.table("registro_fotos").insert(nueva_foto).execute()
-                                        if res_insert.data:
-                                            st.success(f"✅ ¡Foto del min {minuto_actual} anclada a la BD con éxito!")
-                                            import time
-                                            time.sleep(1)
-                                            st.rerun()
-                                        else:
-                                            st.error("❌ Supabase no devolvió confirmación.")
-                                    except Exception as e:
-                                        st.error(f"❌ Error al guardar la foto táctica: {str(e)}")
 
-                                # =====================================================================
-                                # IA Y LECTURA DE MERCADO (LÓGICA LIMPIA)
-                                # =====================================================================
-                                apm_global_loc = atkp_local / max(1, minuto_actual) if minuto_actual > 0 else 0
-                                apm_global_vis = atkp_vis / max(1, minuto_actual) if minuto_actual > 0 else 0
+                                            "codigo_posicion": str(op['codigo']),
+
+                                            "minuto_evaluado": int(minuto_actual),
+
+                                            "goles_local": int(g_local),
+
+                                            "goles_vis": int(g_vis),
+
+                                            "atqt_local": int(atqt_local),
+
+                                            "atqt_vis": int(atqt_vis),
+
+                                            "atkp_local": int(atkp_local),
+
+                                            "atkp_vis": int(atkp_vis),
+
+                                            "cuota_si": float(cuota_salida),
+
+                                            "cuota_no": float(op.get('cuota_inicial', 2.0))
+
+                                        }
+
+                                        
+
+                                        # 3. INYECCIÓN FORZADA A LA BASE DE DATOS
+
+                                        res_insert = supabase.table("registro_fotos").insert(nueva_foto).execute()
+
+                                        
+
+                                        if res_insert.data:
+
+                                            st.success(f"✅ ¡Foto del min {minuto_actual} calculada y anclada a la BD con éxito!")
+
+                                            import time
+
+                                            time.sleep(1) # Pausa de 1 segundo para leer el mensaje
+
+                                            st.rerun() # 👈 Recarga la UI para inyectar la data al oráculo táctico
+
+                                        else:
+
+                                            st.error("❌ Supabase no devolvió confirmación de guardado. Revisa la base de datos.")
+
+                                        
+
+                                    except Exception as e:
+
+                                        st.error(f"❌ Error procesando la foto táctica: {str(e)}")
+
+
+
+                                # Asignación final de variables para la IA
+
+                                apm_global_loc = atkp_local / max(1, minuto_actual)
+
+                                apm_global_vis = atkp_vis / max(1, minuto_actual)
+
                                 
+
                                 if f"apm_l_din_{op['codigo']}" in st.session_state:
+
                                     apm_local = st.session_state[f"apm_l_din_{op['codigo']}"]
+
                                     apm_vis = st.session_state[f"apm_v_din_{op['codigo']}"]
+
                                     texto_momentum = st.session_state[f"mom_txt_{op['codigo']}"]
+
                                 else:
+
                                     apm_local = apm_global_loc
+
                                     apm_vis = apm_global_vis
+
                                     texto_momentum = "Promedio Global"
 
+
+
                                 apm_total = apm_local + apm_vis
+
                                 tiempo_restante = max(0, 90 - minuto_actual)
+
                                 goles_totales = g_local + g_vis
+
+                                
+
+                                # El IRD (Nivel de Caos) siempre usa el crudo para no dañar la red neuronal entrenada
+
                                 ird = min(100.0, ((atkp_local + atkp_vis) / max(1, minuto_actual)) * 45.0)
 
-                                texto_mercado = str(op.get('partido', ''))
-                                is_ambos_anotan = "Ambos Anotan" in texto_mercado
-                                is_linea_goles = "Línea de Goles" in texto_mercado
+
+
+                                # Variables Financieras Base
+
+                                retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
+
+                                utilidad_original_maxima = retorno_bruto_esperado - op['stake_1']
+
+                                cuota_minima_rentable = retorno_bruto_esperado / utilidad_original_maxima if utilidad_original_maxima > 0 else 0
+
+                                cuota_sl = float(op.get('cuota_stop_loss') or 0.0)
+
+                                monto_a_inyectar = retorno_bruto_esperado / cuota_salida if cuota_salida > 0 else 0
+
+                                utilidad_proyectada = retorno_bruto_esperado - op['stake_1'] - monto_a_inyectar
+
                                 
+
+                                msj_ia = ""
+
+                                alerta_franco = ""
+
+                                
+
+                                # -------------------------------------------------------------
+
+                                # 🧠 BIFURCACIÓN DEL ORÁCULO (ICEBERG) [V3.0 - SPLIT SÍ/NO TÁCTICO]
+
+                                # -------------------------------------------------------------
+
+                                texto_mercado = str(op.get('partido', ''))
+
+                                is_ambos_anotan = "Ambos Anotan" in texto_mercado
+
+                                is_linea_goles = "Línea de Goles" in texto_mercado
+
+                                
+
+                                # A. ADN del Partido (Jerarquía con Nombres Reales)
+
+                                partido_str_seg = str(op.get('partido', ''))
+
+                                solo_partido_seg = partido_str_seg.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str_seg else partido_str_seg
+
+                                txt_norm_seg = solo_partido_seg.lower().replace("vs.", "vs").replace("-", "vs")
+
+                                
+
+                                if "vs" in txt_norm_seg:
+
+                                    eq_local_seg = txt_norm_seg.split("vs")[0].strip().title()
+
+                                    eq_vis_seg = txt_norm_seg.split("vs")[1].strip().title()
+
+                                else:
+
+                                    eq_local_seg = "Local"
+
+                                    eq_vis_seg = "Visita"
+
+
+
+                                # 🔥 CORRECCIÓN: Volvemos a chupar los datos INICIALES del Oráculo
+
                                 c_loc_hist = float(op.get('cuota_base_audit', 2.0))
+
                                 c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
-                                if c_loc_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_local}"
-                                elif c_vis_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_vis}"
-                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_local}"
-                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_vis}"
+
+                                
+
+                                if c_loc_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_local_seg}"
+
+                                elif c_vis_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_vis_seg}"
+
+                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_local_seg}"
+
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_vis_seg}"
+
                                 else: jerarquia = "⚖️ Fuerzas Parejas"
 
-                                is_super_fav_local = "Súper Favorito" in jerarquia and eq_local in jerarquia
-                                is_super_fav_vis = "Súper Favorito" in jerarquia and eq_vis in jerarquia
-                                is_fav_local = "Favorito" in jerarquia and eq_local in jerarquia and not is_super_fav_local
-                                is_fav_vis = "Favorito" in jerarquia and eq_vis in jerarquia and not is_super_fav_vis
+
 
                                 st.markdown(f"""
+
                                 <div style="background-color: #1E293B; border-bottom: 4px solid #3B82F6; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-bottom: 15px;">
+
                                     <h4 style="margin:0; color:#94A3B8; font-size: 0.9rem;">ADN DEL PARTIDO (Histórico)</h4>
+
                                     <h3 style="color:#FFFFFF; margin: 5px 0;">[{jerarquia}]</h3>
+
                                 </div>
+
                                 """, unsafe_allow_html=True)
 
-                                # ------------------------------------------------------------------
-                                # BIFURCACIÓN DE MERCADO
-                                # ------------------------------------------------------------------
+
+
+                                # 1. Cálculos Base para la Matriz
+
+                                is_super_fav_local = "Súper Favorito" in jerarquia and eq_local_seg in jerarquia
+
+                                is_super_fav_vis = "Súper Favorito" in jerarquia and eq_vis_seg in jerarquia
+
+                                is_fav_local = "Favorito" in jerarquia and eq_local_seg in jerarquia and not is_super_fav_local
+
+                                is_fav_vis = "Favorito" in jerarquia and eq_vis_seg in jerarquia and not is_super_fav_vis
+
+                                is_parejo = "Fuerzas Parejas" in jerarquia
+
+
+
                                 if is_ambos_anotan:
+
+                                    # 🐛 CORRECCIÓN DE LECTURA DE APUESTA
+
                                     sel_lower_btts = sel_ini.lower()
+
                                     palabras_btts = sel_lower_btts.replace(":", " ").replace("-", " ").replace("(", "").replace(")", "").split()
+
                                     aposto_si = "sí" in palabras_btts or "si" in palabras_btts or "yes" in palabras_btts or ("ambos" in sel_lower_btts and ("sí" in sel_lower_btts or "si" in palabras_btts))
+
                                     
-                                    diferencia_goles_btts = abs(g_local - g_vis)
+
                                     estado_btts = "⏳ EVALUANDO..."
+
                                     color_btts = "#64748B"
-                                    msj_ia = ""
+
+                                    msj_ia = "Procesando datos tácticos..."
+
+                                    
+
+                                    diferencia_goles_btts = abs(g_local - g_vis)
+
+
 
                                     if aposto_si:
+
+                                        # ====================================================================
+
+                                        # 🟢 CAMINO EXCLUSIVO: APOSTASTE AL "SÍ" (BTTS SÍ)
+
+                                        # ====================================================================
+
                                         if g_local > 0 and g_vis > 0:
+
                                             msj_ia = "🎉 **¡OBJETIVO CUMPLIDO!** Ambos marcaron. Ganaste el SÍ. Liquida ya."
+
                                             ird = 0.0; estado_btts = "✅ GARANTIZADO"; color_btts = "#10B981"
-                                        elif goles_totales == 0 and minuto_actual >= 60:
-                                            msj_ia = f"⏳ **TIC-TAC MORTAL:** Minuto {minuto_actual} y van 0-0. Pedir 2 goles ahora es un milagro."
-                                            estado_btts = "COLAPSO DE TIEMPO"; color_btts = "#EF4444"; ird = 95.0
-                                        elif diferencia_goles_btts >= 2:
-                                            msj_ia = f"🏔️ **MONTAÑA INALCANZABLE:** Diferencia de {diferencia_goles_btts} goles. El SÍ agoniza."
-                                            estado_btts = "MILAGRO REQUERIDO"; color_btts = "#EF4444"; ird = 90.0
-                                        else:
-                                            if minuto_actual <= 45:
-                                                if goles_totales == 0:
-                                                    msj_ia = "🟡 **CALIBRACIÓN TÁCTICA:** El SÍ tiene tiempo. Vigila el APM."
-                                                    estado_btts = "FASE DE ESTUDIO"; color_btts = "#F59E0B"; ird = 30.0
-                                                else:
-                                                    msj_ia = "🔥 **EL MARCADOR SE ABRIÓ:** Un gol temprano, excelente escenario para el SÍ."
-                                                    estado_btts = "GOL A FAVOR"; color_btts = "#10B981"; ird = 35.0
-                                            elif minuto_actual <= 75:
-                                                if goles_totales == 0:
-                                                    msj_ia = "🔴 **ESTANCAMIENTO CRÍTICO:** Partido en un pozo. Sin goles, SÍ liquidado."
-                                                    estado_btts = "AGOTAMIENTO"; color_btts = "#EF4444"; ird = 95.0
-                                                else:
-                                                    msj_ia = "🟡 **OLLA A PRESIÓN:** Asedio constante. El gol puede caer."
-                                                    estado_btts = "GOL INMINENTE"; color_btts = "#F59E0B"; ird = 60.0
-                                            else:
-                                                msj_ia = "💀 **MUERTE POR RELOJ:** Se acabó el tiempo."
-                                                estado_btts = "TIEMPO AGOTADO"; color_btts = "#EF4444"; ird = 100.0
-                                    else:
-                                        if g_local > 0 and g_vis > 0:
-                                            msj_ia = "❌ **SINIESTRO:** Ambos marcaron. Perdiste el NO."
-                                            ird = 100.0; estado_btts = "💀 PERDIDO"; color_btts = "#EF4444"
-                                        elif goles_totales == 0 and minuto_actual >= 60:
-                                            msj_ia = f"✅ **CERO ABSOLUTO:** Minuto {minuto_actual} y van 0-0. Tu NO es casi invencible."
-                                            estado_btts = "BLINDAJE DE TIEMPO"; color_btts = "#10B981"; ird = 5.0
-                                        elif diferencia_goles_btts >= 2:
-                                            msj_ia = f"🛡️ **CANDADO DE PLOMO:** Ventaja de {diferencia_goles_btts}. El ganador hará control total."
-                                            estado_btts = "CONTROL TOTAL"; color_btts = "#10B981"; ird = 10.0
-                                        else:
-                                            if minuto_actual <= 45:
-                                                msj_ia = "🟢 **TENDENCIA SEGURA:** Partido controlado, buen inicio para el NO."
-                                                estado_btts = "PACIENCIA"; color_btts = "#10B981"; ird = 20.0
-                                            else:
-                                                msj_ia = "🟡 **ASALTO FINAL:** Riesgo de que el perdedor descuente. Vigila."
-                                                estado_btts = "PRESIÓN"; color_btts = "#F59E0B"; ird = 60.0
 
-                                    st.markdown(f"""
-                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
-                                        <h3 style="margin-top:0; color:#0F172A;">📊 ESTADO DEL BTTS (Ambos Anotan)</h3>
-                                        <h1 style="color:{color_btts}; font-size: 2.5rem; margin: 10px 0;">{estado_btts}</h1>
-                                        <p style="margin:0; font-size: 1.1rem; color:#475569;">{msj_ia}</p>
-                                        <p style="margin:10px 0 0 0; font-size: 0.85rem; color:#64748B;">Dinámica actual: {apm_total:.2f} APM ({texto_momentum})</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                
-                                elif is_linea_goles:
-                                    import re
-                                    match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
-                                    linea_obj = float(match_linea.group()) if match_linea else 2.5
-                                    aposto_mas = "Más" in sel_ini or "Mas" in sel_ini
-                                    diferencia_goles = linea_obj - goles_totales
-                                    
-                                    if aposto_mas:
-                                        if diferencia_goles < 0:
-                                            msj_ia = f"🎉 **¡OBJETIVO CUMPLIDO!** Ya superaste la línea."
-                                            ird = 0.0; estado_goles = "✅ GARANTIZADO"; color_goles = "#10B981"
-                                        else:
-                                            msj_ia = f"🚨 **FALTAN GOLES:** Necesitas acción rápida."
-                                            ird = 80.0; estado_goles = "🔴 BUSCANDO GOLES"; color_goles = "#EF4444"
-                                    else:
-                                        if diferencia_goles < 0:
-                                            msj_ia = f"❌ **SINIESTRO:** Superaron la línea. Perdiste."
-                                            ird = 100.0; estado_goles = "💀 PERDIDO"; color_goles = "#000000"
-                                        else:
-                                            msj_ia = f"✅ **CONTROL:** La línea de under resiste."
-                                            ird = 20.0; estado_goles = "🟢 SEGURO"; color_goles = "#10B981"
-
-                                    st.markdown(f"""
-                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
-                                        <h3 style="margin-top:0; color:#0F172A;">📊 ESTADO LÍNEA DE GOLES ({linea_obj})</h3>
-                                        <h1 style="color:{color_goles}; font-size: 2.5rem; margin: 10px 0;">{estado_goles}</h1>
-                                        <p style="margin:0; font-size: 1.1rem; color:#475569;">{msj_ia}</p>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                
-                                else:
-                                    dom_vivo = "Local" if apm_local > apm_vis and (atkp_local - atkp_vis) > 10 else ("Visita" if apm_vis > apm_local and (atkp_vis - atkp_local) > 10 else "Asedio Dividido")
-                                    color_1x2 = "#10B981" if ((dom_vivo == "Local" and "Local" in sel_ini) or (dom_vivo == "Visita" and "Visita" in sel_ini)) else "#EF4444"
-                                    
-                                    st.markdown(f"""
-                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
-                                        <h3 style="margin-top:0; color:#0F172A;">🎯 TÁCTICA 1X2</h3>
-                                        <h1 style="color:{color_1x2}; font-size: 2.5rem; margin: 10px 0;">DOMINA: {dom_vivo.upper()}</h1>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-
-                                # =====================================================================
-                                # 🛡️ MATRIZ FINANCIERA (OPCIONES A, B Y CASHOUT)
-                                # =====================================================================
-                                st.markdown("#### 🔍 Matriz Financiera de la Operación")
-                                
-                                st1 = op['stake_1']
-                                c_ini = op['cuota_inicial']
-                                ret_bruto = st1 * c_ini
-                                
-                                # OPCIÓN A (Seguro Total)
-                                monto_inyectar_a = ret_bruto / cuota_salida if cuota_salida > 0 else 0
-                                util_si_gana_a = ret_bruto - st1 - monto_inyectar_a
-                                
-                                # OPCIÓN B (Dejar Correr)
-                                util_si_gana_b = ret_bruto - st1
-                                util_si_pierde_b = -st1
-                                
-                                # CASHOUT
-                                utilidad_cashout = oferta_cashout - st1
-                                diferencia_cashout = util_si_gana_a - utilidad_cashout 
-                                
-                                col_sc1, col_sc2 = st.columns(2)
-                                with col_sc1:
-                                    st.markdown(f"""
-                                    <div style="background-color: #F8FAFC; padding: 15px; border-radius: 6px; border: 1px solid #CBD5E1; height: 100%;">
-                                        <b style="color: #1E293B; font-size: 0.9rem;">OPCIÓN A: Seguro Matemático</b><br>
-                                        • Pagar Seguro a Cuota {cuota_salida:.2f}: <b>${monto_inyectar_a:,.0f}</b><br>
-                                        • Ganancia Garantizada: <span style="color:{'#10B981' if util_si_gana_a >= 0 else '#EF4444'}; font-weight:bold;">${util_si_gana_a:,.0f}</span>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                with col_sc2:
-                                    st.markdown(f"""
-                                    <div style="background-color: #FFFBEB; padding: 15px; border-radius: 6px; border: 1px solid #FDE68A; height: 100%;">
-                                        <b style="color: #78350F; font-size: 0.9rem;">OPCIÓN B: Modo Suicida (Dejar Correr)</b><br>
-                                        • Ganancia si Acertamos: <span style="color:#10B981; font-weight:bold;">${util_si_gana_b:,.0f}</span><br>
-                                        • Pérdida si Fallamos: <span style="color:#EF4444; font-weight:bold;">${util_si_pierde_b:,.0f}</span>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                
-                                st.markdown("<br>", unsafe_allow_html=True)
-                                
-                                # LIQUIDACIÓN 
-                                es_mejor_cashout = False
-                                if oferta_cashout > 0 and diferencia_cashout < 0:
-                                    es_mejor_cashout = True
-                                    st.markdown(f"""
-                                    <div style="background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
-                                        <span style="font-size: 1.05em; color: #991B1B;">🚨 <b>¡CASHOUT DETECTADO COMO LA MEJOR OPCIÓN!</b></span><br>
-                                        <span style="font-size: 0.95em; color: #B91C1C;">El botón de la casa es más generoso que la cobertura manual. ¡Tómalo ya!</span>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                
-                                if es_mejor_cashout:
-                                    if st.button("✅ LIQUIDAR POR CASHOUT", key=f"btn_cash_{op['codigo']}", use_container_width=True):
-                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
-                                        supabase.table("historial_trading").update({
-                                            "estado": "CERRADA",
-                                            "resultado_final": "Cashout (Cierre Anticipado)",
-                                            "utilidad_neta_real": float(utilidad_cashout),
-                                            "roi_real": float((utilidad_cashout / op['stake_1']) * 100),
-                                            "hora_cobertura": hora_actual,
-                                            "plataforma_cobertura": "Misma (Cashout)"
-                                        }).eq("codigo", op['codigo']).execute()
-                                        st.success(f"¡Cashout registrado! Has cerrado la operación con balance de ${utilidad_cashout:,.0f}.")
-                                        st.rerun()
-                                else:
-                                    todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
-                                    plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_es_{op['codigo']}")
-                                    plataforma_cob = st.text_input("Especifica la plataforma:", key=f"otra_plat_es_{op['codigo']}") if plataforma_cob_sel == "Otra" else plataforma_cob_sel
-                                    
-                                    if st.button("⚡ REGISTRAR SEGURO TOTAL (CERRAR POSICIÓN)", key=f"btn_cob_a_{op['codigo']}", use_container_width=True):
-                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
-                                        supabase.table("historial_trading").update({
-                                            "estado": "CUBIERTA",
-                                            "cuota_cazada_real": float(cuota_salida),
-                                            "hora_cobertura": hora_actual,
-                                            "plataforma_cobertura": plataforma_cob,
-                                            "reserva_stake_2": float(monto_inyectar_a) 
-                                        }).eq("codigo", op['codigo']).execute()
-                                        st.success(f"¡Cobertura TOTAL fijada a cuota {cuota_salida}! Pasa a liquidación.")
-                                        st.rerun()
-                            else:
-                                # LIQUIDACIÓN DIRECTA
-                                with st.form(f"get_dir_es_{op['codigo']}"):
-                                    st.markdown("#### 🏁 Conciliación Directa (Sin Cobertura)")
-                                    resultado_directo = st.radio(
-                                        "Resolución de tu Apuesta:", 
-                                        [f"✅ Ganó {sel_ini} (Cobro completo)", f"❌ Perdió {sel_ini} (Pérdida Stake 1)"],
-                                        key=f"rad_dir_es_{op['codigo']}"
-                                    )
-                                    st.markdown("---")
-                                    
-                                    goles_finales_seleccion = st.number_input(f"⚽ Goles Equipo A:", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
-                                    goles_finales_rival = st.number_input(f"⚽ Goles Equipo B:", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
-                                    
-                                    if st.form_submit_button("Registrar Liquidación Directa"):
-                                        utilidad = utilidad_original_maxima if "Ganó" in resultado_directo else -op['stake_1']
-                                        texto_cierre = f"Cierre Directo: Ganó Inicial" if "Ganó" in resultado_directo else f"Cierre Directo: Perdió Inicial"
                                             
+
+                                        elif goles_totales == 0 and minuto_actual >= 60:
+
+                                            msj_ia = f"⏳ **TIC-TAC MORTAL:** Minuto {minuto_actual} y van 0-0. Pedir 2 goles de distintos equipos ahora es un milagro estadístico. ¡Huye!"
+
+                                            estado_btts = "COLAPSO DE TIEMPO"; color_btts = "#EF4444"; ird = 95.0
+
+                                            
+
+                                        elif diferencia_goles_btts >= 2:
+
+                                            msj_ia = f"🏔️ **MONTAÑA INALCANZABLE:** Diferencia de {diferencia_goles_btts} goles. El ganador dormirá el balón y el perdedor está rendido. Tu SÍ agoniza."
+
+                                            estado_btts = "MILAGRO REQUERIDO"; color_btts = "#EF4444"; ird = 90.0
+
+                                            
+
+                                        else:
+
+                                            if minuto_actual <= 15:
+
+                                                if goles_totales == 0:
+
+                                                    if apm_total < 1.2:
+
+                                                        msj_ia = "🟡 **CALIBRACIÓN TÁCTICA:** Fase de estudio. Los equipos se están midiendo. El SÍ tiene tiempo."
+
+                                                        estado_btts = "FASE DE ESTUDIO"; color_btts = "#F59E0B"; ird = 30.0
+
+                                                    else:
+
+                                                        msj_ia = f"🔥 **INICIO ELÉCTRICO:** Ritmo altísimo ({apm_total:.2f} APM). Promesa de goles tempranos para tu SÍ."
+
+                                                        estado_btts = "FRENESÍ"; color_btts = "#3B82F6"; ird = 60.0
+
+                                                else:
+
+                                                    quien_anoto = eq_local_seg if g_local == 1 else eq_vis_seg
+
+                                                    if (quien_anoto == eq_local_seg and (is_super_fav_local or is_fav_local)) or (quien_anoto == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
+
+                                                        msj_ia = f"👑 **GOLPE DE AUTORIDAD:** El Favorito ({quien_anoto}) pegó temprano. Riesgo para tu SÍ si deciden dormir el partido."
+
+                                                        estado_btts = "ALERTA TÁCTICA"; color_btts = "#EF4444"; ird = 85.0
+
+                                                    else:
+
+                                                        msj_ia = f"🩸 **LA BESTIA HERIDA:** El Débil sorprendió. Espera un bombardeo inminente del Favorito. Excelente para tu SÍ."
+
+                                                        estado_btts = "REBELDÍA TEMPRANA"; color_btts = "#10B981"; ird = 35.0
+
+
+
+                                            elif minuto_actual <= 30:
+
+                                                if goles_totales == 0:
+
+                                                    if apm_total < 0.8:
+
+                                                        msj_ia = "🧱 **JUEGO TRABADO:** Mucha fricción en el medio. El cero no se rompe y el SÍ se complica."
+
+                                                        estado_btts = "TENDENCIA UNDER"; color_btts = "#EF4444"; ird = 80.0
+
+                                                    else:
+
+                                                        msj_ia = "⚔️ **GOLPE A GOLPE:** El partido se abrió. Pisan el área. El gol madura para tu SÍ."
+
+                                                        estado_btts = "GOL MADURANDO"; color_btts = "#10B981"; ird = 40.0
+
+                                                else:
+
+                                                    eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
+
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+
+                                                    apm_gana = apm_local if g_local == 1 else apm_vis
+
+                                                    
+
+                                                    if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
+
+                                                        if apm_pierde > 0.6:
+
+                                                            msj_ia = f"🔥 **LA MAQUINARIA ENCENDIDA:** El Favorito asedia ({apm_pierde:.2f} APM) buscando el empate. Tu SÍ está vivo."
+
+                                                            estado_btts = "ASEDIO DEL FAVORITO"; color_btts = "#10B981"; ird = 20.0
+
+                                                        else:
+
+                                                            msj_ia = f"🧊 **FAVORITO ANESTESIADO:** Sorpresa total. El Débil pegó y supo anular al Favorito."
+
+                                                            estado_btts = "BLOQUEO TÁCTICO"; color_btts = "#EF4444"; ird = 85.0
+
+                                                    else:
+
+                                                        if apm_gana > apm_pierde and apm_gana > 0.6:
+
+                                                            msj_ia = f"🛡️ **MONÓLOGO TÁCTICO:** El dominador juega a placer. El perdedor no cruza la cancha. Tu SÍ agoniza."
+
+                                                            estado_btts = "MUERTE OFENSIVA"; color_btts = "#EF4444"; ird = 95.0
+
+                                                        else:
+
+                                                            msj_ia = f"💪 **ORGULLO DEL DÉBIL:** El perdedor responde y busca el empate. Hay esperanza."
+
+                                                            estado_btts = "REACCIÓN ACTIVA"; color_btts = "#F59E0B"; ird = 50.0
+
+
+
+                                            elif minuto_actual <= 45:
+
+                                                if goles_totales == 0:
+
+                                                    if apm_total < 0.8:
+
+                                                        msj_ia = "🧊 **PACTO DE NO AGRESIÓN (1T):** Se firmó el empate al descanso. Reloj en contra para el SÍ."
+
+                                                        estado_btts = "CIERRE LENTO"; color_btts = "#EF4444"; ird = 90.0
+
+                                                    else:
+
+                                                        msj_ia = "⚔️ **ASALTO FINAL (1T):** Intentan abrirlo antes del vestuario. Mantén la calma."
+
+                                                        estado_btts = "PRESIÓN DE CIERRE"; color_btts = "#F59E0B"; ird = 65.0
+
+                                                else:
+
+                                                    eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
+
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+
+                                                    if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
+
+                                                        if apm_pierde > 0.8:
+
+                                                            msj_ia = f"🔥 **FRENESÍ DEL FAVORITO:** Asedio infernal antes del descanso. Tu SÍ está a punto de caramelo."
+
+                                                            estado_btts = "ALERTA DE GOL"; color_btts = "#10B981"; ird = 15.0
+
+                                                        else:
+
+                                                            msj_ia = f"🥶 **SHOCK PROLONGADO:** Incapaces de asimilar el gol. Necesitas la charla del entretiempo urgente."
+
+                                                            estado_btts = "CRISIS DE IDEAS"; color_btts = "#EF4444"; ird = 85.0
+
+                                                    else:
+
+                                                        if apm_pierde < 0.4:
+
+                                                            msj_ia = f"🔒 **CANDADO TÁCTICO:** El dominador resolvió la tarea. El SÍ entra en coma."
+
+                                                            estado_btts = "DOMINIO TOTAL"; color_btts = "#EF4444"; ird = 95.0
+
+                                                        else:
+
+                                                            msj_ia = f"🐾 **ZARPAZO DE AHOGADO:** El perdedor presiona para dañar la fiesta antes del pitazo."
+
+                                                            estado_btts = "INTENTO FINAL"; color_btts = "#F59E0B"; ird = 55.0
+
+
+
+                                            elif minuto_actual <= 60:
+
+                                                if goles_totales == 0:
+
+                                                    if apm_total > 1.2:
+
+                                                        msj_ia = "⚡ **IDA Y VUELTA RECARGADO:** Las charlas funcionaron. El partido se rompió."
+
+                                                        estado_btts = "REINICIO FRENÉTICO"; color_btts = "#10B981"; ird = 30.0
+
+                                                    else:
+
+                                                        msj_ia = "🛡️ **MIEDO A PERDER:** Salieron a cuidarse. El empate a cero parece conformar a ambos. Escenario letal para el SÍ."
+
+                                                        estado_btts = "ESTANCAMIENTO TÁCTICO"; color_btts = "#EF4444"; ird = 90.0
+
+                                                else:
+
+                                                    eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
+
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+
+                                                    if (eq_pierde == eq_local_seg and is_super_fav_local) or (eq_pierde == eq_vis_seg and is_super_fav_vis):
+
+                                                        if apm_pierde > 1.0:
+
+                                                            msj_ia = f"👑🔥 **LA FURIA DEL REY:** El Súper Favorito salió a demoler el arco ({apm_pierde:.2f} APM). Empate inminente."
+
+                                                            estado_btts = "ASEDIO INFERNAL"; color_btts = "#10B981"; ird = 10.0
+
+                                                        else:
+
+                                                            msj_ia = f"👑🧊 **DECEPCIÓN HISTÓRICA:** El Súper Favorito está bloqueado ({apm_pierde:.2f} APM). Peligro para tu SÍ."
+
+                                                            estado_btts = "FRACASO TÁCTICO"; color_btts = "#EF4444"; ird = 90.0
+
+                                                    elif (eq_pierde == eq_local_seg and is_fav_local) or (eq_pierde == eq_vis_seg and is_fav_vis):
+
+                                                        if apm_pierde > 0.8:
+
+                                                            msj_ia = f"⚔️ **LA MAQUINARIA A TODA MARCHA:** El Favorito salió furioso del vestuario. Bombardeo total."
+
+                                                            estado_btts = "PRESIÓN ALTA"; color_btts = "#10B981"; ird = 25.0
+
+                                                        else:
+
+                                                            msj_ia = f"🧱 **BLOQUEO TÁCTICO:** El Favorito no encuentra caminos. El tiempo empieza a ser un enemigo mortal."
+
+                                                            estado_btts = "FRUSTRACIÓN TOTAL"; color_btts = "#EF4444"; ird = 85.0
+
+                                                    else:
+
+                                                        if apm_pierde > 0.6:
+
+                                                            msj_ia = f"💪 **REBELDÍA PURA:** El perdedor no se rinde y busca el empate. SÍ con esperanza."
+
+                                                            estado_btts = "ESPERANZA VIVA"; color_btts = "#F59E0B"; ird = 50.0
+
+                                                        else:
+
+                                                            msj_ia = f"🏳️ **RENDICIÓN TÁCTICA:** No hay argumentos ofensivos. El 1-0 es una roca."
+
+                                                            estado_btts = "MUERTE LENTA"; color_btts = "#EF4444"; ird = 95.0
+
+
+
+                                            elif minuto_actual <= 75:
+
+                                                if goles_totales == 0:
+
+                                                    if apm_total > 1.2:
+
+                                                        msj_ia = "⚖️ **CAOS SIN PUNTERÍA:** Llegan pero no la meten. El reloj ya no perdona al SÍ."
+
+                                                        estado_btts = "LOTERÍA FINAL"; color_btts = "#F59E0B"; ird = 75.0
+
+                                                    else:
+
+                                                        msj_ia = "💀 **ESTANCAMIENTO CRÍTICO:** Partido en un pozo ciego. No hay piernas. SÍ liquidado."
+
+                                                        estado_btts = "AGOTAMIENTO"; color_btts = "#EF4444"; ird = 95.0
+
+                                                else:
+
+                                                    eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
+
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+
+                                                    if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
+
+                                                        if apm_pierde > 0.9:
+
+                                                            msj_ia = f"🔥 **OLLA A PRESIÓN:** Asedio insoportable del Favorito. Tu SÍ está en el horno a punto de salir."
+
+                                                            estado_btts = "GOL INMINENTE"; color_btts = "#10B981"; ird = 10.0
+
+                                                        else:
+
+                                                            msj_ia = f"📉 **COLAPSO MENTAL:** El Favorito se quedó sin oxígeno. El milagro del Débil es real y tu SÍ muere."
+
+                                                            estado_btts = "COLAPSO"; color_btts = "#EF4444"; ird = 90.0
+
+                                                    else:
+
+                                                        if apm_pierde > 0.6:
+
+                                                            msj_ia = f"🌬️ **ÚLTIMO ALIENTO:** El perdedor quema sus naves. Riesgo de empate."
+
+                                                            estado_btts = "PRESIÓN FINAL"; color_btts = "#F59E0B"; ird = 60.0
+
+                                                        else:
+
+                                                            msj_ia = f"🧊 **CONTROL DE DAÑOS:** El ganador congeló el partido. Tu BTTS huele a pérdida."
+
+                                                            estado_btts = "PARTIDO CERRADO"; color_btts = "#EF4444"; ird = 95.0
+
+
+
+                                            else: # ZONA DE LA MUERTE
+
+                                                if goles_totales == 0:
+
+                                                    msj_ia = "💀 **MUERTE POR RELOJ:** Se acabó el tiempo."
+
+                                                    estado_btts = "TIEMPO AGOTADO"; color_btts = "#EF4444"; ird = 100.0
+
+                                                else:
+
+                                                    eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
+
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+
+                                                    if apm_pierde > 1.0:
+
+                                                        msj_ia = "⚔️ **ASEDIO FINAL:** Agonía pura. Tienen al rival en el área. ¡Aguanta, el gol está caliente!"
+
+                                                        estado_btts = "CAOS OFENSIVO"; color_btts = "#10B981"; ird = 20.0
+
+                                                    else:
+
+                                                        msj_ia = "🔴 **MUERTE TÁCTICA:** El rival secuestró la pelota. Salva los centavos en Cashout."
+
+                                                        estado_btts = "SIN OPCIONES"; color_btts = "#EF4444"; ird = 99.0
+
+
+
+                                    else:
+
+                                        # ====================================================================
+
+                                        # 🔴 CAMINO EXCLUSIVO: APOSTASTE AL "NO" (BTTS NO)
+
+                                        # ====================================================================
+
+                                        if g_local > 0 and g_vis > 0:
+
+                                            msj_ia = "❌ **SINIESTRO:** Ambos marcaron. Perdiste el NO."
+
+                                            ird = 100.0; estado_btts = "💀 PERDIDO"; color_btts = "#EF4444"
+
+                                            
+
+                                        elif goles_totales == 0 and minuto_actual >= 60:
+
+                                            msj_ia = f"✅ **CERO ABSOLUTO:** Minuto {minuto_actual} y van 0-0. Para que pierdas, ambos deben enloquecer de repente. Tu NO es casi invencible."
+
+                                            estado_btts = "BLINDAJE DE TIEMPO"; color_btts = "#10B981"; ird = 5.0
+
+                                            
+
+                                        elif diferencia_goles_btts >= 2:
+
+                                            msj_ia = f"🛡️ **CANDADO DE PLOMO:** Con {diferencia_goles_btts} goles de ventaja, el ganador hará control de posesión total. Riesgo mínimo."
+
+                                            estado_btts = "CONTROL TOTAL"; color_btts = "#10B981"; ird = 10.0
+
+                                            
+
+                                        else:
+
+                                            if minuto_actual <= 15:
+
+                                                if goles_totales == 0:
+
+                                                    if apm_total < 1.2:
+
+                                                        msj_ia = "🟢 **PAZ TÁCTICA:** Fase de estudio. Partido controlado, excelente inicio para tu NO."
+
+                                                        estado_btts = "TENDENCIA SEGURA"; color_btts = "#10B981"; ird = 20.0
+
+                                                    else:
+
+                                                        msj_ia = f"🟡 **ASEDIO TEMPRANO:** Ritmo altísimo ({apm_total:.2f} APM). Hay que vigilar de cerca la cuota."
+
+                                                        estado_btts = "ALERTA LEVE"; color_btts = "#F59E0B"; ird = 60.0
+
+                                                else:
+
+                                                    quien_anoto = eq_local_seg if g_local == 1 else eq_vis_seg
+
+                                                    if (quien_anoto == eq_local_seg and (is_super_fav_local or is_fav_local)) or (quien_anoto == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
+
+                                                        msj_ia = f"🟢 **GOLPE DE AUTORIDAD:** El Favorito pegó temprano y controlará el balón. El NO se fortalece."
+
+                                                        estado_btts = "CANDADO FAVORITO"; color_btts = "#10B981"; ird = 25.0
+
+                                                    else:
+
+                                                        msj_ia = f"🔴 **LA BESTIA HERIDA:** El Débil sorprendió. Espera un bombardeo del Favorito. Peligro extremo para tu NO."
+
+                                                        estado_btts = "REACCIÓN INMINENTE"; color_btts = "#EF4444"; ird = 85.0
+
+
+
+                                            elif minuto_actual <= 30:
+
+                                                if goles_totales == 0:
+
+                                                    if apm_total < 0.8:
+
+                                                        msj_ia = "🟢 **TENDENCIA SANA:** Partido trabado y mucha fricción. El NO respira profundo."
+
+                                                        estado_btts = "CONTROL ABSOLUTO"; color_btts = "#10B981"; ird = 20.0
+
+                                                    else:
+
+                                                        msj_ia = "🟡 **ALERTA DE FUEGO:** El partido se abrió. Pisan el área. Vigila la cuota de salida."
+
+                                                        estado_btts = "RIESGO DE GOL"; color_btts = "#F59E0B"; ird = 70.0
+
+                                                else:
+
+                                                    eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
+
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+
+                                                    apm_gana = apm_local if g_local == 1 else apm_vis
+
+                                                    
+
+                                                    if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
+
+                                                        if apm_pierde > 0.6:
+
+                                                            msj_ia = f"🔴 **LA MAQUINARIA ENCENDIDA:** El Favorito asedia ({apm_pierde:.2f} APM) buscando el empate. Huye ahora."
+
+                                                            estado_btts = "ASEDIO DEL FAVORITO"; color_btts = "#EF4444"; ird = 90.0
+
+                                                        else:
+
+                                                            msj_ia = f"🟡 **FAVORITO ANESTESIADO:** El Débil pegó y anuló al Favorito. Tu NO resiste la sorpresa."
+
+                                                            estado_btts = "BLOQUEO TÁCTICO"; color_btts = "#F59E0B"; ird = 35.0
+
+                                                    else:
+
+                                                        if apm_gana > apm_pierde and apm_gana > 0.6:
+
+                                                            msj_ia = f"🟢 **MONÓLOGO TÁCTICO:** El que gana domina a placer. El NO se solidifica cada minuto."
+
+                                                            estado_btts = "MUERTE OFENSIVA"; color_btts = "#10B981"; ird = 15.0
+
+                                                        else:
+
+                                                            msj_ia = f"🟡 **ORGULLO DEL DÉBIL:** El perdedor responde y busca el empate. Cuidado con el rebote."
+
+                                                            estado_btts = "REACCIÓN ACTIVA"; color_btts = "#F59E0B"; ird = 50.0
+
+
+
+                                            elif minuto_actual <= 45:
+
+                                                if goles_totales == 0:
+
+                                                    if apm_total < 0.8:
+
+                                                        msj_ia = "🟢 **CONTROL ABSOLUTO (1T):** Pacto de no agresión al descanso. Cero asegurado en la primera mitad."
+
+                                                        estado_btts = "CIERRE SEGURO"; color_btts = "#10B981"; ird = 15.0
+
+                                                    else:
+
+                                                        msj_ia = "🟡 **ASALTO FINAL (1T):** Intentan abrirlo antes del vestuario. Mantente alerta."
+
+                                                        estado_btts = "PRESIÓN DE CIERRE"; color_btts = "#F59E0B"; ird = 65.0
+
+                                                else:
+
+                                                    eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
+
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+
+                                                    if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
+
+                                                        if apm_pierde > 0.8:
+
+                                                            msj_ia = f"🔴 **FRENESÍ DEL FAVORITO:** Asedio infernal antes del descanso. Pánico para tu NO."
+
+                                                            estado_btts = "ALERTA MÁXIMA DE GOL"; color_btts = "#EF4444"; ird = 95.0
+
+                                                        else:
+
+                                                            msj_ia = f"🟡 **SHOCK PROLONGADO:** Incapaces de asimilar el gol. El NO sobrevive al primer tiempo."
+
+                                                            estado_btts = "CRISIS DE IDEAS"; color_btts = "#F59E0B"; ird = 35.0
+
+                                                    else:
+
+                                                        if apm_pierde < 0.4:
+
+                                                            msj_ia = f"🟢 **CANDADO TÁCTICO:** El dominador resolvió la tarea. Excelente panorama para el NO."
+
+                                                            estado_btts = "DOMINIO TOTAL"; color_btts = "#10B981"; ird = 10.0
+
+                                                        else:
+
+                                                            msj_ia = f"🟡 **ZARPAZO DE AHOGADO:** El perdedor presiona. Ligera alerta antes del pitazo."
+
+                                                            estado_btts = "INTENTO FINAL"; color_btts = "#F59E0B"; ird = 55.0
+
+
+
+                                            elif minuto_actual <= 60:
+
+                                                if goles_totales == 0:
+
+                                                    if apm_total > 1.2:
+
+                                                        msj_ia = "🔴 **IDA Y VUELTA RECARGADO:** El partido se rompió en el 2T. Alto riesgo para el NO."
+
+                                                        estado_btts = "REINICIO FRENÉTICO"; color_btts = "#EF4444"; ird = 80.0
+
+                                                    else:
+
+                                                        msj_ia = "🟢 **MIEDO A PERDER:** Salieron a cuidarse. Escenario ideal para que el NO madure."
+
+                                                        estado_btts = "ESTANCAMIENTO TÁCTICO"; color_btts = "#10B981"; ird = 15.0
+
+                                                else:
+
+                                                    eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
+
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+
+                                                    if (eq_pierde == eq_local_seg and is_super_fav_local) or (eq_pierde == eq_vis_seg and is_super_fav_vis):
+
+                                                        if apm_pierde > 1.0:
+
+                                                            msj_ia = f"🔴👑 **LA FURIA DEL REY:** Asedio infernal. El empate caerá. ¡Huye ahora mismo!"
+
+                                                            estado_btts = "EVACUACIÓN"; color_btts = "#EF4444"; ird = 95.0
+
+                                                        else:
+
+                                                            msj_ia = f"🟢👑 **DECEPCIÓN HISTÓRICA:** El Súper Favorito bloqueado. El NO sobrevive milagrosamente."
+
+                                                            estado_btts = "FRACASO TÁCTICO"; color_btts = "#10B981"; ird = 25.0
+
+                                                    elif (eq_pierde == eq_local_seg and is_fav_local) or (eq_pierde == eq_vis_seg and is_fav_vis):
+
+                                                        if apm_pierde > 0.8:
+
+                                                            msj_ia = f"🔴 **LA MAQUINARIA A TODA MARCHA:** Bombardeo total. Ten el botón de salida listo."
+
+                                                            estado_btts = "PRESIÓN ALTA"; color_btts = "#EF4444"; ird = 85.0
+
+                                                        else:
+
+                                                            msj_ia = f"🟡 **FRUSTRACIÓN TOTAL:** El Favorito no encuentra caminos. Tu NO aguanta bien."
+
+                                                            estado_btts = "RESISTENCIA"; color_btts = "#F59E0B"; ird = 40.0
+
+                                                    else:
+
+                                                        if apm_pierde > 0.6:
+
+                                                            msj_ia = f"🟡 **REBELDÍA PURA:** El perdedor no se rinde y busca el empate. Precaución."
+
+                                                            estado_btts = "ESPERANZA VIVA"; color_btts = "#F59E0B"; ird = 50.0
+
+                                                        else:
+
+                                                            msj_ia = f"🟢 **RENDICIÓN TÁCTICA:** No hay argumentos ofensivos. El 1-0 es una roca blindada."
+
+                                                            estado_btts = "PAZ TÁCTICA"; color_btts = "#10B981"; ird = 10.0
+
+
+
+                                            elif minuto_actual <= 75:
+
+                                                if goles_totales == 0:
+
+                                                    if apm_total > 1.2:
+
+                                                        msj_ia = "🟡 **CAOS SIN PUNTERÍA:** Llegan pero no la meten. Alerta amarilla por un gol de rebote."
+
+                                                        estado_btts = "LOTERÍA FINAL"; color_btts = "#F59E0B"; ird = 75.0
+
+                                                    else:
+
+                                                        msj_ia = "🟢 **ESTANCAMIENTO CRÍTICO:** Partido en un pozo ciego. El NO está ganando la partida."
+
+                                                        estado_btts = "AGOTAMIENTO"; color_btts = "#10B981"; ird = 10.0
+
+                                                else:
+
+                                                    eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
+
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+
+                                                    if (eq_pierde == eq_local_seg and (is_super_fav_local or is_fav_local)) or (eq_pierde == eq_vis_seg and (is_super_fav_vis or is_fav_vis)):
+
+                                                        if apm_pierde > 0.9:
+
+                                                            msj_ia = f"🔴 **OLLA A PRESIÓN:** Asedio insoportable. El empate es cuestión de física. ¡Evacúa YA!"
+
+                                                            estado_btts = "PELIGRO CRÍTICO"; color_btts = "#EF4444"; ird = 98.0
+
+                                                        else:
+
+                                                            msj_ia = f"🟢 **COLAPSO MENTAL:** El Favorito se quedó sin ideas. El milagro es real, tu NO factura."
+
+                                                            estado_btts = "MILAGRO EN CURSO"; color_btts = "#10B981"; ird = 20.0
+
+                                                    else:
+
+                                                        if apm_pierde > 0.6:
+
+                                                            msj_ia = f"🟡 **ÚLTIMO ALIENTO:** El perdedor quema sus naves. Riesgo de error."
+
+                                                            estado_btts = "PRESIÓN FINAL"; color_btts = "#F59E0B"; ird = 60.0
+
+                                                        else:
+
+                                                            msj_ia = f"🟢 **CONTROL DE DAÑOS:** El ganador congeló el partido. El NO respira ultra tranquilo."
+
+                                                            estado_btts = "PARTIDO CERRADO"; color_btts = "#10B981"; ird = 10.0
+
+
+
+                                            else: # ZONA DE LA MUERTE
+
+                                                if goles_totales == 0:
+
+                                                    msj_ia = "🎉 **BLINDAJE DE ACERO:** Solo un milagro arruina esto. Disfruta tu verde."
+
+                                                    estado_btts = "VICTORIA CASI SEGURA"; color_btts = "#10B981"; ird = 5.0
+
+                                                else:
+
+                                                    eq_pierde = eq_local_seg if g_local == 0 else eq_vis_seg
+
+                                                    apm_pierde = apm_local if g_local == 0 else apm_vis
+
+                                                    if apm_pierde > 1.0:
+
+                                                        msj_ia = "🚨 **EVACUACIÓN URGENTE:** El asedio te va a quemar. Sal de ahí YA usando la cobertura."
+
+                                                        estado_btts = "ALERTA ROJA EXTREMA"; color_btts = "#EF4444"; ird = 99.0
+
+                                                    else:
+
+                                                        msj_ia = "🟢 **CERROJO ABSOLUTO:** El herido no tiene piernas. Asegura la utilidad."
+
+                                                        estado_btts = "PAZ TOTAL"; color_btts = "#10B981"; ird = 10.0
+
+
+
+                                    # PANEL GIGANTE BTTS (LIMPIO)
+
+                                    st.markdown(f"""
+
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+
+                                        <h3 style="margin-top:0; color:#0F172A;">📊 ESTADO DEL BTTS (Ambos Anotan)</h3>
+
+                                        <h1 style="color:{color_btts}; font-size: 2.5rem; margin: 10px 0;">{estado_btts}</h1>
+
+                                        <p style="margin:0; font-size: 1.1rem; color:#475569;">{msj_ia}</p>
+
+                                        <p style="margin:10px 0 0 0; font-size: 0.85rem; color:#64748B;">Dinámica actual: {apm_total:.2f} APM ({texto_momentum})</p>
+
+                                    </div>
+
+                                    """, unsafe_allow_html=True)
+
+                                elif is_linea_goles:
+
+                                    # LÓGICA DE LÍNEA DE GOLES
+
+                                    import re
+
+                                    match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
+
+                                    linea_obj = float(match_linea.group()) if match_linea else 2.5
+
+                                    aposto_mas = "Más" in sel_ini or "Mas" in sel_ini
+
+                                    diferencia_goles = linea_obj - goles_totales
+
+                                    
+
+                                    if aposto_mas:
+
+                                        if diferencia_goles < 0:
+
+                                            msj_ia = f"🎉 **¡OBJETIVO CUMPLIDO!** Ya superaste la línea de {linea_obj} goles."
+
+                                            ird = 0.0; estado_goles = "✅ GARANTIZADO"; color_goles = "#10B981"
+
+                                        elif diferencia_goles >= 1.5 and tiempo_restante <= 25:
+
+                                            msj_ia = f"🚨 **RELOJ EN CONTRA:** Faltan goles y tiempo."
+
+                                            ird = 95.0; estado_goles = "🔴 PELIGRO DE MUERTE"; color_goles = "#EF4444"
+
+                                        else:
+
+                                            if apm_total >= 1.3:
+
+                                                msj_ia = f"🔥 **PARTIDO ROTO:** Excelente volumen ofensivo."
+
+                                                ird = 40.0; estado_goles = "🟢 ALTA PROBABILIDAD"; color_goles = "#10B981"
+
+                                            else:
+
+                                                msj_ia = f"📉 **PARTIDO MUERTO:** Ritmo muy lento ({apm_total:.1f} APM)."
+
+                                                ird = 85.0; estado_goles = "🔴 TENDENCIA UNDER"; color_goles = "#EF4444"
+
+                                    else: # UNDER
+
+                                        if diferencia_goles < 0:
+
+                                            msj_ia = f"❌ **SINIESTRO:** Superaron la línea. Perdiste el 'Menos de'."
+
+                                            ird = 100.0; estado_goles = "💀 PERDIDO"; color_goles = "#000000"
+
+                                        elif diferencia_goles >= 2.5:
+
+                                            msj_ia = f"✅ **BLINDAJE DE ACERO:** Colchón gigante."
+
+                                            ird = 10.0; estado_goles = "✅ SEGURO"; color_goles = "#10B981"
+
+                                        else:
+
+                                            if apm_total >= 1.2:
+
+                                                msj_ia = f"🚨 **PÁNICO OFENSIVO:** Partido frenético."
+
+                                                ird = 85.0; estado_goles = "🔴 ALERTA DE GOL"; color_goles = "#EF4444"
+
+                                            else:
+
+                                                msj_ia = f"✅ **CONTROL TOTAL:** Partido aburrido."
+
+                                                ird = 20.0; estado_goles = "🟢 TENDENCIA UNDER"; color_goles = "#10B981"
+
+
+
+                                    st.markdown(f"""
+
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+
+                                        <h3 style="margin-top:0; color:#0F172A;">📊 ESTADO LÍNEA DE GOLES ({linea_obj})</h3>
+
+                                        <h1 style="color:{color_goles}; font-size: 2.5rem; margin: 10px 0;">{estado_goles}</h1>
+
+                                        <p style="margin:0; font-size: 1.1rem; color:#475569;">{msj_ia}</p>
+
+                                        <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">Velocidad del partido: {apm_total:.2f} APM</p>
+
+                                    </div>
+
+                                    """, unsafe_allow_html=True)
+
+
+
+                                else:
+
+                                    # MERCADO 1X2 (Dominio Absoluto)
+
+                                    dom_vivo = "Local" if apm_local > apm_vis and (atkp_local - atkp_vis) > 10 else ("Visita" if apm_vis > apm_local and (atkp_vis - atkp_local) > 10 else "Asedio Dividido")
+
+                                    
+
+                                    if "Asedio" in dom_vivo:
+
+                                        msj_ia = "⚔️ El partido está atascado en el medio campo. Ninguno se impone."
+
+                                        color_1x2 = "#F59E0B"
+
+                                        ird = 75.0
+
+                                    else:
+
+                                        msj_ia = f"🔥 El equipo **{dom_vivo}** tiene a su rival contra las cuerdas."
+
+                                        color_1x2 = "#10B981" if ((dom_vivo == "Local" and "Local" in sel_ini) or (dom_vivo == "Visita" and "Visita" in sel_ini)) else "#EF4444"
+
+                                        ird = 25.0 if color_1x2 == "#10B981" else 90.0
+
+
+
+                                    st.markdown(f"""
+
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+
+                                        <h3 style="margin-top:0; color:#0F172A;">🎯 TÁCTICA 1X2 (DOMINIO EN CANCHA)</h3>
+
+                                        <h1 style="color:{color_1x2}; font-size: 2.5rem; margin: 10px 0;">DOMINA: {dom_vivo.upper()}</h1>
+
+                                        <p style="margin:0; font-size: 1.1rem; color:#475569;">{msj_ia}</p>
+
+                                    </div>
+
+                                    """, unsafe_allow_html=True)
+
+                                
+
+                                # =====================================================================
+
+                                # 4. ORÁCULO TRI-FACTOR (IA + HISTORIA + RIESGO PATRIMONIAL)
+
+                                # =====================================================================
+
+                                import joblib
+
+                                import pandas as pd
+
+                                
+
+                                # A. CEREBRO FÍSICO (IA)
+
+                                try:
+
+                                    X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird, 'cuota_base_audit': float(op.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(op.get('cuota_amenaza_audit', 2.0))}])
+
+                                    m1x2_liq = joblib.load('modelo_1x2.pkl')
+
+                                    pred_1x2 = m1x2_liq.predict(X_liq)[0]
+
+                                    dom_vivo = "Local" if pred_1x2 == 2 else ("Visita" if pred_1x2 == 3 else "Empate/Asedio Dividido")
+
+                                except:
+
+                                    dom_vivo = "Local" if apm_local > apm_vis and (atkp_local - atkp_vis) > 10 else ("Visita" if apm_vis > apm_local and (atkp_vis - atkp_local) > 10 else "Empate/Asedio Dividido")
+
+
+
+                                # B. CEREBRO HISTÓRICO
+
+                                c_loc_hist = float(op.get('cuota_base_audit', 2.0))
+
+                                c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
+
+                                if c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: fav_global = "Local"
+
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: fav_global = "Visita"
+
+                                else: fav_global = "Fuerzas Parejas"
+
+
+
+                                # C. CEREBRO PATRIMONIAL (Gestión del Umbral de Riesgo)
+
+                                pct_rescate_banca = (oferta_cashout / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
+
+                                exposicion_pct = (op['stake_1'] / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
+
+                                
+
+                                # D. LÓGICA DE COMPRENSIÓN DE MERCADO (¿Va Ganando?)
+
+                                sel_lower = sel_ini.lower()
+
+                                palabras_sel = sel_lower.replace("(", "").replace(")", "").split()
+
+                                
+
+                                aposto_btts_si = "sí" in palabras_sel or "si" in palabras_sel or ("ambos" in sel_lower and ("sí" in sel_lower or "si" in palabras_sel))
+
+                                aposto_btts_no = "no" in palabras_sel or ("ambos" in sel_lower and "no" in palabras_sel)
+
+                                aposto_over = "más" in palabras_sel or "mas" in palabras_sel or "over" in palabras_sel
+
+                                aposto_under = "menos" in palabras_sel or "under" in palabras_sel
+
+                                aposto_local = "local" in sel_lower or "1" in palabras_sel
+
+                                aposto_visita = "visita" in sel_lower or "2" in palabras_sel
+
+                                aposto_empate = "empate" in sel_lower or "x" in palabras_sel
+
+
+
+                                ganando_actualmente = False
+
+                                estamos_dominando = False
+
+                                tipo_mercado = "1X2"
+
+                                
+
+                                if aposto_btts_si or aposto_over:
+
+                                    tipo_mercado = "GOLES"
+
+                                    if apm_total >= 1.2: estamos_dominando = True
+
+                                    if aposto_btts_si and g_local > 0 and g_vis > 0: ganando_actualmente = True
+
+                                    elif aposto_over:
+
+                                        import re
+
+                                        match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
+
+                                        if match_linea and (g_local + g_vis) > float(match_linea.group()): ganando_actualmente = True
+
+                                elif aposto_btts_no or aposto_under:
+
+                                    tipo_mercado = "GOLES"
+
+                                    if apm_total < 0.6: estamos_dominando = True
+
+                                    if aposto_btts_no and (g_local == 0 or g_vis == 0): ganando_actualmente = True
+
+                                    elif aposto_under:
+
+                                        import re
+
+                                        match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
+
+                                        if match_linea and (g_local + g_vis) < float(match_linea.group()): ganando_actualmente = True
+
+                                else:
+
+                                    if aposto_local and dom_vivo == "Local": estamos_dominando = True
+
+                                    elif aposto_visita and dom_vivo == "Visita": estamos_dominando = True
+
+                                    elif aposto_empate and dom_vivo == "Empate/Asedio Dividido": estamos_dominando = True
+
+                                    
+
+                                    if aposto_local and g_local > g_vis: ganando_actualmente = True
+
+                                    elif aposto_visita and g_vis > g_local: ganando_actualmente = True
+
+                                    elif aposto_empate and g_local == g_vis: ganando_actualmente = True
+
+
+
+                                if tipo_mercado == "GOLES":
+
+                                    texto_fav = "La física proyecta el ritmo que necesitas." if (aposto_btts_si or aposto_over) else "El partido está trabado, ideal para ti."
+
+                                    texto_apoyo = "El ritmo del partido te respalda."
+
+                                    eres_favorito = False
+
+                                else:
+
+                                    eres_favorito = True if (fav_global == "Local" and aposto_local) or (fav_global == "Visita" and aposto_visita) else False
+
+                                    texto_fav = f"Tienes jerarquía ({fav_global})." if eres_favorito else "La táctica en cancha compensa no ser favorito."
+
+                                    texto_apoyo = "Tu equipo domina físicamente."
+
+
+
+                                # =====================================================================
+
+                                # DICTAMEN MAESTRO INSTITUCIONAL (CON REGLAS DE ORO APLICADAS)
+
+                                # =====================================================================
+
+                                veredicto_titulo = ""
+
+                                veredicto_desc = ""
+
+                                color_alerta = "#E2E8F0"
+
+                                bg_alerta = "#F8FAFC"
+
+
+
+                                # REGLA DE ORO 1: QUEMAR CUENTA (Umbral de Riesgo Real)
+
+                                if exposicion_pct > umbral_permitido and not ganando_actualmente:
+
+                                    veredicto_titulo = "🔥 QUEMA DE CUENTA INMINENTE (Exposición Crítica)"
+
+                                    veredicto_desc = f"Has metido el <b>{exposicion_pct:.1f}%</b> de tu capital real en este partido, superando tu límite máximo del <b>{umbral_permitido:.1f}%</b>. No estás ganando. ¡Liquida o inyecta seguro YA MISMO para proteger el patrimonio!"
+
+                                    color_alerta = "#991B1B"; bg_alerta = "#FEF2F2"
+
+                                    
+
+                                # REGLA DE ORO 2: STOP LOSS (Precio)
+
+                                elif cuota_sl > 0 and cuota_salida <= cuota_sl:
+
+                                    veredicto_titulo = "🛑 STOP LOSS ESTRUCTURAL ROTO"
+
+                                    veredicto_desc = f"La cuota ({cuota_salida:.2f}) perforó tu límite. El riesgo financiero es inaceptable. EVACUACIÓN OBLIGATORIA AHORA."
+
+                                    color_alerta = "#B91C1C"; bg_alerta = "#FEF2F2"
+
+                                    
+
+                                # REGLA DE ORO 3: MUERTE POR RELOJ (Tiempo)
+
+                                elif tiempo_restante <= 10 and not ganando_actualmente:
+
+                                    veredicto_titulo = "⏳ MUERTE TÁCTICA POR RELOJ"
+
+                                    if oferta_cashout > 0:
+
+                                        texto_rescate = f"Toma los ${oferta_cashout:,.0f} de inmediato antes de que caiga a $0."
+
+                                    else:
+
+                                        texto_rescate = "Ejecuta la cobertura o cierra la operación de inmediato asumiendo la pérdida."
+
+                                    veredicto_desc = f"Faltan {tiempo_restante} minutos. No importa si los ataques están en {apm_total:.1f} APM, el tiempo se acabó y vas perdiendo. {texto_rescate}"
+
+                                    color_alerta = "#DC2626"; bg_alerta = "#FEF2F2"
+
+                                    
+
+                                # REGLA DE ORO 4: RELOJ A FAVOR
+
+                                elif tiempo_restante <= 10 and ganando_actualmente:
+
+                                    veredicto_titulo = "🛡️ RELOJ A FAVOR (Blindaje Temporal)"
+
+                                    veredicto_desc = f"Quedan solo {tiempo_restante} min y llevas la ventaja. El tiempo es tu mejor amigo ahora. Aguanta fuerte, la casa está desesperada por comprarte barato."
+
+                                    color_alerta = "#10B981"; bg_alerta = "#ECFDF5"
+
+                                    
+
+                                # Riesgo Cero
+
+                                elif pct_rescate_banca < 0.5 and oferta_cashout > 0:
+
+                                    veredicto_titulo = "🛡️ RIESGO CERO (Marginalidad Absoluta)"
+
+                                    veredicto_desc = f"La casa te ofrece migajas (${oferta_cashout:,.0f}, {pct_rescate_banca:.2f}% de tu banca). No salves centavos. Deja correr el partido."
+
+                                    color_alerta = "#64748B"; bg_alerta = "#F1F5F9"
+
+                                    
+
+                                # Fusión Táctica vs Historia
+
+                                elif estamos_dominando:
+
+                                    veredicto_titulo = "🟢 MANTENER POSICIÓN (Respaldo Táctico IA)"
+
+                                    veredicto_desc = f"{texto_apoyo} {texto_fav} Queda tiempo ({tiempo_restante} min). Dejar correr maximiza tu ROI a largo plazo."
+
+                                    color_alerta = "#10B981"; bg_alerta = "#ECFDF5"
+
+                                elif not estamos_dominando and not eres_favorito:
+
+                                    if pct_rescate_banca >= 2.0:
+
+                                        veredicto_titulo = "🚨 EVACUACIÓN (Amputación Vital)"
+
+                                        veredicto_desc = f"Muerte táctica confirmada. Toma los ${oferta_cashout:,.0f} para salvar el {pct_rescate_banca:.1f}% de tu banca."
+
+                                        color_alerta = "#EF4444"; bg_alerta = "#FEF2F2"
+
+                                    else:
+
+                                        veredicto_titulo = "🟡 COBERTURA ESTRATÉGICA (Mitigación)"
+
+                                        veredicto_desc = f"El partido luce oscuro frente al favorito ({fav_global}). Inyectar ${monto_a_inyectar:,.0f} frena la sangría si logras Break-Even."
+
+                                        color_alerta = "#F59E0B"; bg_alerta = "#FFFBEB"
+
+                                elif not estamos_dominando and eres_favorito:
+
+                                    veredicto_titulo = "⚠️ ALERTA DE TRAMPA (Jerarquía vs Física)"
+
+                                    veredicto_desc = f"Eres Favorito, pero el asedio en contra es real. Mantén con precaución. Si el asedio te quema (IRD > 75%), busca la salida."
+
+                                    color_alerta = "#3B82F6"; bg_alerta = "#EFF6FF"
+
+
+
+                                st.markdown(f"""
+
+                                <div style="background-color: {bg_alerta}; border-left: 8px solid {color_alerta}; padding: 20px; border-radius: 8px; margin: 15px 0;">
+
+                                    <h3 style="margin-top:0; color:{color_alerta}; font-size:1.3rem;">{veredicto_titulo}</h3>
+
+                                    <p style="font-size: 1.05rem; color:#334155; margin-bottom:15px;">{veredicto_desc}</p>
+
+                                    <hr style="border-color:{color_alerta}; opacity:0.3; margin: 10px 0;">
+
+                                    <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
+
+                                        <span style="color:#0F172A;"><b>Táctica (IA):</b> {dom_vivo} ({ird:.1f}% IRD)</span>
+
+                                        <span style="color:#0F172A;"><b>Exp. Capital:</b> {exposicion_pct:.1f}% (Max: {umbral_permitido:.1f}%)</span>
+
+                                        <span style="color:#0F172A;"><b>Reloj:</b> {tiempo_restante} min</span>
+
+                                    </div>
+
+                                </div>
+
+                                """, unsafe_allow_html=True)
+
+
+
+                                # =====================================================================
+
+                                # 🔍 MATRIZ FINANCIERA DE LA OPERACIÓN (TRI-FÁSICA)
+
+                                # =====================================================================
+
+                                st.markdown("#### 🔍 Matriz Financiera de la Operación")
+
+                                
+
+                                if cuota_minima_rentable > 0:
+
+                                    if cuota_salida >= cuota_minima_rentable:
+
+                                        st.markdown(f"<div style='background-color: #F0FDF4; padding: 10px; border-left: 4px solid #16A34A; border-radius: 4px; margin-bottom: 10px; color: #166534; font-size: 0.9rem;'>⚖️ <b>Estado Break-Even:</b> La cuota actual ({cuota_salida:.2f}) ya superó tu Punto de Equilibrio ({cuota_minima_rentable:.2f}). Estás operando en zona libre de pérdida de capital.</div>", unsafe_allow_html=True)
+
+                                    else:
+
+                                        st.markdown(f"<div style='background-color: #FEF2F2; padding: 10px; border-left: 4px solid #EF4444; border-radius: 4px; margin-bottom: 10px; color: #991B1B; font-size: 0.9rem;'>⚖️ <b>Estado Break-Even:</b> La cuota actual ({cuota_salida:.2f}) está por debajo del Punto de Equilibrio ({cuota_minima_rentable:.2f}). Cubrir ahora consolidará una pérdida matemática.</div>", unsafe_allow_html=True)
+
+                                
+
+                                # -------------------------------------------------------------
+
+                                # MATEMÁTICA DE LAS 3 OPCIONES
+
+                                # -------------------------------------------------------------
+
+                                # Variables Base
+
+                                st1 = op['stake_1']
+
+                                c_ini = op['cuota_inicial']
+
+                                ret_bruto = st1 * c_ini
+
+                                
+
+                                # OPCIÓN A: Cobertura Total (Hedging Clásico)
+
+                                monto_inyectar_a = ret_bruto / cuota_salida if cuota_salida > 0 else 0
+
+                                util_si_gana_a = ret_bruto - st1 - monto_inyectar_a
+
+                                util_si_pierde_a = util_si_gana_a  # En cobertura total, ganes o pierdas te llevas lo mismo
+
+                                
+
+                                # OPCIÓN B: Dejar Correr (Sin Seguro)
+
+                                util_si_gana_b = ret_bruto - st1
+
+                                util_si_pierde_b = -st1
+
+                                
+
+                                # OPCIÓN C: Freebet (Riesgo Cero)
+
+                                # Fórmula: Inyección = Stake 1 / (Cuota Amenaza - 1)
+
+                                if cuota_salida > 1.01:
+
+                                    monto_inyectar_c = st1 / (cuota_salida - 1)
+
+                                    util_si_gana_c = ret_bruto - st1 - monto_inyectar_c
+
+                                    util_si_pierde_c = 0.0 # Por definición, si pierdes quedas en $0
+
+                                else:
+
+                                    monto_inyectar_c = 0.0
+
+                                    util_si_gana_c = 0.0
+
+                                    util_si_pierde_c = 0.0
+
+                                
+
+                                col_sc1, col_sc2, col_sc3 = st.columns(3)
+
+                                
+
+                                with col_sc1:
+
+                                    st.markdown(f"""
+
+                                    <div style="background-color: #F8FAFC; padding: 15px; border-radius: 6px; border: 1px solid #CBD5E1; height: 100%;">
+
+                                        <b style="color: #1E293B; font-size: 0.9rem;">OPCIÓN A: Seguro Total</b><br>
+
+                                        <span style="font-size: 0.8rem; color:#64748B;">Paz mental absoluta.</span><br><br>
+
+                                        • Pagar Seguro: <b>${monto_inyectar_a:,.0f}</b><br>
+
+                                        • Si Ganas: <span style="color:{'#10B981' if util_si_gana_a >= 0 else '#EF4444'}; font-weight:bold;">${util_si_gana_a:,.0f}</span><br>
+
+                                        • Si Pierdes: <span style="color:{'#10B981' if util_si_pierde_a >= 0 else '#EF4444'}; font-weight:bold;">${util_si_pierde_a:,.0f}</span>
+
+                                    </div>
+
+                                    """, unsafe_allow_html=True)
+
+                                    
+
+                                with col_sc2:
+
+                                    st.markdown(f"""
+
+                                    <div style="background-color: #F0FDF4; padding: 15px; border-radius: 6px; border: 1px solid #86EFAC; height: 100%;">
+
+                                        <b style="color: #166534; font-size: 0.9rem;">OPCIÓN B: Freebet (Cero Riesgo)</b><br>
+
+                                        <span style="font-size: 0.8rem; color:#15803D;">Salva tu dinero, busca el premio.</span><br><br>
+
+                                        • Pagar Seguro: <b>${monto_inyectar_c:,.0f}</b><br>
+
+                                        • Si Ganas: <span style="color:#10B981; font-weight:bold;">${util_si_gana_c:,.0f}</span><br>
+
+                                        • Si Pierdes: <span style="color:#64748B; font-weight:bold;">$0 COP</span>
+
+                                    </div>
+
+                                    """, unsafe_allow_html=True)
+
+                                    
+
+                                with col_sc3:
+
+                                    st.markdown(f"""
+
+                                    <div style="background-color: #FFFBEB; padding: 15px; border-radius: 6px; border: 1px solid #FDE68A; height: 100%;">
+
+                                        <b style="color: #78350F; font-size: 0.9rem;">OPCIÓN C: Modo Suicida</b><br>
+
+                                        <span style="font-size: 0.8rem; color:#B45309;">Sin seguro. A todo o nada.</span><br><br>
+
+                                        • Pagar Seguro: <b>$0 COP</b><br>
+
+                                        • Si Ganas: <span style="color:#10B981; font-weight:bold;">${util_si_gana_b:,.0f}</span><br>
+
+                                        • Si Pierdes: <span style="color:#EF4444; font-weight:bold;">-${st1:,.0f}</span>
+
+                                    </div>
+
+                                    """, unsafe_allow_html=True)
+
+                                
+
+                                # Lógica para saber si el botón de Cashout domina (Asumiendo Cobertura Total como base comparativa)
+
+                                costo_seguro = util_si_gana_b - util_si_gana_a
+
+                                capital_rescatado = util_si_pierde_a - util_si_pierde_b
+
+                                
+
+                                if costo_seguro > 0:
+
+                                    ratio_eficiencia = capital_rescatado / costo_seguro
+
+                                else:
+
+                                    ratio_eficiencia = 999.0 
+
+                                
+
+                                color_ratio = "#10B981" if ratio_eficiencia >= 1.0 else "#EF4444"
+
+                                estado_ratio = "SEGURO EFICIENTE" if ratio_eficiencia >= 1.0 else "SEGURO EXTORSIVO (Pagas más de lo que salvas)"
+
+                                
+
+                                st.markdown(f"""
+
+                                <div style="background-color: #F1F5F9; padding: 15px; border-radius: 6px; border-left: 5px solid {color_ratio}; margin-top: 15px;">
+
+                                    <h5 style="margin-top: 0; color: #334155;">⚖️ Auditoría de Costo-Beneficio (De la Opción A)</h5>
+
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+
+                                        <span>📉 <b>Costo de la Prima (Sacrificio si ganas):</b></span>
+
+                                        <span style="color: #EF4444; font-weight: bold;">${costo_seguro:,.0f} COP</span>
+
+                                    </div>
+
+                                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+
+                                        <span>🛡️ <b>Capital Rescatado (Salvamento si pierdes):</b></span>
+
+                                        <span style="color: #10B981; font-weight: bold;">${capital_rescatado:,.0f} COP</span>
+
+                                    </div>
+
+                                    <hr style="margin: 10px 0; border-top: 1px solid #CBD5E1;">
+
+                                    <div style="display: flex; justify-content: space-between;">
+
+                                        <span>📊 <b>Veredicto Financiero:</b></span>
+
+                                        <span style="color: {color_ratio}; font-weight: bold;">{estado_ratio} (Ratio: {ratio_eficiencia:.2f}x)</span>
+
+                                    </div>
+
+                                </div>
+
+                                """, unsafe_allow_html=True)
+
+
+
+                                # =====================================================================
+
+                                # ⚖️ RADAR DE EFICIENCIA CASHOUT VS. COBERTURA MANUAL
+
+                                # =====================================================================
+
+                                if oferta_cashout > 0:
+
+                                    utilidad_cashout = oferta_cashout - op['stake_1']
+
+                                    diferencia_cashout = util_si_gana_a - utilidad_cashout # Compara contra cobertura total
+
+                                    
+
+                                    if diferencia_cashout > 0:
+
+                                        # Te están robando en el Cashout
+
+                                        st.markdown(f"""
+
+                                        <div style="background-color: #F0FDF4; border-left: 5px solid #22C55E; padding: 12px; border-radius: 4px; margin-top: 10px;">
+
+                                            <span style="font-size: 1.05em; color: #166534;">🛡️ <b>¡NO USES EL BOTÓN DE LA CASA!</b></span><br>
+
+                                            <span style="font-size: 0.95em; color: #15803D;">El botón te deja un balance de <b>${utilidad_cashout:,.0f}</b>. Cubrir matemáticamente la cuota te deja en <b>${util_si_gana_a:,.0f}</b>.</span><br>
+
+                                            <span style="font-weight: bold; color: #16A34A;">👉 Cazar la cuota tú mismo te salva ${diferencia_cashout:,.0f} COP adicionales.</span>
+
+                                        </div>
+
+                                        """, unsafe_allow_html=True)
+
+                                    elif diferencia_cashout < 0:
+
+                                        # El Cashout es sorprendentemente mejor
+
+                                        st.markdown(f"""
+
+                                        <div style="background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 12px; border-radius: 4px; margin-top: 10px;">
+
+                                            <span style="font-size: 1.05em; color: #991B1B;">🚨 <b>¡TOMA EL CASHOUT DE LA CASA INMEDIATAMENTE!</b></span><br>
+
+                                            <span style="font-size: 0.95em; color: #B91C1C;">Cubrir matemáticamente te deja en <b>${util_si_gana_a:,.0f}</b>. El botón de la casa es más generoso y te deja en <b>${utilidad_cashout:,.0f}</b>.</span><br>
+
+                                            <span style="font-weight: bold; color: #DC2626;">👉 Usar el botón de la casa te salva ${abs(diferencia_cashout):,.0f} COP. ¡Tómalo ya!</span>
+
+                                        </div>
+
+                                        """, unsafe_allow_html=True)
+
+                                    else:
+
+                                        st.info("⚖️ Ambas opciones (Cobertura Manual o Cashout) te dejan exactamente con el mismo margen de dinero.")
+
+
+
+                                st.markdown("---")
+
+                                
+
+                                es_mejor_cashout = False
+
+                                if oferta_cashout > 0:
+
+                                    utilidad_cashout = oferta_cashout - op['stake_1']
+
+                                    if (util_si_gana_a - utilidad_cashout) < 0:
+
+                                        es_mejor_cashout = True
+
+
+
+                                if es_mejor_cashout:
+
+                                    st.info(f"💡 **Retorno Directo:** Como el Cashout es la mejor opción, el dinero regresa a tu banco original ({op.get('plataforma_inicial', 'tu plataforma')}). La operación se cerrará inmediatamente.")
+
+                                    col_btn1, col_btn2 = st.columns(2)
+
+                                    with col_btn1:
+
+                                        
+
+                                        if st.button("✅ LIQUIDAR POR CASHOUT", key=f"btn_cash_{op['codigo']}", use_container_width=True):
+
+                                            hora_actual = datetime.datetime.now().strftime("%H:%M")
+
+                                            supabase.table("historial_trading").update({
+
+                                                "estado": "CERRADA",
+
+                                                "resultado_final": "Cashout (Cierre Anticipado)",
+
+                                                "utilidad_neta_real": float(utilidad_cashout),
+
+                                                "roi_real": float((utilidad_cashout / op['stake_1']) * 100),
+
+                                                "hora_cobertura": hora_actual,
+
+                                                "plataforma_cobertura": "Misma (Cashout)"
+
+                                            }).eq("codigo", op['codigo']).execute()
+
+                                            st.success(f"¡Cashout registrado! Has cerrado la operación con retorno de ${oferta_cashout:,.0f}.")
+
+                                            st.rerun()
+
+                                else:
+
+                                    todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
+
+                                    plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_es_{op['codigo']}")
+
+                                    plataforma_cob = st.text_input("Especifica la plataforma:", key=f"otra_plat_es_{op['codigo']}") if plataforma_cob_sel == "Otra" else plataforma_cob_sel
+
+                                    
+
+                                    col_btn1, col_btn2 = st.columns(2)
+
+                                    with col_btn1:
+
+                                        
+
+                                        if st.button("⚡ SEGURO TOTAL (Opción A)", key=f"btn_cob_a_{op['codigo']}", use_container_width=True):
+
+                                            hora_actual = datetime.datetime.now().strftime("%H:%M")
+
+                                            supabase.table("historial_trading").update({
+
+                                                "estado": "CUBIERTA",
+
+                                                "cuota_cazada_real": float(cuota_salida),
+
+                                                "hora_cobertura": hora_actual,
+
+                                                "plataforma_cobertura": plataforma_cob,
+
+                                                # Guardamos qué tipo de seguro tomó en un campo oculto o en el nombre de plataforma para usarlo en la liquidación final
+
+                                                "reserva_stake_2": float(monto_inyectar_a) 
+
+                                            }).eq("codigo", op['codigo']).execute()
+
+                                            st.success(f"¡Cobertura TOTAL fijada a cuota {cuota_salida}! Pasa a liquidación.")
+
+                                            st.rerun()
+
+                                    with col_btn2:
+
+                                        if st.button("🛡️ FREEBET (Opción B)", key=f"btn_cob_b_{op['codigo']}", use_container_width=True):
+
+                                            hora_actual = datetime.datetime.now().strftime("%H:%M")
+
+                                            supabase.table("historial_trading").update({
+
+                                                "estado": "CUBIERTA",
+
+                                                "cuota_cazada_real": float(cuota_salida),
+
+                                                "hora_cobertura": hora_actual,
+
+                                                "plataforma_cobertura": f"{plataforma_cob} [FREEBET]", # Etiqueta vital para la conciliación final
+
+                                                "reserva_stake_2": float(monto_inyectar_c)
+
+                                            }).eq("codigo", op['codigo']).execute()
+
+                                            st.success(f"¡FREEBET fijada a cuota {cuota_salida}! Riesgo $0 consolidado.")
+
+                                            st.rerun()
+
+                                    
+
+                            else:
+
+                                with st.form(f"get_dir_es_{op['codigo']}"):
+
+                                    st.markdown("#### 🏁 Conciliación Directa (Sin Cobertura)")
+
+                                    resultado_directo = st.radio(
+
+                                        "Resolución de tu Apuesta:", 
+
+                                        [f"✅ Ganó {sel_ini} (Cobro completo)", f"❌ Perdió {sel_ini} (Pérdida Stake 1)"],
+
+                                        key=f"rad_dir_es_{op['codigo']}"
+
+                                    )
+
+                                    st.markdown("---")
+
+                                    
+
+                                    # Extractor de equipos para Liquidación
+
+                                    partido_str = str(op.get('partido', ''))
+
+                                    solo_partido = partido_str.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str else partido_str
+
+                                    txt_norm = solo_partido.lower().replace("vs.", "vs").replace("-", "vs")
+
+                                    if "vs" in txt_norm:
+
+                                        eq_local = txt_norm.split("vs")[0].strip().title()
+
+                                        eq_vis = txt_norm.split("vs")[1].strip().title()
+
+                                    else:
+
+                                        eq_local = solo_partido if len(solo_partido) > 1 else "Equipo Local"
+
+                                        eq_vis = "Equipo Visitante"
+
+                                    if "Ambos Anotan" in eq_local or "[" in eq_local: eq_local, eq_vis = "Equipo A", "Equipo B"
+
+
+
+                                    st.info(f"🏟️ **Evento:** {partido_str}")
+
+                                    st.markdown("🤖 **Marcador / Puntos Finales para Entrenamiento IA**")
+
+                                    goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {eq_local}:", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
+
+                                    goles_finales_rival = st.number_input(f"⚽ Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
+
+                                    
+
+                                    if st.form_submit_button("Registrar Liquidación Directa"):
+
+                                        utilidad = utilidad_original_maxima if "Ganó" in resultado_directo else -op['stake_1']
+
+                                        
+
+                                        # Textos limpios para la IA según la estrategia
+
+                                        if "Ganó" in resultado_directo:
+
+                                            texto_cierre = f"Cierre Directo {etiqueta_db}: Ganó Inicial"
+
+                                        else:
+
+                                            texto_cierre = f"Cierre Directo {etiqueta_db}: Perdió Inicial"
+
+                                            
+
                                         supabase.table("historial_trading").update({
+
                                             "estado": "CERRADA",
+
                                             "resultado_final": texto_cierre,
+
                                             "utilidad_neta_real": float(utilidad),
+
                                             "roi_real": float((utilidad / op['capital_total']) * 100),
+
                                             "goles_finales_seleccion": goles_finales_seleccion, 
+
                                             "goles_finales_rival": goles_finales_rival         
+
                                         }).eq("codigo", op['codigo']).execute()
+
                                         st.success(f"Posición liquidada directamente. Balance: ${utilidad:,.0f} COP.")
+
                                         st.rerun()
 
+
+
                         # -------------------------------------------------------------
+
                         # FASE 2: CUBIERTA (ASENTAMIENTO FINAL)
+
                         # -------------------------------------------------------------
+
                         elif op['estado'] == "CUBIERTA":
+
                             st.success(f"🛡️ Cobertura asegurada a tasa de {op.get('cuota_cazada_real', 0.0):.2f}.")
+
                             
+
                             with st.form(f"liq_esports_{op['codigo']}"):
+
                                 st.markdown("#### 🏁 Conciliación Final de la Cobertura")
+
                                 resultado_final_ui = st.radio(
+
                                     "Resolución Final del Evento:", 
-                                    [f"✅ Inicial Acertado: Ganó {sel_ini}", f"🛡️ Seguro Acertado: Ganó {sel_cob}", "❌ Déficit Total (Siniestro)"],
+
+                                    [
+
+                                        f"✅ Inicial Acertado: Ganó {sel_ini}", 
+
+                                        f"🛡️ Seguro Acertado: Ganó {sel_cob}", 
+
+                                        "❌ Déficit Total (Siniestro)"
+
+                                    ],
+
                                     key=f"rad_fin_es_{op['codigo']}"
+
                                 )
+
                                 st.markdown("---")
-                                goles_finales_seleccion = st.number_input(f"⚽ Goles Equipo A:", min_value=0, step=1, value=0, key=f"gf_sel_es_{op['codigo']}")
-                                goles_finales_rival = st.number_input(f"⚽ Goles Equipo B:", min_value=0, step=1, value=0, key=f"gf_riv_es_{op['codigo']}")
+
                                 
-                                if st.form_submit_button(f"🏁 Cerrar Libro Mayor"):
+
+                                # Extractor de equipos para Liquidación
+
+                                partido_str = str(op.get('partido', ''))
+
+                                solo_partido = partido_str.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str else partido_str
+
+                                txt_norm = solo_partido.lower().replace("vs.", "vs").replace("-", "vs")
+
+                                if "vs" in txt_norm:
+
+                                    eq_local = txt_norm.split("vs")[0].strip().title()
+
+                                    eq_vis = txt_norm.split("vs")[1].strip().title()
+
+                                else:
+
+                                    eq_local = solo_partido if len(solo_partido) > 1 else "Equipo Local"
+
+                                    eq_vis = "Equipo Visitante"
+
+                                if "Ambos Anotan" in eq_local or "[" in eq_local: eq_local, eq_vis = "Equipo A", "Equipo B"
+
+
+
+                                st.info(f"🏟️ **Evento:** {partido_str}")
+
+                                st.markdown("🤖 **Marcador / Puntos Finales para Entrenamiento IA**")
+
+                                goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {eq_local}:", min_value=0, step=1, value=0, key=f"gf_sel_es_{op['codigo']}")
+
+                                goles_finales_rival = st.number_input(f"⚽ Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_es_{op['codigo']}")
+
+                                
+
+                                if st.form_submit_button(f"🏁 Cerrar Libro Mayor {etiqueta_db}"):
+
                                     retorno_bruto_esperado = op['stake_1'] * op['cuota_inicial']
-                                    monto_cobertura = float(op.get('reserva_stake_2', 0))
-                                    total_capital = op['stake_1'] + monto_cobertura
+
+                                    monto_cobertura_efectivo = retorno_bruto_esperado / float(op.get('cuota_cazada_real', 1.01))
+
+                                    total_capital_operacion = op['stake_1'] + monto_cobertura_efectivo
+
                                     
+
                                     if "Déficit" in resultado_final_ui:
-                                        utilidad = -total_capital
-                                        texto_db = f"Pérdida Total del Capital"
+
+                                        utilidad = -total_capital_operacion
+
+                                        texto_db = f"Pérdida Total del Capital ({etiqueta_db})"
+
                                     else:
-                                        if "Inicial" in resultado_final_ui:
-                                            utilidad = retorno_bruto_esperado - total_capital
-                                            texto_db = "Cobro de Apuesta Inicial"
-                                        else:
-                                            retorno_seguro = monto_cobertura * float(op.get('cuota_cazada_real', 1.01))
-                                            utilidad = retorno_seguro - total_capital
-                                            texto_db = "Cobro de Fondo de Cobertura"
+
+                                        utilidad = retorno_bruto_esperado - total_capital_operacion
+
+                                        texto_db = f"Cobro de Apuesta Inicial ({etiqueta_db})" if "Inicial" in resultado_final_ui else f"Cobro de Fondo de Cobertura ({etiqueta_db})"
+
                                         
+
                                     supabase.table("historial_trading").update({
+
                                         "estado": "CERRADA",
+
                                         "resultado_final": texto_db,
-                                        "utilidad_neta_real": float(utilidad),
-                                        "roi_real": float((utilidad / op['capital_total']) * 100),
+
+                                        "utilidad_neta_real": utilidad,
+
+                                        "roi_real": (utilidad / op['capital_total']) * 100,
+
                                         "goles_finales_seleccion": goles_finales_seleccion, 
+
                                         "goles_finales_rival": goles_finales_rival         
+
                                     }).eq("codigo", op['codigo']).execute()
+
                                     
+
                                     st.success(f"Libro cerrado. Balance neto transferido a PNL: ${utilidad:,.0f} COP.")
+
                                     st.rerun()
+
+
+
+                # =====================================================================
+
+                # ⚽ INTERFAZ TÁCTICA PARA FÚTBOL (PAZ MENTAL Y LIBRE)
+
+                # =====================================================================
+
+                else:
+
+                    with st.expander(f"⚽ {op.get('partido', 'N/A')} | Hora: {op.get('hora_inicio_partido', 'N/A')} | Ref: {op.get('codigo', 'N/A')} | Estado: {op.get('estado', 'N/A')}"):
+
+                        
+
+                        cuota_sl = float(op.get('cuota_stop_loss') or 0.0)
+
+                        cuota_obj_segura = float(op.get('cuota_objetivo') or 0.0)
+
+                        reserva_actual = float(op.get('reserva_stake_2') or 0.0)
+
+                        capital_actual = float(op.get('capital_total') or 0.0)
+
+                        cuota_be = float(capital_actual / reserva_actual) if reserva_actual > 0 else 0.0
+
+                        
+
+                        cap_total_seguro = capital_actual
+
+                        reserva_segura = reserva_actual
+
+                        st1_seguro = float(op.get('stake_1') or cap_total_seguro)
+
+                        cuota_ini_segura = float(op.get('cuota_inicial') or 1.0)
+
+                        
+
+                        banca_op = str(op.get('tipo_banca') or 'N/A')
+
+                        es_apuesta_libre = (reserva_segura == 0)
+
+                        
+
+                        sel_ini = str(op.get('seleccion_inicial') or 'Apuesta Inicial')
+
+                        sel_cob = str(op.get('seleccion_cobertura') or 'Cobertura')
+
+                        tipo_estrategia = str(op.get('estrategia') or 'Estrategia 2: Paz Mental Clásica')
+
+                        
+
+                        partido_str = str(op.get('partido') or 'Local vs Visitante')
+
+                        if ' vs ' in partido_str:
+
+                            eq_local = partido_str.split(' vs ')[0].strip()
+
+                            eq_vis = partido_str.split(' vs ')[1].strip()
+
+                        elif ' - ' in partido_str:
+
+                            eq_local = partido_str.split(' - ')[0].strip()
+
+                            eq_vis = partido_str.split(' - ')[1].strip()
+
+                        else:
+
+                            eq_local = "Local"
+
+                            eq_vis = "Visitante"
+
+                        
+
+                        es_st1_local = (sel_ini.lower() in eq_local.lower()) or (eq_local.lower() in sel_ini.lower())
+
+                        
+
+                        if "Inversa" in tipo_estrategia:
+
+                            contexto_mercado = f"El reloj es aliado. Si {sel_ini} aguanta o anota, la cuota de {sel_cob} se disparará."
+
+                        else:
+
+                            contexto_mercado = f"El reloj es enemigo. Necesitas un gol de {sel_ini} o presión temprana para bajar la cuota."
+
+                        
+
+                        if es_apuesta_libre:
+
+                            st.write(f"**Capital Comprometido (Libre) [{banca_op}]:** ${cap_total_seguro:,.0f}")
+
+                            st.info(f"🎯 **Selección:** **{sel_ini}** a cuota **{cuota_ini_segura:.2f}** en **{op.get('plataforma_inicial', 'N/A')}**")
+
+                        else:
+
+                            st.write(f"**Capital Comprometido [{banca_op}]:** ${cap_total_seguro:,.0f} | **Fondo de Cobertura:** ${reserva_segura:,.0f}")
+
+                            
+
+                            st.markdown(f"""
+
+                            <div style="background-color: #F8FAFC; padding: 15px; border-left: 4px solid #3B82F6; border-radius: 4px; margin-bottom: 15px;">
+
+                                <p style="margin: 0; font-size: 0.95rem;">🎯 <b>Stake 1:</b> A favor de <b>{sel_ini}</b></p>
+
+                                <p style="margin: 8px 0 0 0; font-size: 0.95rem; color: #15803D;">🟢 <b>Take Profit:</b> Cazar a <b>{sel_cob}</b> a cuota <b>{cuota_obj_segura:.2f}</b> o más.</p>
+
+                                <p style="margin: 8px 0 0 0; font-size: 0.95rem; color: #1E3A8A;">⚖️ <b>Break-Even:</b> Cuota <b>{cuota_be:.2f}</b> (Recuperas todo el capital).</p>
+
+                                <p style="margin: 8px 0 8px 0; font-size: 0.95rem; color: #B91C1C;">🔴 <b>Stop Loss:</b> Cuota <b>{cuota_sl:.2f}</b> (Paracaídas de emergencia).</p>
+
+                                <hr style="margin: 10px 0; border-color: #CBD5E1;">
+
+                                <p style="margin: 0; font-size: 0.85rem; color: #64748B;"><i>💡 {contexto_mercado}</i></p>
+
+                            </div>
+
+                            """, unsafe_allow_html=True)
+
+                        
+
+                        es_dutching_op = op.get('es_dutching', False)
+
+                        p_ini = op.get('plataforma_inicial', 'N/A')
+
+                        p_dutch = op.get('plataforma_dutch_secundaria', 'N/A')
+
+                        p_cob = op.get('plataforma_cobertura', 'N/A')
+
+                        es_fuego = "Fuego" in tipo_estrategia
+
+                        
+
+                        opciones_resultados = [f"🏠 Ganó {eq_local}", "🤝 Empató", f"🚀 Ganó {eq_vis}"]
+
+
+
+                        if op['estado'] == "EN VIVO":
+
+                            if es_apuesta_libre:
+
+                                st.write("### 🏁 Resolución de Apuesta Directa")
+
+                                with st.form(f"gestion_libre_{op['codigo']}"):
+
+                                    resultado_libre = st.radio(
+
+                                        "¿Se cumplió tu pronóstico?", 
+
+                                        ["✅ Apuesta Acertada (Cobrar Ganancia)", "❌ Apuesta Fallada (Pérdida de Stake)"], 
+
+                                        key=f"rad_lib_{op['codigo']}"
+
+                                    )
+
+                                    
+
+                                    if st.form_submit_button("Liquidar Apuesta Libre"):
+
+                                        if "Acertada" in resultado_libre:
+
+                                            utilidad = (cap_total_seguro * cuota_ini_segura) - cap_total_seguro
+
+                                            texto_cierre = f"Libre Ganada [{p_ini}]"
+
+                                        else:
+
+                                            utilidad = -cap_total_seguro
+
+                                            texto_cierre = f"Libre Perdida [{p_ini}]"
+
+                                            
+
+                                        supabase.table("historial_trading").update({
+
+                                            "estado": "CERRADA",
+
+                                            "resultado_final": texto_cierre,
+
+                                            "utilidad_neta_real": utilidad,
+
+                                            "roi_real": (utilidad / cap_total_seguro) * 100 if cap_total_seguro > 0 else 0
+
+                                        }).eq("codigo", op['codigo']).execute()
+
+                                        
+
+                                        st.success(f"Posición liquidada. Utilidad neta: ${utilidad:,.0f} COP.")
+
+                                        st.rerun()
+
+                            else:
+
+                                st.write("### 🛡️ Gestión de Riesgo Dinámico en Vivo")
+
+                                accion = st.radio(
+
+                                    "Acción Operativa:", 
+
+                                    ["Evaluar Asedio y Cobertura (IRD)", "Liquidar Posición Directa (Sin Cobertura)"],
+
+                                    key=f"radio_accion_{op['codigo']}"
+
+                                )
+
+                                
+
+                                if accion == "Evaluar Asedio y Cobertura (IRD)":
+
+                                    
+
+                                    res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
+
+                                    
+
+                                    if res_fotos.data:
+
+                                        ultima_foto = res_fotos.data[0]
+
+                                        min_base = ultima_foto['minuto_evaluado']
+
+                                    else:
+
+                                        ultima_foto = {'goles_local': 0, 'goles_vis': 0, 'atkp_local': 0, 'atkp_vis': 0}
+
+                                        min_base = 0
+
+
+
+                                    st.markdown("#### ⏱️ Auditoría Táctica por Ritmo de Juego")
+
+                                    
+
+                                    minuto_sugerido = min_base
+
+                                    if minuto_sugerido == 0:
+
+                                        hora_ini_str = op.get("hora_inicio_partido", "")
+
+                                        if hora_ini_str:
+
+                                            try:
+
+                                                ahora = datetime.datetime.now()
+
+                                                hora_inicio = datetime.datetime.strptime(hora_ini_str, "%H:%M").replace(year=ahora.year, month=ahora.month, day=ahora.day)
+
+                                                if ahora < hora_inicio: hora_inicio -= datetime.timedelta(days=1)
+
+                                                diff_m = int((ahora - hora_inicio).total_seconds() / 60)
+
+                                                minuto_sugerido = diff_m if diff_m <= 45 else (45 if diff_m < 60 else diff_m - 15)
+
+                                            except Exception: pass
+
+                                    
+
+                                    minuto_sugerido = max(0, min(95, int(minuto_sugerido)))
+
+                                    minuto_actual = st.number_input("⏱️ Minuto del Partido:", min_value=0, max_value=110, value=minuto_sugerido, step=1, key=f"min_{op['codigo']}")
+
+                                    
+
+                                    st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+
+                                    col_t1, col_t2 = st.columns(2)
+
+                                    
+
+                                    with col_t1:
+
+                                        bg_local = "#F0FDF4" if es_st1_local else "#F8FAFC"
+
+                                        lbl_local = f"🏠 {eq_local} (Tu Equipo)" if es_st1_local else f"🏠 {eq_local}"
+
+                                        st.markdown(f"<div style='background-color:{bg_local}; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>{lbl_local}</div>", unsafe_allow_html=True)
+
+                                        g_local = st.number_input(f"⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_local', 0)), key=f"g_l_{op['codigo']}")
+
+                                        atkp_local = st.number_input(f"🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_local', 0)), key=f"atk_l_{op['codigo']}")
+
+                                    
+
+                                    with col_t2:
+
+                                        bg_vis = "#F0FDF4" if not es_st1_local else "#FEF2F2"
+
+                                        lbl_vis = f"🚀 {eq_vis} (Tu Equipo)" if not es_st1_local else f"🚀 {eq_vis} (Rival)"
+
+                                        st.markdown(f"<div style='background-color:{bg_vis}; padding:5px; border-radius:5px; text-align:center; font-weight:bold; color:#334155;'>{lbl_vis}</div>", unsafe_allow_html=True)
+
+                                        g_vis = st.number_input(f"⚽ Goles", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_{op['codigo']}")
+
+                                        atkp_vis = st.number_input(f"🔥 Atq. Peligrosos", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_{op['codigo']}")
+
+
+
+                                    if es_st1_local:
+
+                                        goles_nuestros = g_local
+
+                                        goles_amenaza = g_vis
+
+                                        atkp_nuestros = atkp_local
+
+                                        atkp_amenaza = atkp_vis
+
+                                    else:
+
+                                        goles_nuestros = g_vis
+
+                                        goles_amenaza = g_local
+
+                                        atkp_nuestros = atkp_vis
+
+                                        atkp_amenaza = atkp_local
+
+
+
+                                    diferencia_goles = goles_nuestros - goles_amenaza
+
+
+
+                                    tiempo_restante = max(0, 95 - minuto_actual)
+
+                                    min_divisor = max(1, minuto_actual)
+
+                                    
+
+                                    apm_nuestros = atkp_nuestros / min_divisor
+
+                                    apm_rival = atkp_amenaza / min_divisor
+
+                                    apm_total = apm_nuestros + apm_rival
+
+                                    
+
+                                    atkp_totales = atkp_nuestros + atkp_amenaza
+
+                                    share_nuestro = (atkp_nuestros / atkp_totales * 100) if atkp_totales > 0 else 50.0
+
+                                    
+
+                                    ataques_futuros_nuestros = tiempo_restante * apm_nuestros
+
+                                    ataques_futuros_rival = tiempo_restante * apm_rival
+
+                                    
+
+                                    letalidad_nuestra = (goles_nuestros + 1) / (atkp_nuestros + 10)
+
+                                    letalidad_rival = (goles_amenaza + 1) / (atkp_amenaza + 10)
+
+                                    
+
+                                    exp_goles_nuestros = ataques_futuros_nuestros * letalidad_nuestra
+
+                                    exp_goles_rival = ataques_futuros_rival * letalidad_rival
+
+
+
+                                    if diferencia_goles < 0:
+
+                                        if diferencia_goles == -1: 
+
+                                            if minuto_actual <= 45: ird_base = 65.0
+
+                                            elif minuto_actual <= 75: ird_base = 80.0
+
+                                            else: ird_base = 95.0
+
+                                        else: 
+
+                                            ird_base = 100.0
+
+                                    elif diferencia_goles == 0: ird_base = 55.0
+
+                                    elif diferencia_goles == 1: ird_base = 30.0
+
+                                    else: ird_base = 0.0 
+
+                                    
+
+                                    presion_dominio = apm_rival * 45.0
+
+                                    
+
+                                    if diferencia_goles > 0:
+
+                                        f_t = tiempo_restante / 95.0
+
+                                    else:
+
+                                        if minuto_actual <= 60: f_t = 0.8
+
+                                        elif minuto_actual <= 75: f_t = 1.0
+
+                                        else: f_t = 1.0 + ((minuto_actual - 75) * 0.035) 
+
+                                    
+
+                                    if share_nuestro > 50.0:
+
+                                        escudo_dominio_base = (share_nuestro - 50.0) * 1.5
+
+                                        factor_decaimiento = 1.0 if diferencia_goles > 0 else (tiempo_restante / 95.0)
+
+                                        escudo_dominio = escudo_dominio_base * factor_decaimiento
+
+                                    else:
+
+                                        escudo_dominio = 0.0
+
+
+
+                                    ird_crudo = ird_base + (presion_dominio * f_t) - escudo_dominio
+
+                                    ird = max(0.0, min(100.0, ird_crudo))
+
+                                    
+
+                                    st.markdown("---")
+
+                                    st.markdown("#### 🌡️ Índice de Riesgo Dinámico (IRD)")
+
+                                    if min_base == 0:
+
+                                        st.info(f"📌 **Fase de Calibración:** Primera foto registrada.")
+
+                                    else:
+
+                                        st.info(f"🔎 Auditando ritmo: Rival ataca a **{apm_rival:.2f} APM**. Partido a {apm_total:.2f} APM total. (Tú dominas el **{share_nuestro:.1f}%**).")
+
+                                    
+
+                                    if ird < 40:
+
+                                        color = "#10B981"
+
+                                        estado = f"BAJO - Escenario controlado por marcador o tiempo."
+
+                                    elif ird < 70:
+
+                                        color = "#F59E0B"
+
+                                        estado = f"MODERADO - Riesgo mitigado por posesión/tiempo."
+
+                                    else:
+
+                                        color = "#EF4444"
+
+                                        estado = f"CRÍTICO - ¡Alerta de Siniestro en Posición!"
+
+                                        
+
+                                    st.progress(int(ird) / 100)
+
+                                    st.markdown(f"<h5 style='text-align: center; color: {color};'>Nivel de Amenaza IRD: {ird:.1f}% | {estado}</h5>", unsafe_allow_html=True)
+
+                                    
+
+                                    val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
+
+                                    if val_cuota_obj < 1.01:
+
+                                        val_cuota_obj = 1.01
+
+
+
+                                    cuota_input_ft = st.number_input("Tasa de cobertura fijada (Cuota en Vivo Actual):", min_value=1.01, step=0.01, value=val_cuota_obj, key=f"cuota_live_{op['codigo']}")
+
+                                    cuota_ingresada = cuota_input_ft if cuota_input_ft is not None else 1.01
+
+                                    
+
+                                    oferta_cashout_ft = st.number_input("💰 Oferta Cashout ($):", min_value=0.0, step=1000.0, value=0.0, key=f"cash_ft_{op['codigo']}")
+
+                                    
+
+                                    if st.button("📸 Guardar Foto y Cerrar Ventana", key=f"btn_foto_{op['codigo']}", use_container_width=True):
+
+                                        try:
+
+                                            nueva_foto = {
+
+                                                "codigo_posicion": str(op['codigo']),
+
+                                                "minuto_evaluado": int(minuto_actual),
+
+                                                "goles_local": int(g_local or 0), 
+
+                                                "goles_vis": int(g_vis or 0),
+
+                                                "atkp_local": int(atkp_local or 0),
+
+                                                "atkp_vis": int(atkp_vis or 0),
+
+                                                "ird_calculado": float(round(ird, 2)),
+
+                                                "cuota_ofrecida": float(cuota_ingresada)
+
+                                            }
+
+                                            supabase.table("registro_fotos").insert(nueva_foto).execute()
+
+                                            st.success(f"✅ Registro de auditoría completado para el min {minuto_actual}.")
+
+                                            st.rerun()
+
+                                        except Exception as e:
+
+                                            st.error(f"❌ Error al guardar en Supabase: {str(e)}")
+
+                                            
+
+                                    st.markdown("---")
+
+                                    
+
+                                    todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
+
+                                    plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
+
+                                    
+
+                                    if plataforma_cob_sel == "Otra":
+
+                                        plataforma_cob = st.text_input("Especifica la plataforma de cobertura:", key=f"otra_plat_live_{op['codigo']}")
+
+                                    else:
+
+                                        plataforma_cob = plataforma_cob_sel
+
+                                        
+
+                                    st1_seguro = float(op.get('stake_1') or cap_total_seguro)
+
+                                    c_ini_segura = float(op.get('cuota_inicial') or 1.0)
+
+                                    res_segura = float(op.get('reserva_stake_2') or 0.0)
+
+                                    
+
+                                    util_inicial_con_cob = (st1_seguro * c_ini_segura) - cap_total_seguro
+
+                                    util_cobertura_con_cob = (res_segura * cuota_ingresada) - cap_total_seguro
+
+                                    util_inicial_sin_cob = (st1_seguro * c_ini_segura) - st1_seguro
+
+                                    util_perdida_sin_cob = -st1_seguro
+
+                                    
+
+                                    st.markdown("#### 🔍 Matriz Financiera de la Operación")
+
+                                    
+
+                                    if cuota_be > 0:
+
+                                        if cuota_ingresada >= cuota_be:
+
+                                            st.markdown(f"<div style='background-color: #F0FDF4; padding: 10px; border-left: 4px solid #16A34A; border-radius: 4px; margin-bottom: 10px; color: #166534; font-size: 0.9rem;'>⚖️ <b>Estado Break-Even:</b> La cuota actual ({cuota_ingresada:.2f}) ya superó tu Punto de Equilibrio ({cuota_be:.2f}). Estás operando en zona libre de pérdida de capital.</div>", unsafe_allow_html=True)
+
+                                        else:
+
+                                            st.markdown(f"<div style='background-color: #FEF2F2; padding: 10px; border-left: 4px solid #EF4444; border-radius: 4px; margin-bottom: 10px; color: #991B1B; font-size: 0.9rem;'>⚖️ <b>Estado Break-Even:</b> La cuota actual ({cuota_ingresada:.2f}) está por debajo del Punto de Equilibrio ({cuota_be:.2f}). Cubrir ahora consolidará una pérdida matemática.</div>", unsafe_allow_html=True)
+
+                                    
+
+                                    col_sc1, col_sc2 = st.columns(2)
+
+                                    with col_sc1:
+
+                                        st.markdown(f"""
+
+                                        <div style="background-color: #F8FAFC; padding: 15px; border-radius: 6px; border: 1px solid #CBD5E1;">
+
+                                            <b style="color: #1E293B;">OPCIÓN A: Cobertura Activa (Cuota {cuota_ingresada:.2f})</b><br>
+
+                                            • Consolidación Inicial: <b>${util_inicial_con_cob:,.0f} COP</b><br>
+
+                                            • Consolidación Seguro: <span style="color:{'#10B981' if util_cobertura_con_cob >= 0 else '#EF4444'}; font-weight:bold;">${util_cobertura_con_cob:,.0f} COP</span>
+
+                                        </div>
+
+                                        """, unsafe_allow_html=True)
+
+                                        
+
+                                    with col_sc2:
+
+                                        st.markdown(f"""
+
+                                        <div style="background-color: #FFFBEB; padding: 15px; border-radius: 6px; border: 1px solid #FDE68A;">
+
+                                            <b style="color: #78350F;">OPCIÓN B: Abandono de Seguro</b><br>
+
+                                            • Consolidación Inicial: <b>${util_inicial_sin_cob:,.0f} COP</b> (Reserva a salvo)<br>
+
+                                            • Consolidación Pérdida: <span style="color:#EF4444; font-weight:bold;">-${op['stake_1']:,.0f} COP</span>
+
+                                        </div>
+
+                                        """, unsafe_allow_html=True)
+
+                                    
+
+                                    costo_seguro = util_inicial_sin_cob - util_inicial_con_cob
+
+                                    capital_rescatado = util_cobertura_con_cob - util_perdida_sin_cob
+
+                                    
+
+                                    if costo_seguro > 0:
+
+                                        ratio_eficiencia = capital_rescatado / costo_seguro
+
+                                    else:
+
+                                        ratio_eficiencia = 999.0 
+
+                                    
+
+                                    color_ratio = "#10B981" if ratio_eficiencia >= 1.0 else "#EF4444"
+
+                                    estado_ratio = "SEGURO EFICIENTE" if ratio_eficiencia >= 1.0 else "SEGURO EXTORSIVO (Pagas más de lo que salvas)"
+
+                                    
+
+                                    st.markdown(f"""
+
+                                    <div style="background-color: #F1F5F9; padding: 15px; border-radius: 6px; border-left: 5px solid {color_ratio}; margin-top: 15px;">
+
+                                        <h5 style="margin-top: 0; color: #334155;">⚖️ Auditoría de Costo-Beneficio (La Póliza)</h5>
+
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+
+                                            <span>📉 <b>Costo de la Prima (Sacrificio si ganas):</b></span>
+
+                                            <span style="color: #EF4444; font-weight: bold;">${costo_seguro:,.0f} COP</span>
+
+                                        </div>
+
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+
+                                            <span>🛡️ <b>Capital Rescatado (Salvamento si pierdes):</b></span>
+
+                                            <span style="color: #10B981; font-weight: bold;">${capital_rescatado:,.0f} COP</span>
+
+                                        </div>
+
+                                        <hr style="margin: 10px 0; border-top: 1px solid #CBD5E1;">
+
+                                        <div style="display: flex; justify-content: space-between;">
+
+                                            <span>📊 <b>Veredicto Financiero:</b></span>
+
+                                            <span style="color: {color_ratio}; font-weight: bold;">{estado_ratio} (Ratio: {ratio_eficiencia:.2f}x)</span>
+
+                                        </div>
+
+                                    </div>
+
+                                    """, unsafe_allow_html=True)
+
+
+
+                                    # =====================================================================
+
+                                    # 4. ORÁCULO TRI-FACTOR (IA + HISTORIA + RIESGO PATRIMONIAL)
+
+                                    # =====================================================================
+
+                                    import joblib
+
+                                    import pandas as pd
+
+                                    
+
+                                    # A. CEREBRO FÍSICO (IA)
+
+                                    try:
+
+                                        X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird, 'cuota_base_audit': float(op.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(op.get('cuota_amenaza_audit', 2.0))}])
+
+                                        m1x2_liq = joblib.load('modelo_1x2.pkl')
+
+                                        pred_1x2 = m1x2_liq.predict(X_liq)[0]
+
+                                        dom_vivo = "Local" if pred_1x2 == 2 else ("Visita" if pred_1x2 == 3 else "Empate/Asedio Dividido")
+
+                                    except:
+
+                                        dom_vivo = "Local" if apm_nuestros > apm_rival and (atkp_nuestros - atkp_rival) > 10 else ("Visita" if apm_rival > apm_nuestros and (atkp_rival - atkp_nuestros) > 10 else "Empate/Asedio Dividido")
+
+
+
+                                    # B. CEREBRO HISTÓRICO (Vinculado a los Nombres y Oráculo Inicial)
+
+                                    c_loc_hist_final = float(op.get('cuota_base_audit', 2.0))
+
+                                    c_vis_hist_final = float(op.get('cuota_amenaza_audit', 2.0))
+
+                                    
+
+                                    if c_loc_hist_final < c_vis_hist_final and (c_vis_hist_final - c_loc_hist_final) > 0.3: fav_global = eq_local_seg
+
+                                    elif c_vis_hist_final < c_loc_hist_final and (c_loc_hist_final - c_vis_hist_final) > 0.3: fav_global = eq_vis_seg
+
+                                    else: fav_global = "Fuerzas Parejas"
+
+
+
+                                    # C. CEREBRO PATRIMONIAL (Cálculos de Riesgo)
+
+                                    saldo_banca_actual = obtener_saldo_banca(tipo_banca_operacion)
+
+                                    umbral_permitido = max_riesgo_real if banca_op == 'REAL' else max_riesgo_simulacion
+
+                                    pct_rescate_banca = (oferta_cashout_ft / saldo_banca_actual) * 100 if saldo_banca_actual > 0 and oferta_cashout_ft > 0 else 0
+
+                                    exposicion_pct = (cap_total_seguro / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
+
+                                    
+
+                                    # D. ¿VAMOS GANANDO O PERDIENDO? (La clave del tiempo)
+
+                                    ganando_actualmente = True if diferencia_goles > 0 else False
+
+                                    
+
+                                    dictamen_html = ""
+
+                                    
+
+                                    # === JERARQUÍA ESTRICTA DE REGLAS DE ORO ===
+
+                                    
+
+                                    # 1. QUEMAR LA CUENTA (Violación de Gestión de Riesgo)
+
+                                    if exposicion_pct > umbral_permitido and not ganando_actualmente:
+
+                                        dictamen_html = f"""
+
+                                        <div style='background-color: #FEF2F2; border-left: 6px solid #991B1B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #7F1D1D;'>
+
+                                            <h5 style='margin-top:0; color:#991B1B;'>🔥 QUEMA DE CUENTA INMINENTE (Exposición Crítica)</h5>
+
+                                            <p style='margin:0; font-size:0.95rem;'>Has comprometido el <b>{exposicion_pct:.1f}%</b> de tu capital real, superando tu umbral máximo del <b>{umbral_permitido:.1f}%</b>. No estás ganando. ¡LIQUIDA O INYECTA COBERTURA AHORA MISMO para proteger el patrimonio!</p>
+
+                                        </div>
+
+                                        """
+
+                                    # 2. STOP LOSS (Precio)
+
+                                    elif cuota_sl > 0.0 and cuota_ingresada <= cuota_sl:
+
+                                        dictamen_html = f"""
+
+                                        <div style='background-color: #FEF2F2; border-left: 6px solid #B91C1C; padding: 15px; margin-top: 15px; border-radius: 4px; color: #7F1D1D;'>
+
+                                            <h5 style='margin-top:0; color:#991B1B;'>🛑 DICTAMEN: STOP LOSS ESTRUCTURAL ALCANZADO</h5>
+
+                                            <p style='margin:0; font-size:0.95rem;'>La cuota del mercado (<b>{cuota_ingresada:.2f}</b>) ha perforado tu límite. Ejecuta el botón de salida.</p>
+
+                                        </div>
+
+                                        """
+
+                                    # 3. MUERTE POR RELOJ (Tiempo) - CORREGIDO
+
+                                    elif tiempo_restante <= 10 and not ganando_actualmente:
+
+                                        if oferta_cashout_ft > 0:
+
+                                            texto_rescate = f"Toma el rescate de ${oferta_cashout_ft:,.0f} de inmediato antes de que caiga a $0."
+
+                                        else:
+
+                                            texto_rescate = "Ejecuta la cobertura o cierra la operación de inmediato asumiendo la pérdida."
+
+                                        dictamen_html = f"""
+
+                                        <div style='background-color: #FEF2F2; border-left: 6px solid #DC2626; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;'>
+
+                                            <h5 style='margin-top:0; color:#991B1B;'>⏳ MUERTE TÁCTICA POR RELOJ</h5>
+
+                                            <p style='margin:0; font-size:0.95rem;'>Faltan {tiempo_restante} minutos. No importa si los ataques están en {apm_total:.1f} APM, el tiempo se acabó y vas perdiendo. {texto_rescate}</p>
+
+                                        </div>
+
+                                        """
+
+                                    # 4. RELOJ A FAVOR (Tiempo)
+
+                                    elif tiempo_restante <= 10 and ganando_actualmente:
+
+                                        dictamen_html = f"""
+
+                                        <div style='background-color: #F0FDF4; border-left: 6px solid #10B981; padding: 15px; margin-top: 15px; border-radius: 4px; color: #064E3B;'>
+
+                                            <h5 style='margin-top:0; color:#047857;'>🛡️ RELOJ A FAVOR (Blindaje Temporal)</h5>
+
+                                            <p style='margin:0; font-size:0.95rem;'>Quedan solo {tiempo_restante} minutos y llevas la ventaja. El tiempo es tu aliado, aguanta la posición.</p>
+
+                                        </div>
+
+                                        """
+
+                                    # 5. RIESGO CERO
+
+                                    elif pct_rescate_banca < 0.5 and oferta_cashout_ft > 0:
+
+                                        dictamen_html = f"""
+
+                                        <div style='background-color: #F1F5F9; border-left: 6px solid #64748B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #334155;'>
+
+                                            <h5 style='margin-top:0; color:#475569;'>🛡️ DICTAMEN: RIESGO CERO (Marginalidad Absoluta)</h5>
+
+                                            <p style='margin:0; font-size:0.95rem;'>La casa te ofrece migajas (${oferta_cashout_ft:,.0f}). No salves centavos. Deja correr la posición.</p>
+
+                                        </div>
+
+                                        """
+
+                                    # 6. ESTADO FÍSICO VS HISTÓRICO
+
+                                    elif diferencia_goles >= 2:
+
+                                        dictamen_html = f"""
+
+                                        <div style='background-color: #F8FAFC; border-left: 6px solid #8B5CF6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #4C1D95;'>
+
+                                            <h5 style='margin-top:0; color:#5B21B6;'>🔮 DICTAMEN: REVOCAR COBERTURA (VENTAJA CONCLUYENTE)</h5>
+
+                                            <p style='margin:0; font-size:0.95rem;'>Tienes ventaja de 2+ goles. Retén tu reserva intacta y maximiza el rendimiento.</p>
+
+                                        </div>
+
+                                        """
+
+                                    elif (diferencia_goles <= 0) and (share_nuestro > 50.0) and (ird < 85.0):
+
+                                        dictamen_html = f"""
+
+                                        <div style='background-color: #F0FDF4; border-left: 6px solid #059669; padding: 15px; margin-top: 15px; border-radius: 4px; color: #064E3B;'>
+
+                                            <h5 style='margin-top:0; color:#047857;'>🔍 DICTAMEN: PACIENCIA TÁCTICA (MOMENTUM A FAVOR)</h5>
+
+                                            <p style='margin:0; font-size:0.95rem;'>La tendencia estadística te ampara (IRD: {ird:.1f}%). Tienes {tiempo_restante} min de vida, mantén la posición.</p>
+
+                                        </div>
+
+                                        """
+
+                                    elif util_inicial_con_cob >= 0 and util_cobertura_con_cob >= 0:
+
+                                        dictamen_html = """
+
+                                        <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
+
+                                            <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: ARBITRAJE PERFECTO DETECTADO</h5>
+
+                                            <p style="margin: 0; font-size: 0.95rem;">La cuota liquida en verde en ambos escenarios. Asegura utilidades.</p>
+
+                                        </div>
+
+                                        """
+
+                                    elif cuota_ingresada >= op.get('cuota_objetivo', 0):
+
+                                        dictamen_html = """
+
+                                        <div style="background-color: #F0FDF4; border-left: 6px solid #22C55E; padding: 15px; margin-top: 15px; border-radius: 4px; color: #166534;">
+
+                                            <h5 style="margin: 0 0 5px 0; color: #166534;">✅ DICTAMEN: EQUILIBRIO OPERATIVO VIGENTE</h5>
+
+                                        </div>
+
+                                        """
+
+                                    elif ratio_eficiencia >= 1.0:
+
+                                        va_empatado = (diferencia_goles == 0)
+
+                                        if va_empatado:
+
+                                            if ird > 70:
+
+                                                dictamen_html = f"""
+
+                                                <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
+
+                                                    <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: ALERTA DE QUIEBRE (SALVATAJE DEL EMPATE)</h5>
+
+                                                </div>
+
+                                                """
+
+                                            else:
+
+                                                dictamen_html = f"""
+
+                                                <div style="background-color: #F8FAFC; border-left: 6px solid #94A3B8; padding: 15px; margin-top: 15px; border-radius: 4px; color: #334155;">
+
+                                                    <h5 style="margin: 0 0 5px 0; color: #334155;">💡 DICTAMEN: PACIENCIA TÁCTICA (EMPATE BAJO CONTROL)</h5>
+
+                                                </div>
+
+                                                """
+
+                                        else:
+
+                                            if ird > 60:
+
+                                                dictamen_html = f"""
+
+                                                <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
+
+                                                    <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: MITIGACIÓN URGENTE</h5>
+
+                                                </div>
+
+                                                """
+
+                                            else:
+
+                                                dictamen_html = f"""
+
+                                                <div style="background-color: #EFF6FF; border-left: 6px solid #3B82F6; padding: 15px; margin-top: 15px; border-radius: 4px; color: #1E3A8A;">
+
+                                                    <h5 style="margin: 0 0 5px 0; color: #1E3A8A;">⚖️ DICTAMEN: MANTENER POSICIÓN CON CAUTELA</h5>
+
+                                                </div>
+
+                                                """
+
+                                    elif ratio_eficiencia > 0:
+
+                                        dictamen_html = f"""
+
+                                        <div style="background-color: #FFFBEB; border-left: 6px solid #F59E0B; padding: 15px; margin-top: 15px; border-radius: 4px; color: #92400E;">
+
+                                            <h5 style="margin: 0 0 5px 0; color: #B45309;">⚠️ DICTAMEN: SEGURO INEFICIENTE (INFLACIÓN DE PRECIO)</h5>
+
+                                        </div>
+
+                                        """
+
+                                    else:
+
+                                        dictamen_html = """
+
+                                        <div style="background-color: #FEF2F2; border-left: 6px solid #EF4444; padding: 15px; margin-top: 15px; border-radius: 4px; color: #991B1B;">
+
+                                            <h5 style="margin: 0 0 5px 0; color: #991B1B;">🚨 DICTAMEN: EJECUCIÓN INVIABLE</h5>
+
+                                        </div>
+
+                                        """
+
+                                    
+
+                                    if pct_rescate_banca >= 5.0:
+
+                                        impacto_str = "🛑 ALTAMENTE CONSIDERABLE (Vital para la supervivencia de la banca)"
+
+                                        color_impacto = "#BE123C"; bg_impacto = "#FFF1F2"
+
+                                    elif pct_rescate_banca >= 2.0:
+
+                                        impacto_str = "⚠️ CONSIDERABLE (Protege liquidez operativa importante)"
+
+                                        color_impacto = "#B45309"; bg_impacto = "#FFFBEB"
+
+                                    else:
+
+                                        impacto_str = "ℹ️ MARGINAL (Impacto mínimo en la caja general)"
+
+                                        color_impacto = "#334155"; bg_impacto = "#F8FAFC"
+
+                                        
+
+                                    alerta_patrimonial_html = f"""
+
+                                    <div style="background-color: {bg_impacto}; border-left: 5px solid {color_impacto}; padding: 15px; margin-top: 15px; border-radius: 4px; color: #0F172A;">
+
+                                        <h5 style="margin-top: 0; color: {color_impacto};">💼 Contexto de Portafolio ({banca_op})</h5>
+
+                                        <div style="font-size: 0.95rem;">
+
+                                            • <b>Exposición de esta operación:</b> {exposicion_pct:.1f}% (Límite Global: {umbral_permitido:.1f}%)<br>
+
+                                            • <b>Peso del Capital Rescatado:</b> Si ejecutas el seguro, estás rescatando el <b>{pct_rescate_banca:.2f}%</b> de tu patrimonio total.<br><br>
+
+                                            <b>Veredicto de Rescate:</b> {impacto_str}
+
+                                        </div>
+
+                                    </div>
+
+                                    """
+
+                                    
+
+                                    st.markdown(dictamen_html + alerta_patrimonial_html, unsafe_allow_html=True)
+
+                                    
+
+                                    # =====================================================================
+
+                                    # ALERTA DE ROBO CASHOUT VS COBERTURA MANUAL
+
+                                    # =====================================================================
+
+                                    if oferta_cashout_ft > 0:
+
+                                        utilidad_cashout = oferta_cashout_ft - op['stake_1']
+
+                                        diferencia_cashout = util_cobertura_con_cob - utilidad_cashout
+
+                                        
+
+                                        if diferencia_cashout > 0:
+
+                                            st.markdown(f"""
+
+                                            <div style="background-color: #F0FDF4; border-left: 5px solid #22C55E; padding: 12px; border-radius: 4px; margin-top: 10px;">
+
+                                                <span style="font-size: 1.05em; color: #166534;">🛡️ <b>¡NO USES EL BOTÓN DE LA CASA!</b></span><br>
+
+                                                <span style="font-size: 0.95em; color: #15803D;">El botón te deja un balance de <b>${utilidad_cashout:,.0f}</b>. Cubrir matemáticamente la cuota te deja en <b>${util_cobertura_con_cob:,.0f}</b>.</span><br>
+
+                                                <span style="font-weight: bold; color: #16A34A;">👉 Cazar la cuota tú mismo te salva ${diferencia_cashout:,.0f} COP adicionales.</span>
+
+                                            </div>
+
+                                            """, unsafe_allow_html=True)
+
+                                        elif diferencia_cashout < 0:
+
+                                            st.markdown(f"""
+
+                                            <div style="background-color: #FEF2F2; border-left: 5px solid #EF4444; padding: 12px; border-radius: 4px; margin-top: 10px;">
+
+                                                <span style="font-size: 1.05em; color: #991B1B;">🚨 <b>¡TOMA EL CASHOUT DE LA CASA INMEDIATAMENTE!</b></span><br>
+
+                                                <span style="font-size: 0.95em; color: #B91C1C;">Cubrir matemáticamente te deja en <b>${util_cobertura_con_cob:,.0f}</b>. El botón de la casa es más generoso y te deja en <b>${utilidad_cashout:,.0f}</b>.</span><br>
+
+                                                <span style="font-weight: bold; color: #DC2626;">👉 Usar el botón de la casa te salva ${abs(diferencia_cashout):,.0f} COP. ¡Tómalo ya!</span>
+
+                                            </div>
+
+                                            """, unsafe_allow_html=True)
+
+                                            
+
+                                        es_mejor_cashout = True if (util_cobertura_con_cob - utilidad_cashout) < 0 else False
+
+                                        
+
+                                        if es_mejor_cashout:
+
+                                            if st.button("✅ LIQUIDAR POR CASHOUT", key=f"btn_cash_ft_{op['codigo']}", use_container_width=True):
+
+                                                hora_actual = datetime.datetime.now().strftime("%H:%M")
+
+                                                supabase.table("historial_trading").update({
+
+                                                    "estado": "CERRADA",
+
+                                                    "resultado_final": "Cashout (Cierre Anticipado)",
+
+                                                    "utilidad_neta_real": float(utilidad_cashout),
+
+                                                    "roi_real": float((utilidad_cashout / op['stake_1']) * 100),
+
+                                                    "hora_cobertura": hora_actual,
+
+                                                    "plataforma_cobertura": "Misma (Cashout)"
+
+                                                }).eq("codigo", op['codigo']).execute()
+
+                                                st.success(f"¡Cashout registrado! Has cerrado la operación con retorno de ${oferta_cashout_ft:,.0f}.")
+
+                                                st.rerun()
+
+                                    
+
+                                    st.markdown("<br>", unsafe_allow_html=True)
+
+                                    if st.button("🔒 Confirmar y Registrar Cobertura en Libro Mayor", key=f"btn_sub_cob_{op['codigo']}"):
+
+                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
+
+                                        supabase.table("historial_trading").update({
+
+                                            "estado": "CUBIERTA", 
+
+                                            "cuota_cazada_real": cuota_ingresada,
+
+                                            "plataforma_cobertura": plataforma_cob,
+
+                                            "hora_cobertura": hora_actual
+
+                                        }).eq("codigo", op['codigo']).execute()
+
+                                        st.success(f"Operación CUBIERTA registrada a las {hora_actual}.")
+
+                                        st.rerun()
+
+                                        
+
+                                else:
+
+                                    with st.form(f"get_dir_{op['codigo']}"):
+
+                                        st.markdown("#### 🏁 Conciliación Final del Evento (Cierre Directo / Sin Cobertura)")
+
+                                        resultado_directo = st.radio("Realidad del Partido:", opciones_resultados, key=f"rad_dir_{op['codigo']}")
+
+                                        
+
+                                        st.markdown("---")
+
+                                        st.markdown("🤖 **Datos para Entrenamiento de IA (Obligatorio)**")
+
+                                        goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {eq_local}:", min_value=0, step=1, value=0, key=f"gf_sel_{op['codigo']}")
+
+                                        goles_finales_rival = st.number_input(f"🚀 Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_{op['codigo']}")
+
+                                        
+
+                                        if st.form_submit_button("Registrar Liquidación Directa"):
+
+                                            gano_fase1 = False
+
+                                            plat_win = ""
+
+                                            
+
+                                            if "Local" in resultado_directo:
+
+                                                gano_fase1 = True
+
+                                                plat_win = p_ini
+
+                                            elif "Empató" in resultado_directo:
+
+                                                if not es_fuego:
+
+                                                    gano_fase1 = True
+
+                                                    plat_win = p_dutch if es_dutching_op else p_ini
+
+                                            elif "Visitante" in resultado_directo:
+
+                                                if es_fuego:
+
+                                                    gano_fase1 = True
+
+                                                    plat_win = p_dutch if es_dutching_op else p_ini
+
+                                            
+
+                                            if gano_fase1:
+
+                                                utilidad = (op['stake_1'] * op['cuota_inicial']) - op['stake_1']
+
+                                                texto_cierre = f"Directo: ✅ Ganancia en [{plat_win}] ({resultado_directo})"
+
+                                            else:
+
+                                                utilidad = -op['stake_1']
+
+                                                texto_cierre = f"Directo: ❌ Pérdida de Stake ({resultado_directo})"
+
+                                                
+
+                                            supabase.table("historial_trading").update({
+
+                                                "estado": "CERRADA",
+
+                                                "resultado_final": texto_cierre,
+
+                                                "utilidad_neta_real": utilidad,
+
+                                                "roi_real": (utilidad / cap_total_seguro) * 100 if cap_total_seguro > 0 else 0,
+
+                                                "goles_finales_seleccion": goles_finales_seleccion, 
+
+                                                "goles_finales_rival": goles_finales_rival         
+
+                                            }).eq("codigo", op['codigo']).execute()
+
+                                            st.success(f"Posición liquidada y datos guardados para la IA. Utilidad real transferida: ${utilidad:,.0f} COP.")
+
+                                            st.rerun()
+
+
+
+                        elif op['estado'] == "CUBIERTA":
+
+                            st.success(f"🛡️ Cobertura asegurada a tasa de {op.get('cuota_cazada_real', 0):.2f} en {op.get('plataforma_cobertura', 'N/A')}.")
+
+                            with st.form(f"liq_{op['codigo']}"):
+
+                                st.markdown("#### 🏁 Conciliación Final del Evento (Operación Cubierta)")
+
+                                resultado_final_ui = st.radio("Realidad del Partido:", opciones_resultados, key=f"rad_fin_{op['codigo']}")
+
+                                
+
+                                st.markdown("---")
+
+                                st.markdown("🤖 **Datos para Entrenamiento de IA (Obligatorio)**")
+
+                                goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {eq_local}:", min_value=0, step=1, value=0, key=f"gf_sel_cob_{op['codigo']}")
+
+                                goles_finales_rival = st.number_input(f"🚀 Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_cob_{op['codigo']}")
+
+                                
+
+                                if st.form_submit_button("Cerrar Libro Mayor"):
+
+                                    gano_fase1 = False
+
+                                    gano_cobertura = False
+
+                                    plat_win = ""
+
+                                    
+
+                                    if "Local" in resultado_final_ui:
+
+                                        gano_fase1 = True
+
+                                        plat_win = p_ini
+
+                                    elif "Empató" in resultado_final_ui:
+
+                                        if es_fuego:
+
+                                            gano_cobertura = True
+
+                                            plat_win = p_cob
+
+                                        else:
+
+                                            gano_fase1 = True
+
+                                            plat_win = p_dutch if es_dutching_op else p_ini
+
+                                    elif "Visitante" in resultado_final_ui:
+
+                                        if es_fuego:
+
+                                            gano_fase1 = True
+
+                                            plat_win = p_dutch if es_dutching_op else p_ini
+
+                                        else:
+
+                                            gano_cobertura = True
+
+                                            plat_win = p_cob
+
+                                            
+
+                                    if gano_fase1:
+
+                                        utilidad = (op['stake_1'] * op['cuota_inicial']) - op['capital_total']
+
+                                        texto_db = f"✅ Utilidad Base en [{plat_win}] ({resultado_final_ui})"
+
+                                    else: 
+
+                                        utilidad = (op['reserva_stake_2'] * op['cuota_cazada_real']) - op['capital_total']
+
+                                        texto_db = f"🛡️ Utilidad Seguro en [{plat_win}] ({resultado_final_ui})"
+
+                                        
+
+                                    supabase.table("historial_trading").update({
+
+                                        "estado": "CERRADA",
+
+                                        "resultado_final": texto_db,
+
+                                        "utilidad_neta_real": utilidad,
+
+                                        "roi_real": (utilidad / cap_total_seguro) * 100 if cap_total_seguro > 0 else 0,
+
+                                        "goles_finales_seleccion": goles_finales_seleccion, 
+
+                                        "goles_finales_rival": goles_finales_rival         
+
+                                    }).eq("codigo", op['codigo']).execute()
+
+                                    st.success(f"Libro cerrado y datos guardados para la IA. Balance de la operación: ${utilidad:,.0f} COP.")
+
+                                    st.rerun() 
+
+
 
                 # =====================================================================
                 # ⚽ INTERFAZ TÁCTICA PARA FÚTBOL (PAZ MENTAL Y LIBRE)
