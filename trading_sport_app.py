@@ -1297,13 +1297,12 @@ elif estrategia_activa == "3️⃣ Estrategia 3: Binario Personalizado":
                     except Exception as e:
                         st.error(f"❌ Error de Supabase: {str(e)}")
 
-=====================================================================
 
 # MÓDULO 2: SEGUIMIENTO Y LIQUIDACIÓN DE POSICIONES
 
-# =====================================================================
 
-elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
+elif estrategia_acti
+# =========va == "🔒 Seguimiento y Liquidación de Posiciones":
 
     st.markdown("### 📝 Panel de Control y Auditoría")
 
