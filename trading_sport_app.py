@@ -1382,7 +1382,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 with col_tit2:
                                     if st.button("🔄 Sincronizar Info", key=f"btn_sync_seg_{op['codigo']}"):
                                         try:
-                                            codigo_base = str(op['codigo']).split('-')[0]
+                                            codigo_base = "-".join(str(op['codigo']).split('-')[:2])
                                             res_sync = supabase.table("registro_fotos").select("*").like("codigo_posicion", f"{codigo_base}%").order("minuto_evaluado", desc=True).limit(1).execute()
                                             
                                             if res_sync.data:
@@ -1446,7 +1446,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 st.markdown("#### ⚡ Motor de Momentum (Aceleración Real)")
                                 if st.button("📸 Extraer Ancestro, Calcular y Guardar Foto Actual", key=f"btn_mom_{op['codigo']}", use_container_width=True, type="primary"):
                                     try:
-                                        codigo_base = str(op['codigo']).split('-')[0]
+                                        codigo_base = "-".join(str(op['codigo']).split('-')[:2])
                                         res_mom = supabase.table("registro_fotos").select("*").like("codigo_posicion", f"{codigo_base}%").lt("minuto_evaluado", minuto_actual).order("minuto_evaluado", desc=True).limit(1).execute()
                                         
                                         if res_mom.data:
