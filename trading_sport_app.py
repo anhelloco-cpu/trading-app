@@ -4265,12 +4265,13 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca furioso (Mom > 1.0) buscando la honra. LUZ VERDE SÍ."
                                     return None
 
+                                # AQUI LLAMAMOS A LA FUNCIÓN CON LAS NUEVAS VARIABLES
                                 patron_encontrado = detectar_patron_btts_si(
-                                    min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, jerarquia_pre,
-                                    apm_global_fav, apm_global_deb, apm_g_ganador, apm_g_perdedor,
-                                    mom_combinado, diferencial_mom,
+                                    min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
+                                    jerarquia_pre, apm_global_fav, apm_global_deb, apm_g_ganador, apm_g_perdedor,
+                                    apm_local_dinamico, apm_vis_dinamico, mom_combinado, diferencial_mom, 
                                     mom_fav, mom_deb, mom_ganador, mom_perdedor, 
-                                    po_fav, rd_fav, po_deb, rd_deb, po_ganador, rd_ganador, po_perdedor, rd_perdedor
+                                    tp_fav, tp_deb, tp_ganador, tp_perdedor
                                 )
 
                                 # RENDERIZAR RESULTADO DEL ESCÁNER (ALERTA GIGANTE)
