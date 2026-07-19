@@ -1446,79 +1446,62 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     atkp_vis = st.number_input(f"🔥 Peligro {eq_vis}", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_es_{op['codigo']}")
                                 
                                 st.markdown("---")
-                                
-       
-                                
-                                
-                                
-# -------------------------------------------------------------
-                                # 3. CÁLCULOS MATEMÁTICOS DE IA Y JERARQUÍA HISTÓRICA
-                                # -------------------------------------------------------------
-                                texto_mercado = str(op.get('partido', ''))
-                                is_ambos_anotan = "Ambos Anotan" in texto_mercado
-                                is_linea_goles = "Línea de Goles" in texto_mercado
-                                
-                                # A. ADN del Partido (Jerarquía con Nombres Reales)
-                                partido_str_seg = str(op.get('partido', ''))
-                                solo_partido_seg = partido_str_seg.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str_seg else partido_str_seg
-                                txt_norm_seg = solo_partido_seg.lower().replace("vs.", "vs").replace("-", "vs")
-                                
-                                if "vs" in txt_norm_seg:
-                                    eq_local_seg = txt_norm_seg.split("vs")[0].strip().title()
-                                    eq_vis_seg = txt_norm_seg.split("vs")[1].strip().title()
-                                else:
-                                    eq_local_seg = "Local"
-                                    eq_vis_seg = "Visita"
-
-                                # 🔥 CORRECCIÓN: Volvemos a chupar los datos INICIALES del Oráculo
-                                c_loc_hist = float(op.get('cuota_base_audit', 2.0))
-                                c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
-                                
-                                if c_loc_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_local_seg}"
-                                elif c_vis_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_vis_seg}"
-                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_local_seg}"
-                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_vis_seg}"
-                                else: jerarquia = "⚖️ Fuerzas Parejas"
-
-                                st.markdown(f"""
-                                <div style="background-color: #1E293B; border-bottom: 4px solid #3B82F6; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-bottom: 15px;">
-                                    <h4 style="margin:0; color:#94A3B8; font-size: 0.9rem;">ADN DEL PARTIDO (Histórico)</h4>
-                                    <h3 style="color:#FFFFFF; margin: 5px 0;">[{jerarquia}]</h3>
-                                </div>
-                                """, unsafe_allow_html=True)
 
                                 # ====================================================================
-                                # ⚡ MOTOR DE MOMENTUM (EXTRACCIÓN EXPLÍCITA DESDE BASE DE DATOS)
+                                # ⚡ MOTOR DE MOMENTUM (¡EXTRAE, CALCULA Y GUARDA EN UN CLICK!)
                                 # ====================================================================
                                 st.markdown("#### ⚡ Motor de Momentum (Aceleración Real)")
                                 
-                                if st.button("⏱️ Extraer Foto Anterior y Calcular Momentum", key=f"btn_mom_{op['codigo']}", use_container_width=True):
+                                if st.button("📸 Extraer Ancestro, Calcular y Guardar Foto Actual", key=f"btn_mom_{op['codigo']}", use_container_width=True, type="primary"):
                                     try:
-                                        # Buscamos en la BD estrictamente una foto ANTERIOR al minuto actual
+                                        # 1. BUSCAMOS LA FOTO VIEJA PARA EL MOMENTUM
                                         res_mom = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).lt("minuto_evaluado", minuto_actual).order("minuto_evaluado", desc=True).limit(1).execute()
                                         
                                         if res_mom.data:
                                             foto_ant = res_mom.data[0]
                                             min_ant = int(foto_ant['minuto_evaluado'])
-                                            delta_min = minuto_actual - min_ant
+                                            delta_min = int(minuto_actual) - min_ant
                                             
                                             if delta_min >= 2:
                                                 atk_l_ant = int(foto_ant['atkp_local'])
                                                 atk_v_ant = int(foto_ant['atkp_vis'])
                                                 
                                                 # Guardamos el resultado en la memoria de la aplicación
-                                                st.session_state[f"apm_l_din_{op['codigo']}"] = max(0.0, (atkp_local - atk_l_ant) / delta_min)
-                                                st.session_state[f"apm_v_din_{op['codigo']}"] = max(0.0, (atkp_vis - atk_v_ant) / delta_min)
+                                                st.session_state[f"apm_l_din_{op['codigo']}"] = max(0.0, (float(atkp_local) - atk_l_ant) / delta_min)
+                                                st.session_state[f"apm_v_din_{op['codigo']}"] = max(0.0, (float(atkp_vis) - atk_v_ant) / delta_min)
                                                 st.session_state[f"mom_txt_{op['codigo']}"] = f"Últimos {delta_min} min (Desde el {min_ant}')"
-                                                
-                                                # Reiniciamos la UI para que la IA chupe los nuevos datos al instante
-                                                st.rerun() 
                                             else:
-                                                st.warning(f"⚠️ La última foto es del minuto {min_ant}. Deben pasar al menos 2 minutos para medir aceleración.")
+                                                st.warning(f"⚠️ La última foto es del min {min_ant}. Deben pasar al menos 2 minutos para medir aceleración.")
                                         else:
-                                            st.warning("⚠️ No hay fotos anteriores guardadas en Supabase para comparar.")
+                                            st.warning("⚠️ No hay fotos anteriores. Esta se guardará como la foto base del partido.")
+
+                                        # 2. BLINDAJE DE DATOS PARA SUPABASE
+                                        nueva_foto = {
+                                            "codigo_posicion": str(op['codigo']),
+                                            "minuto_evaluado": int(minuto_actual),
+                                            "goles_local": int(g_local),
+                                            "goles_vis": int(g_vis),
+                                            "atqt_local": int(atqt_local),
+                                            "atqt_vis": int(atqt_vis),
+                                            "atkp_local": int(atkp_local),
+                                            "atkp_vis": int(atkp_vis),
+                                            "cuota_si": float(cuota_salida),
+                                            "cuota_no": float(op.get('cuota_inicial', 2.0))
+                                        }
+                                        
+                                        # 3. INYECCIÓN FORZADA A LA BASE DE DATOS
+                                        res_insert = supabase.table("registro_fotos").insert(nueva_foto).execute()
+                                        
+                                        if res_insert.data:
+                                            st.success(f"✅ ¡Foto del min {minuto_actual} calculada y anclada a la BD con éxito!")
+                                            import time
+                                            time.sleep(1) # Pausa de 1 segundo para leer el mensaje
+                                            st.rerun() # 👈 Recarga la UI para inyectar la data al oráculo táctico
+                                        else:
+                                            st.error("❌ Supabase no devolvió confirmación de guardado. Revisa la base de datos.")
+                                        
                                     except Exception as e:
-                                        st.error(f"Error de conexión: {str(e)}")
+                                        st.error(f"❌ Error procesando la foto táctica: {str(e)}")
 
                                 # Asignación final de variables para la IA
                                 apm_global_loc = atkp_local / max(1, minuto_actual)
@@ -1554,6 +1537,35 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 # -------------------------------------------------------------
                                 # 🧠 BIFURCACIÓN DEL ORÁCULO (ICEBERG) [V3.0 - SPLIT SÍ/NO TÁCTICO]
                                 # -------------------------------------------------------------
+                                # A. ADN del Partido (Jerarquía con Nombres Reales)
+                                partido_str_seg = str(op.get('partido', ''))
+                                solo_partido_seg = partido_str_seg.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str_seg else partido_str_seg
+                                txt_norm_seg = solo_partido_seg.lower().replace("vs.", "vs").replace("-", "vs")
+                                
+                                if "vs" in txt_norm_seg:
+                                    eq_local_seg = txt_norm_seg.split("vs")[0].strip().title()
+                                    eq_vis_seg = txt_norm_seg.split("vs")[1].strip().title()
+                                else:
+                                    eq_local_seg = "Local"
+                                    eq_vis_seg = "Visita"
+
+                                # 🔥 CORRECCIÓN: Volvemos a chupar los datos INICIALES del Oráculo
+                                c_loc_hist = float(op.get('cuota_base_audit', 2.0))
+                                c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
+                                
+                                if c_loc_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_local_seg}"
+                                elif c_vis_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_vis_seg}"
+                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_local_seg}"
+                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_vis_seg}"
+                                else: jerarquia = "⚖️ Fuerzas Parejas"
+
+                                st.markdown(f"""
+                                <div style="background-color: #1E293B; border-bottom: 4px solid #3B82F6; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-bottom: 15px;">
+                                    <h4 style="margin:0; color:#94A3B8; font-size: 0.9rem;">ADN DEL PARTIDO (Histórico)</h4>
+                                    <h3 style="color:#FFFFFF; margin: 5px 0;">[{jerarquia}]</h3>
+                                </div>
+                                """, unsafe_allow_html=True)
+
                                 # 1. Cálculos Base para la Matriz
                                 is_super_fav_local = "Súper Favorito" in jerarquia and eq_local_seg in jerarquia
                                 is_super_fav_vis = "Súper Favorito" in jerarquia and eq_vis_seg in jerarquia
@@ -1989,126 +2001,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 # B. CEREBRO HISTÓRICO
                                 c_loc_hist = float(op.get('cuota_base_audit', 2.0))
                                 c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
-                                if c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: fav_global = eq_local_seg
-                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: fav_global = eq_vis_seg
-                                else: fav_global = "Fuerzas Parejas"
-
-                                # C. CEREBRO PATRIMONIAL (Gestión del Umbral de Riesgo)
-                                pct_rescate_banca = (oferta_cashout / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
-                                exposicion_pct = (op['stake_1'] / saldo_banca_actual) * 100 if saldo_banca_actual > 0 else 0
-                                
-                                # D. LÓGICA DE COMPRENSIÓN DE MERCADO (¿Va Ganando?)
-                                sel_lower = sel_ini.lower()
-                                palabras_sel = sel_lower.replace("(", "").replace(")", "").split()
-                                
-                                aposto_btts_si = "sí" in palabras_sel or "si" in palabras_sel or ("ambos" in sel_lower and ("sí" in sel_lower or "si" in palabras_sel))
-                                aposto_btts_no = "no" in palabras_sel or ("ambos" in sel_lower and "no" in palabras_sel)
-                                aposto_over = "más" in palabras_sel or "mas" in palabras_sel or "over" in palabras_sel
-                                aposto_under = "menos" in palabras_sel or "under" in palabras_sel
-                                aposto_local = "local" in sel_lower or "1" in palabras_sel
-                                aposto_visita = "visita" in sel_lower or "2" in palabras_sel
-                                aposto_empate = "empate" in sel_lower or "x" in palabras_sel
-
-                                ganando_actualmente = False
-                                estamos_dominando = False
-                                tipo_mercado = "1X2"
-                                
-                                if aposto_btts_si or aposto_over:
-                                    tipo_mercado = "GOLES"
-                                    if apm_total >= 1.2: estamos_dominando = True
-                                    if aposto_btts_si and g_local > 0 and g_vis > 0: ganando_actualmente = True
-                                    elif aposto_over:
-                                        import re
-                                        match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
-                                        if match_linea and (g_local + g_vis) > float(match_linea.group()): ganando_actualmente = True
-                                elif aposto_btts_no or aposto_under:
-                                    tipo_mercado = "GOLES"
-                                    if apm_total < 0.6: estamos_dominando = True
-                                    if aposto_btts_no and (g_local == 0 or g_vis == 0): ganando_actualmente = True
-                                    elif aposto_under:
-                                        import re
-                                        match_linea = re.search(r'\d+\.\d+|\d+', sel_ini)
-                                        if match_linea and (g_local + g_vis) < float(match_linea.group()): ganando_actualmente = True
-                                else:
-                                    if aposto_local and dom_vivo == "Local": estamos_dominando = True
-                                    elif aposto_visita and dom_vivo == "Visita": estamos_dominando = True
-                                    elif aposto_empate and dom_vivo == "Empate/Asedio Dividido": estamos_dominando = True
-                                    
-                                    if aposto_local and g_local > g_vis: ganando_actualmente = True
-                                    elif aposto_visita and g_vis > g_local: ganando_actualmente = True
-                                    elif aposto_empate and g_local == g_vis: ganando_actualmente = True
-
-                                if tipo_mercado == "GOLES":
-                                    texto_fav = "La física proyecta el ritmo que necesitas." if (aposto_btts_si or aposto_over) else "El partido está trabado, ideal para ti."
-                                    texto_apoyo = "El ritmo del partido te respalda."
-                                    eres_favorito = False
-                                else:
-                                    eres_favorito = True if (fav_global == eq_local_seg and aposto_local) or (fav_global == eq_vis_seg and aposto_visita) else False
-                                    texto_fav = f"Tienes jerarquía ({fav_global})." if eres_favorito else "La táctica en cancha compensa no ser favorito."
-                                    texto_apoyo = "Tu equipo domina físicamente."
-
-                                # =====================================================================
-                                # DICTAMEN MAESTRO INSTITUCIONAL (CON REGLAS DE ORO APLICADAS)
-                                # =====================================================================
-                                veredicto_titulo = ""
-                                veredicto_desc = ""
-                                color_alerta = "#E2E8F0"
-                                bg_alerta = "#F8FAFC"
-
-                                # REGLA DE ORO 1: QUEMAR CUENTA (Umbral de Riesgo Real)
-                                if exposicion_pct > umbral_permitido and not ganando_actualmente:
-                                    veredicto_titulo = "🔥 QUEMA DE CUENTA INMINENTE (Exposición Crítica)"
-                                    veredicto_desc = f"Has metido el <b>{exposicion_pct:.1f}%</b> de tu capital real en este partido, superando tu límite máximo del <b>{umbral_permitido:.1f}%</b>. No estás ganando. ¡Liquida o inyecta seguro YA MISMO para proteger el patrimonio!"
-                                    color_alerta = "#991B1B"; bg_alerta = "#FEF2F2"
-                                    
-                                # REGLA DE ORO 2: STOP LOSS (Precio)
-                                elif cuota_sl > 0 and cuota_salida <= cuota_sl:
-                                    veredicto_titulo = "🛑 STOP LOSS ESTRUCTURAL ROTO"
-                                    veredicto_desc = f"La cuota ({cuota_salida:.2f}) perforó tu límite. El riesgo financiero es inaceptable. EVACUACIÓN OBLIGATORIA AHORA."
-                                    color_alerta = "#B91C1C"; bg_alerta = "#FEF2F2"
-                                    
-                                # REGLA DE ORO 3: MUERTE POR RELOJ (Tiempo)
-                                elif tiempo_restante <= 10 and not ganando_actualmente:
-                                    veredicto_titulo = "⏳ MUERTE TÁCTICA POR RELOJ"
-                                    if oferta_cashout > 0:
-                                        texto_rescate = f"Toma los ${oferta_cashout:,.0f} de inmediato antes de que caiga a $0."
-                                    else:
-                                        texto_rescate = "Ejecuta la cobertura o cierra la operación de inmediato asumiendo la pérdida."
-                                    veredicto_desc = f"Faltan {tiempo_restante} minutos. No importa si los ataques están en {apm_total:.1f} APM, el tiempo se acabó y vas perdiendo. {texto_rescate}"
-                                    color_alerta = "#DC2626"; bg_alerta = "#FEF2F2"
-                                    
-                                # REGLA DE ORO 4: RELOJ A FAVOR
-                                elif tiempo_restante <= 10 and ganando_actualmente:
-                                    veredicto_titulo = "🛡️ RELOJ A FAVOR (Blindaje Temporal)"
-                                    veredicto_desc = f"Quedan solo {tiempo_restante} min y llevas la ventaja. El tiempo es tu mejor amigo ahora. Aguanta fuerte, la casa está desesperada por comprarte barato."
-                                    color_alerta = "#10B981"; bg_alerta = "#ECFDF5"
-                                    
-                                # Riesgo Cero
-                                elif pct_rescate_banca < 0.5 and oferta_cashout > 0:
-                                    veredicto_titulo = "🛡️ RIESGO CERO (Marginalidad Absoluta)"
-                                    veredicto_desc = f"La casa te ofrece migajas (${oferta_cashout:,.0f}, {pct_rescate_banca:.2f}% de tu banca). No salves centavos. Deja correr el partido."
-                                    color_alerta = "#64748B"; bg_alerta = "#F1F5F9"
-                                
-
-                                
-                                # =====================================================================
-                                # 4. ORÁCULO TRI-FACTOR (IA + HISTORIA + RIESGO PATRIMONIAL)
-                                # =====================================================================
-                                import joblib
-                                import pandas as pd
-                                
-                                # A. CEREBRO FÍSICO (IA)
-                                try:
-                                    X_liq = pd.DataFrame([{'minuto_evaluado': minuto_actual, 'goles_local': g_local, 'goles_vis': g_vis, 'atkp_local': atkp_local, 'atkp_vis': atkp_vis, 'ird_calculado': ird, 'cuota_base_audit': float(op.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(op.get('cuota_amenaza_audit', 2.0))}])
-                                    m1x2_liq = joblib.load('modelo_1x2.pkl')
-                                    pred_1x2 = m1x2_liq.predict(X_liq)[0]
-                                    dom_vivo = "Local" if pred_1x2 == 2 else ("Visita" if pred_1x2 == 3 else "Empate/Asedio Dividido")
-                                except:
-                                    dom_vivo = "Local" if apm_local > apm_vis and (atkp_local - atkp_vis) > 10 else ("Visita" if apm_vis > apm_local and (atkp_vis - atkp_local) > 10 else "Empate/Asedio Dividido")
-
-                                # B. CEREBRO HISTÓRICO
-                                c_loc_hist = float(op.get('cuota_base_audit', 2.0))
-                                c_vis_hist = float(op.get('cuota_amenaza_audit', 2.0))
                                 if c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: fav_global = "Local"
                                 elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: fav_global = "Visita"
                                 else: fav_global = "Fuerzas Parejas"
@@ -2471,8 +2363,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         supabase.table("historial_trading").update({
                                             "estado": "CERRADA",
                                             "resultado_final": texto_cierre,
-                                            "utilidad_neta_real": utilidad,
-                                            "roi_real": (utilidad / op['capital_total']) * 100,
+                                            "utilidad_neta_real": float(utilidad),
+                                            "roi_real": float((utilidad / op['capital_total']) * 100),
                                             "goles_finales_seleccion": goles_finales_seleccion, 
                                             "goles_finales_rival": goles_finales_rival         
                                         }).eq("codigo", op['codigo']).execute()
