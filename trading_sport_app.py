@@ -1394,7 +1394,11 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 with col_tit2:
                                     if st.button("🔄 Sincronizar Info", key=f"btn_sync_seg_{op['codigo']}"):
                                         try:
-                                            res_sync = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
+                                            # Extraemos la raíz del código (ej. "ABC-01" -> "ABC")
+                                            codigo_base = str(op['codigo']).split('-')[0]
+                                            
+                                            # Usamos .like() para buscar cualquier foto de la familia de ese partido
+                                            res_sync = supabase.table("registro_fotos").select("*").like("codigo_posicion", f"{codigo_base}%").order("minuto_evaluado", desc=True).limit(1).execute()
                                             if res_sync.data:
                                                 foto_reciente = res_sync.data[0]
                                                 st.session_state[f"min_es_{op['codigo']}"] = int(foto_reciente['minuto_evaluado'])
