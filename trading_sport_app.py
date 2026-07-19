@@ -1537,6 +1537,10 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 # -------------------------------------------------------------
                                 # 🧠 BIFURCACIÓN DEL ORÁCULO (ICEBERG) [V3.0 - SPLIT SÍ/NO TÁCTICO]
                                 # -------------------------------------------------------------
+                                texto_mercado = str(op.get('partido', ''))
+                                is_ambos_anotan = "Ambos Anotan" in texto_mercado
+                                is_linea_goles = "Línea de Goles" in texto_mercado
+                                
                                 # A. ADN del Partido (Jerarquía con Nombres Reales)
                                 partido_str_seg = str(op.get('partido', ''))
                                 solo_partido_seg = partido_str_seg.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str_seg else partido_str_seg
