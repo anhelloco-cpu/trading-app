@@ -2404,20 +2404,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_es_{op['codigo']}")
                                     plataforma_cob = st.text_input("Especifica la plataforma:", key=f"otra_plat_es_{op['codigo']}") if plataforma_cob_sel == "Otra" else plataforma_cob_sel
                                     
-                                    col_btn1, col_btn2, col_btn3 = st.columns(3)
+                                    col_btn1, col_btn2 = st.columns(2)
                                     with col_btn1:
-                                        if st.button("📸 Guardar Foto Táctica", key=f"btn_foto_es_{op['codigo']}", use_container_width=True):
-                                            try:
-                                                supabase.table("registro_fotos").insert({
-                                                    "codigo_posicion": str(op['codigo']), "minuto_evaluado": int(minuto_actual),
-                                                    "goles_local": int(g_local), "goles_vis": int(g_vis),
-                                                    "atkp_local": int(atkp_local), "atkp_vis": int(atkp_vis),
-                                                    "ird_calculado": float(round(ird, 2)), "cuota_ofrecida": float(cuota_salida)
-                                                }).execute()
-                                                st.success(f"✅ Foto capturada min {minuto_actual}.")
-                                                st.rerun()
-                                            except Exception as e: st.error(f"❌ Error al guardar foto: {str(e)}")
-                                    with col_btn2:
+                                        
                                         if st.button("⚡ SEGURO TOTAL (Opción A)", key=f"btn_cob_a_{op['codigo']}", use_container_width=True):
                                             hora_actual = datetime.datetime.now().strftime("%H:%M")
                                             supabase.table("historial_trading").update({
@@ -2430,7 +2419,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             }).eq("codigo", op['codigo']).execute()
                                             st.success(f"¡Cobertura TOTAL fijada a cuota {cuota_salida}! Pasa a liquidación.")
                                             st.rerun()
-                                    with col_btn3:
+                                    with col_btn2:
                                         if st.button("🛡️ FREEBET (Opción B)", key=f"btn_cob_b_{op['codigo']}", use_container_width=True):
                                             hora_actual = datetime.datetime.now().strftime("%H:%M")
                                             supabase.table("historial_trading").update({
