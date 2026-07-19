@@ -10,6 +10,8 @@ import os
 import pandas as pd
 import streamlit as st
 
+
+
 # --- CARGADOR DE LOS CEREBROS DE IA EN CACHÉ ---
 @st.cache_resource
 def cargar_oraculos():
@@ -43,7 +45,99 @@ def init_connection():
         return None
 
 supabase: Client = init_connection()
+# ---DEFINICION DE ESCENARIOS ---
+def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
+                            jerarquia_pre, apm_global_fav, apm_global_deb, apm_global_ganador, apm_global_perdedor,
+                            mom_reciente_loc, mom_reciente_vis, mom_combinado, diferencial_mom, 
+                            mom_post_gol_fav, mom_post_gol_deb, mom_post_gol_ganador, mom_post_gol_perdedor,
+                            precision_ofensiva_fav, resistencia_defensiva_fav, 
+                            precision_ofensiva_deb, resistencia_defensiva_deb,
+                            precision_ofensiva_ganador, resistencia_defensiva_ganador, 
+                            precision_ofensiva_perdedor, resistencia_defensiva_perdedor):
+    
+    # ---------------------------------------------------------
+    # 🐯 PATRÓN SÍ #1: EL TIGRE HERIDO
+    # ---------------------------------------------------------
+    if (min_corrido <= 45 and 
+        estado_goles == True and 
+        jerarquia_pre in ["Favorito", "Súper Favorito"] and 
+        lider_marcador == "No Favorito" and 
+        goles_deb == 1 and 
+        mom_post_gol_fav > 1.0 and 
+        mom_post_gol_deb < 0.4 and 
+        diferencial_mom > 0.7 and
+        # -- Bloque de Eficiencia --
+        precision_ofensiva_fav == 999.0 and 
+        resistencia_defensiva_fav < 30.0 and 
+        precision_ofensiva_deb < 30.0 and 
+        resistencia_defensiva_deb == 999.0):
+        
+        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 (gol de chiripa) pero asedia brutalmente (Mom > 1.0). El empate es inminente. LUZ VERDE SÍ."
 
+    # ---------------------------------------------------------
+    # 🔥 PATRÓN SÍ #2: LA REBELDÍA (Favorito Dormido)
+    # ---------------------------------------------------------
+    elif (min_corrido <= 45 and 
+          estado_goles == True and 
+          jerarquia_pre in ["Favorito", "Súper Favorito"] and 
+          lider_marcador == "Favorito" and 
+          goles_fav == 1 and 
+          goles_deb == 0 and 
+          apm_global_fav < 0.6 and 
+          apm_global_deb > 0.8 and 
+          mom_post_gol_fav < 0.4 and 
+          mom_post_gol_deb > 0.8 and
+          # -- Bloque de Eficiencia --
+          precision_ofensiva_fav < 40.0 and 
+          resistencia_defensiva_fav == 999.0 and 
+          precision_ofensiva_deb == 999.0 and 
+          resistencia_defensiva_deb < 40.0):
+          
+        return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia (Mom > 0.8) a una defensa de papel. LUZ VERDE SÍ."
+
+    # ---------------------------------------------------------
+    # 🥊 PATRÓN SÍ #3: LA DEVOLUCIÓN RÁPIDA (Fuerzas Parejas)
+    # ---------------------------------------------------------
+    elif (min_corrido <= 45 and 
+          estado_goles == True and 
+          jerarquia_pre == "Fuerzas Parejas" and 
+          (goles_ganador == 1 and goles_perdedor == 0) and 
+          apm_global_ganador > 0.7 and 
+          apm_global_perdedor > 0.8 and 
+          mom_combinado >= 1.5 and 
+          diferencial_mom < 0.2 and 
+          mom_post_gol_perdedor > 0.9 and
+          # -- Bloque de Eficiencia --
+          precision_ofensiva_ganador < 40.0 and 
+          resistencia_defensiva_ganador == 999.0 and 
+          precision_ofensiva_perdedor == 999.0 and 
+          resistencia_defensiva_perdedor < 40.0):
+          
+        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. El perdedor reaccionó con furia inmediata (Mom > 0.9). Intercambio de golpes. LUZ VERDE SÍ."
+
+    # ---------------------------------------------------------
+    # 🎭 PATRÓN SÍ #4: EL DESCUENTO POR RELAJACIÓN
+    # ---------------------------------------------------------
+    elif (min_corrido <= 45 and 
+          estado_goles == True and 
+          jerarquia_pre in ["Favorito", "Súper Favorito"] and 
+          lider_marcador == "Favorito" and 
+          goles_fav >= 2 and 
+          goles_deb == 0 and 
+          apm_global_fav < 0.6 and 
+          apm_global_deb > 0.8 and 
+          mom_post_gol_deb > 1.0 and
+          # -- Bloque de Eficiencia --
+          precision_ofensiva_fav < 25.0 and 
+          resistencia_defensiva_fav == 999.0 and 
+          precision_ofensiva_deb == 999.0 and 
+          resistencia_defensiva_deb < 25.0):
+          
+        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca con furia (Mom > 1.0) buscando la honra. Gran cuota. LUZ VERDE SÍ."
+
+    # Si no encaja en ninguno de los patrones dorados:
+    else:
+        return "⏳ MODO OBSERVACIÓN: El partido no encaja en los patrones perfectos para el Ambos Anotan SÍ."
 # --- FUNCIONES AUXILIARES BLINDADAS ---
 def generar_codigo():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
@@ -4073,7 +4167,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 mbtts_rad = joblib.load('modelo_btts.pkl')
                                 
                                 # ------------------------------------------------------------------
-                                # ⚡ MOTOR DE MOMENTUM (EXTRACCIÓN SILENCIOSA)
+                                # ⚡ 1. MOTOR DE MOMENTUM (EXTRACCIÓN SILENCIOSA)
                                 # ------------------------------------------------------------------
                                 apm_global_loc = al_rad / max(1, m_rad)
                                 apm_global_vis = av_rad / max(1, m_rad)
@@ -4100,6 +4194,112 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     except:
                                         pass
 
+                                # ------------------------------------------------------------------
+                                # ⚖️ 2. MAPEO DE VARIABLES TÁCTICAS (LAS 18 VARIABLES DE LA AUDITORÍA)
+                                # ------------------------------------------------------------------
+                                c_loc_hist = float(pr.get('cuota_base_audit', 2.0))
+                                c_vis_hist = float(pr.get('cuota_amenaza_audit', 2.0))
+                                
+                                # Definir Jerarquía Previa
+                                if c_loc_hist <= 1.35 or c_vis_hist <= 1.35: 
+                                    jerarquia_pre = "Súper Favorito"
+                                elif (c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3) or (c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3): 
+                                    jerarquia_pre = "Favorito"
+                                else: 
+                                    jerarquia_pre = "Fuerzas Parejas"
+
+                                fav_es_loc = (c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3)
+                                fav_es_vis = (c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3)
+
+                                # Bloque de Marcador y Contexto
+                                min_corrido = m_rad
+                                estado_goles = (gl_rad + gv_rad) > 0
+                                
+                                # Asignaciones Lógicas (Favorito vs Débil)
+                                if fav_es_loc:
+                                    goles_fav, goles_deb = gl_rad, gv_rad
+                                    apm_global_fav, apm_global_deb = apm_global_loc, apm_global_vis
+                                    mom_fav, mom_deb = apm_local_dinamico, apm_vis_dinamico
+                                    po_fav = al_rad / gl_rad if gl_rad > 0 else 999.0
+                                    rd_fav = av_rad / gl_rad if gl_rad > 0 else 999.0 
+                                    po_deb = av_rad / gv_rad if gv_rad > 0 else 999.0
+                                    rd_deb = al_rad / gv_rad if gv_rad > 0 else 999.0
+                                elif fav_es_vis:
+                                    goles_fav, goles_deb = gv_rad, gl_rad
+                                    apm_global_fav, apm_global_deb = apm_global_vis, apm_global_loc
+                                    mom_fav, mom_deb = apm_vis_dinamico, apm_local_dinamico
+                                    po_fav = av_rad / gv_rad if gv_rad > 0 else 999.0
+                                    rd_fav = al_rad / gv_rad if gv_rad > 0 else 999.0
+                                    po_deb = al_rad / gl_rad if gl_rad > 0 else 999.0
+                                    rd_deb = av_rad / gl_rad if gl_rad > 0 else 999.0
+                                else:
+                                    goles_fav = goles_deb = apm_global_fav = apm_global_deb = mom_fav = mom_deb = 0
+                                    po_fav = rd_fav = po_deb = rd_deb = 999.0
+
+                                # Asignaciones de Ganador / Perdedor (Para Fuerzas Parejas)
+                                if gl_rad > gv_rad:
+                                    lider_marcador = "No Favorito" if fav_es_vis else "Favorito"
+                                    goles_ganador, goles_perdedor = gl_rad, gv_rad
+                                    apm_g_ganador, apm_g_perdedor = apm_global_loc, apm_global_vis
+                                    mom_ganador, mom_perdedor = apm_local_dinamico, apm_vis_dinamico
+                                    po_ganador = al_rad / gl_rad if gl_rad > 0 else 999.0
+                                    rd_ganador = av_rad / gl_rad if gl_rad > 0 else 999.0
+                                    po_perdedor = av_rad / gv_rad if gv_rad > 0 else 999.0
+                                    rd_perdedor = al_rad / gv_rad if gv_rad > 0 else 999.0
+                                elif gv_rad > gl_rad:
+                                    lider_marcador = "No Favorito" if fav_es_loc else "Favorito"
+                                    goles_ganador, goles_perdedor = gv_rad, gl_rad
+                                    apm_g_ganador, apm_g_perdedor = apm_global_vis, apm_global_loc
+                                    mom_ganador, mom_perdedor = apm_vis_dinamico, apm_local_dinamico
+                                    po_ganador = av_rad / gv_rad if gv_rad > 0 else 999.0
+                                    rd_ganador = al_rad / gv_rad if gv_rad > 0 else 999.0
+                                    po_perdedor = al_rad / gl_rad if gl_rad > 0 else 999.0
+                                    rd_perdedor = av_rad / gl_rad if gl_rad > 0 else 999.0
+                                else:
+                                    lider_marcador = "Empate"
+                                    goles_ganador = goles_perdedor = apm_g_ganador = apm_g_perdedor = mom_ganador = mom_perdedor = 0
+                                    po_ganador = rd_ganador = po_perdedor = rd_perdedor = 999.0
+
+                                # Variables Físicas Conjuntas
+                                mom_combinado = apm_local_dinamico + apm_vis_dinamico
+                                diferencial_mom = abs(apm_local_dinamico - apm_vis_dinamico)
+
+                                # ------------------------------------------------------------------
+                                # 🔍 3. ESCÁNER DE PATRONES MATEMÁTICOS (AMBOS ANOTAN SÍ)
+                                # ------------------------------------------------------------------
+                                def detectar_patron_btts_si(mc, eg, lm, gf, gd, jp, agf, agd, agg, agp, m_comb, d_mom, 
+                                                            mpg_f, mpg_d, mpg_g, mpg_p, 
+                                                            po_f, rd_f, po_d, rd_d, po_g, rd_g, po_p, rd_p):
+                                    if (mc <= 45 and eg == True and jp in ["Favorito", "Súper Favorito"] and lm == "No Favorito" and gd == 1 and mpg_f > 1.0 and mpg_d < 0.4 and d_mom > 0.7 and po_f == 999.0 and rd_f < 30.0 and po_d < 30.0 and rd_d == 999.0):
+                                        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 (gol de chiripa) pero asedia brutalmente (Mom > 1.0). El empate es inminente. LUZ VERDE SÍ."
+                                    elif (mc <= 45 and eg == True and jp in ["Favorito", "Súper Favorito"] and lm == "Favorito" and gf == 1 and gd == 0 and agf < 0.6 and agd > 0.8 and mpg_f < 0.4 and mpg_d > 0.8 and po_f < 40.0 and rd_f == 999.0 and po_d == 999.0 and rd_d < 40.0):
+                                        return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia (Mom > 0.8) a una defensa de papel. LUZ VERDE SÍ."
+                                    elif (mc <= 45 and eg == True and jp == "Fuerzas Parejas" and (goles_ganador == 1 and goles_perdedor == 0) and agg > 0.7 and agp > 0.8 and m_comb >= 1.5 and d_mom < 0.2 and mpg_p > 0.9 and po_g < 40.0 and rd_g == 999.0 and po_p == 999.0 and rd_p < 40.0):
+                                        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. El perdedor reaccionó con furia inmediata (Mom > 0.9). Intercambio de golpes. LUZ VERDE SÍ."
+                                    elif (mc <= 45 and eg == True and jp in ["Favorito", "Súper Favorito"] and lm == "Favorito" and gf >= 2 and gd == 0 and agf < 0.6 and agd > 0.8 and mpg_d > 1.0 and po_f < 25.0 and rd_f == 999.0 and po_d == 999.0 and rd_d < 25.0):
+                                        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca furioso (Mom > 1.0) buscando la honra. LUZ VERDE SÍ."
+                                    return None
+
+                                patron_encontrado = detectar_patron_btts_si(
+                                    min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, jerarquia_pre,
+                                    apm_global_fav, apm_global_deb, apm_g_ganador, apm_g_perdedor,
+                                    mom_combinado, diferencial_mom,
+                                    mom_fav, mom_deb, mom_ganador, mom_perdedor, 
+                                    po_fav, rd_fav, po_deb, rd_deb, po_ganador, rd_ganador, po_perdedor, rd_perdedor
+                                )
+
+                                # RENDERIZAR RESULTADO DEL ESCÁNER (ALERTA GIGANTE)
+                                if patron_encontrado:
+                                    st.markdown(f"""
+                                    <div style="background-color: #ECFDF5; border-left: 6px solid #10B981; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                        <h3 style="margin-top:0; color:#065F46;">🏆 PATRÓN MATEMÁTICO DETECTADO (BTTS SÍ)</h3>
+                                        <p style="margin:0; font-size:1.05rem; color:#047857;">{patron_encontrado}</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+
+                                # ------------------------------------------------------------------
+                                # 🤖 4. PREDICCIÓN DE MODELOS ML (EL FLUJO ORIGINAL)
+                                # ------------------------------------------------------------------
                                 apm_rad = apm_local_dinamico + apm_vis_dinamico
                                 ird_rad_global = min(100.0, (apm_global_loc + apm_global_vis) * 45.0)
                                 
@@ -4132,24 +4332,27 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     prob_si = min(0.95, prob_si * 1.50)
                                     prob_no = 1.0 - prob_si
 
+                                # Ajuste de probabilidad si el Patrón de Oro fue detectado
+                                if patron_encontrado:
+                                    prob_si = min(0.99, prob_si * 1.5) # Forzamos a la IA a respetar la regla dura
+                                    prob_no = 1.0 - prob_si
+
                                 winner_tactico = "Empate" if pred_1x2_rad == 1 else ("Local" if pred_1x2_rad == 2 else "Visita")
                                 btts = "SÍ" if pred_btts_rad == 1 else "NO"
                                 color_btts = "#10B981" if pred_btts_rad == 1 else "#EF4444"
                                 
                                 # ------------------------------------------------------------------
-                                # ⚖️ 1. LECTURA DE JERARQUÍA HISTÓRICA
+                                # ⚖️ 5. RECONSTRUCCIÓN DE JERARQUÍA PARA LA UI (RENDERIZADO)
                                 # ------------------------------------------------------------------
-                                c_loc_hist = float(pr.get('cuota_base_audit', 2.0))
-                                c_vis_hist = float(pr.get('cuota_amenaza_audit', 2.0))
-                                
-                                if c_loc_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_loc_ui}"
-                                elif c_vis_hist <= 1.35: jerarquia = f"👑 Súper Favorito: {eq_vis_ui}"
-                                elif c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_loc_ui}"
-                                elif c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3: jerarquia = f"⚔️ Favorito: {eq_vis_ui}"
-                                else: jerarquia = "⚖️ Fuerzas Parejas"
+                                if jerarquia_pre == "Súper Favorito":
+                                    jerarquia = f"👑 Súper Favorito: {eq_loc_ui if fav_es_loc else eq_vis_ui}"
+                                elif jerarquia_pre == "Favorito":
+                                    jerarquia = f"⚔️ Favorito: {eq_loc_ui if fav_es_loc else eq_vis_ui}"
+                                else: 
+                                    jerarquia = "⚖️ Fuerzas Parejas"
 
-                                if apm_local_dinamico > apm_vis_dinamico and (apm_local_dinamico - apm_vis_dinamico) > 10: dom_vivo = eq_loc_ui
-                                elif apm_vis_dinamico > apm_local_dinamico and (apm_vis_dinamico - apm_local_dinamico) > 10: dom_vivo = eq_vis_ui
+                                if apm_local_dinamico > apm_vis_dinamico and (apm_local_dinamico - apm_vis_dinamico) > 0.4: dom_vivo = eq_loc_ui
+                                elif apm_vis_dinamico > apm_local_dinamico and (apm_vis_dinamico - apm_local_dinamico) > 0.4: dom_vivo = eq_vis_ui
                                 else: dom_vivo = "Asedio Dividido"
 
                                 # ------------------------------------------------------------------
