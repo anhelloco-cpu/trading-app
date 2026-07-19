@@ -2081,18 +2081,6 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     color_alerta = "#64748B"; bg_alerta = "#F1F5F9"
                                 
 
-                                st.markdown(f"""
-                                <div style="background-color: {bg_alerta}; border-left: 8px solid {color_alerta}; padding: 20px; border-radius: 8px; margin: 15px 0;">
-                                    <h3 style="margin-top:0; color:{color_alerta}; font-size:1.3rem;">{veredicto_titulo}</h3>
-                                    <p style="font-size: 1.05rem; color:#334155; margin-bottom:15px;">{veredicto_desc}</p>
-                                    <hr style="border-color:{color_alerta}; opacity:0.3; margin: 10px 0;">
-                                    <div style="display:flex; justify-content:space-between; font-size: 0.9rem;">
-                                        <span style="color:#0F172A;"><b>Táctica (IA):</b> {dom_vivo}</span>
-                                        <span style="color:#0F172A;"><b>Exp. Capital:</b> {exposicion_pct:.1f}% (Max: {umbral_permitido:.1f}%)</span>
-                                        <span style="color:#0F172A;"><b>Reloj:</b> {tiempo_restante} min</span>
-                                    </div>
-                                </div>
-                                """, unsafe_allow_html=True)
                                 
                                 # =====================================================================
                                 # 4. ORÁCULO TRI-FACTOR (IA + HISTORIA + RIESGO PATRIMONIAL)
