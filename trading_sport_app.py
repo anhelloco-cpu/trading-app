@@ -3534,61 +3534,38 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
     # PESTAÑA 1: PRE-PARTIDO (Oráculo Machine Learning + Contexto)
     # ---------------------------------------------------------
     with tab_pre:
-        st.markdown("<h3 style='color: #1E3A8A;'>🧠 Oráculo Predictivo (Machine Learning + Contexto)</h3>", unsafe_allow_html=True)
-        st.info("Ingresa las cuotas principales (1X2) para que la IA entienda el contexto. Luego, elige tu mercado.")
+        st.markdown("<h3 style='color: #1E3A8A;'>🧠 Oráculo Predictivo (Escáner & Auditoría)</h3>", unsafe_allow_html=True)
+        st.info("Ingresa las cuotas 1X2 para buscar gemelos históricos. Luego analiza el panorama y audita a profundidad el mercado que elijas.")
 
         # --- ESCUDO ANTI-FANTASMA: Memoria para que la interfaz no se recoja ---
-        if 'ia_activa' not in st.session_state:
-            st.session_state.ia_activa = False
+        if 'ia_pre_activa' not in st.session_state:
+            st.session_state.ia_pre_activa = False
 
         if not modelos_cargados or df_global is None:
-            st.error("🚨 Modelos o datos no encontrados. Por favor, asegúrate de que se cargaron correctamente en la parte superior del código.")
+            st.error("🚨 Modelos o datos no encontrados. Por favor, asegúrate de que se cargaron correctamente.")
         else:
             st.markdown("#### 1️⃣ Define el Contexto del Partido (Cuotas 1X2)")
             col_p1, col_p2, col_p3 = st.columns(3)
             with col_p1:
-                c_loc_pre = st.number_input("Cuota Local:", min_value=1.01, value=2.10, step=0.05)
+                c_loc_pre = st.number_input("Cuota Local:", min_value=1.01, value=2.10, step=0.05, key="pre_c_loc")
             with col_p2:
-                c_emp_pre = st.number_input("Cuota Empate:", min_value=1.01, value=3.20, step=0.05)
+                c_emp_pre = st.number_input("Cuota Empate:", min_value=1.01, value=3.20, step=0.05, key="pre_c_emp")
             with col_p3:
-                c_vis_pre = st.number_input("Cuota Visita:", min_value=1.01, value=3.50, step=0.05)
+                c_vis_pre = st.number_input("Cuota Visita:", min_value=1.01, value=3.50, step=0.05, key="pre_c_vis")
             
             st.markdown("---")
-            st.markdown("#### 2️⃣ Configura tu Auditoría y Mercado")
-            
-            col_cfg1, col_cfg2, col_cfg3 = st.columns(3)
-            with col_cfg1:
-                mercado_evaluar = st.selectbox("¿Qué mercado vas a auditar?", 
-                                              ["Gana Local", "Empate", "Gana Visita", 
-                                               "Ambos Anotan (Sí)", "Ambos Anotan (No)", 
-                                               "Más de X Goles", "Menos de X Goles"])
-            with col_cfg2:
-                if "X Goles" in mercado_evaluar:
-                    linea_goles = st.number_input("¿Línea de Goles (X)?", min_value=0.5, max_value=8.5, value=2.5, step=1.0)
-                else:
-                    linea_goles = 2.5 
-                    st.write("") 
-                    
-            with col_cfg3:
-                if mercado_evaluar == "Gana Local": val_defecto = float(c_loc_pre)
-                elif mercado_evaluar == "Empate": val_defecto = float(c_emp_pre)
-                elif mercado_evaluar == "Gana Visita": val_defecto = float(c_vis_pre)
-                else: val_defecto = 1.90 
-                
-                cuota_mercado = st.number_input("Cuota que te pagan:", min_value=1.01, value=val_defecto, step=0.05)
-
             col_m1, col_m2 = st.columns(2)
             with col_m1:
-                margen = st.slider("🎯 Margen de Búsqueda (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
+                margen = st.slider("🎯 Margen de Búsqueda de Gemelos (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
             with col_m2:
-                stake_pre = st.number_input("Stake Planeado ($ COP):", min_value=5000, value=20000, step=5000)
+                stake_pre = st.number_input("Stake Planeado ($ COP):", min_value=5000, value=50000, step=5000)
 
             st.markdown("<br>", unsafe_allow_html=True)
 
-            if st.button("🚀 Ejecutar Red Neuronal", use_container_width=True):
-                st.session_state.ia_activa = True
+            if st.button("🚀 Buscar Gemelos y Ejecutar Red Neuronal", use_container_width=True, type="primary"):
+                st.session_state.ia_pre_activa = True
 
-            if st.session_state.ia_activa:
+            if st.session_state.ia_pre_activa:
                 df_clean = df_global.dropna(subset=['avg_odds_home_win', 'avg_odds_draw', 'avg_odds_away_win'])
                 
                 df_gemelas = df_clean[
@@ -3602,6 +3579,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                 if total_gemelas < 10:
                     st.warning(f"🚨 Solo se encontraron {total_gemelas} partidos similares. Sube el 'Margen de Búsqueda'.")
                 else:
+                    st.success(f"✅ Se encontraron **{total_gemelas} partidos similares** en la base de datos histórica.")
+                    
+                    # === PROCESAMIENTO IA (UNA SOLA VEZ) ===
                     avg_h = df_gemelas['avg_odds_home_win'].mean()
                     avg_d = df_gemelas['avg_odds_draw'].mean()
                     avg_a = df_gemelas['avg_odds_away_win'].mean()
@@ -3620,28 +3600,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                     pred_goles = modelo_goles.predict(input_data)[0]
                     prob_btts_si = modelo_btts.predict_proba(input_data)[0][1] 
                     prob_btts_no = 1.0 - prob_btts_si
-                    
-                    total_goles_hist = df_gemelas['home_score'] + df_gemelas['away_score']
-                    prob_over_x_hist = len(df_gemelas[total_goles_hist > linea_goles]) / total_gemelas
-                    prob_under_x_hist = len(df_gemelas[total_goles_hist < linea_goles]) / total_gemelas
-                    
-                    mercado_display = mercado_evaluar.replace("X", str(linea_goles))
-                    
-                    if mercado_evaluar == "Gana Local": prob_real = prob_local
-                    elif mercado_evaluar == "Gana Visita": prob_real = prob_visita
-                    elif mercado_evaluar == "Empate": prob_real = prob_empate
-                    elif mercado_evaluar == "Ambos Anotan (Sí)": prob_real = prob_btts_si
-                    elif mercado_evaluar == "Ambos Anotan (No)": prob_real = prob_btts_no
-                    elif mercado_evaluar == "Más de X Goles": prob_real = prob_over_x_hist
-                    elif mercado_evaluar == "Menos de X Goles": prob_real = prob_under_x_hist
-                        
-                    prob_perder = 1.0 - prob_real
-                    ganancia_neta = (stake_pre * cuota_mercado) - stake_pre
-                    ev = (prob_real * ganancia_neta) - (prob_perder * stake_pre)
-                    roi_ev = (ev / stake_pre) * 100 if stake_pre > 0 else 0
-                    
+
+                    # ==================================================================
+                    # 2️⃣ PANEL GENERAL (MAPA PANORÁMICO)
+                    # ==================================================================
                     st.markdown("---")
-                    st.markdown(f"<h3 style='text-align: center; color: #1E293B;'>🤖 RESULTADOS DEL ORÁCULO ({total_gemelas} Partidos)</h3>", unsafe_allow_html=True)
+                    st.markdown(f"<h3 style='text-align: center; color: #1E293B;'>🤖 PANORAMA GLOBAL DEL PARTIDO</h3>", unsafe_allow_html=True)
                     
                     col_r1, col_r2 = st.columns(2)
                     with col_r1:
@@ -3651,87 +3615,173 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         st.metric("Gana Visita", f"{prob_visita*100:.1f}%")
                         
                     with col_r2:
-                        st.markdown("#### ⚽ Mercado de Goles")
+                        st.markdown("#### ⚽ Mercado de Goles y BTTS")
                         st.metric("Goles Esperados (IA)", f"{pred_goles:.2f} ⚽")
                         g1, g2 = st.columns(2)
                         g1.metric("BTTS (SÍ)", f"{prob_btts_si*100:.1f}%")
                         g1.metric("BTTS (NO)", f"{prob_btts_no*100:.1f}%")
-                        g2.metric(f"Más de {linea_goles}", f"{prob_over_x_hist*100:.1f}%")
-                        g2.metric(f"Menos de {linea_goles}", f"{prob_under_x_hist*100:.1f}%")
 
-                    if ev > 0:
-                        st.markdown(f"""
-                        <div style="background-color: #ECFDF5; border: 2px solid #10B981; padding: 20px; border-radius: 10px; text-align: center;">
-                            <h3 style="color: #047857; margin-top:0;">✅ ALERTA DE VALOR (EV+)</h3>
-                            <h1 style="color: #10B981; margin: 10px 0;">+${ev:,.0f} COP</h1>
-                            <p style="color: #064E3B; margin-bottom:0;">La máquina determina que tienes ventaja matemática (ROI: +{roi_ev:.1f}%). <b>¡Guárdalo en el Radar!</b></p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.markdown(f"""
-                        <div style="background-color: #FEF2F2; border: 2px solid #EF4444; padding: 20px; border-radius: 10px; text-align: center;">
-                            <h3 style="color: #B91C1C; margin-top:0;">🚨 TRAMPA DE LA CASA (EV-)</h3>
-                            <h1 style="color: #EF4444; margin: 10px 0;">-${abs(ev):,.0f} COP</h1>
-                            <p style="color: #7F1D1D; margin-bottom:0;">Esta cuota no tiene valor (ROI: {roi_ev:.1f}%). Descartar.</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-
-                    # --- ZONA DE GUARDADO EN EL RADAR ---
+                    # ==================================================================
+                    # 3️⃣ AUDITORÍA A LA CARTA
+                    # ==================================================================
                     st.markdown("---")
-                    st.markdown("### 📡 Guardar en Radar En Vivo")
-                    st.write("¿La apuesta tiene valor? Guárdala en tu lista de seguimiento sin arriesgar capital.")
+                    st.markdown("#### 🔎 Auditoría Profunda de Value Betting")
+                    mercado_evaluar = st.selectbox("¿Qué mercado decides investigar a fondo?", 
+                                                  ["-- Selecciona un mercado --", "Mercado 1X2", "Ambos Anotan (BTTS)", "Línea de Goles"])
                     
-                    rp1, rp2 = st.columns(2)
-                    with rp1:
-                        nombre_partido_radar = st.text_input("Nombre del Partido:", placeholder="Ej: Real Madrid vs Man City")
-                    with rp2:
-                        plataforma_radar_sel = st.selectbox("Plataforma a usar:", todas_las_plataformas, key="plat_radar")
-                        if plataforma_radar_sel == "Otra":
-                            plataforma_radar = st.text_input("Especifica la plataforma:", key="plat_radar_otra")
-                        else:
-                            plataforma_radar = plataforma_radar_sel
+                    mercado_display = mercado_evaluar # Para el Radar
                     
-                    if st.button("📌 Mandar al Radar", use_container_width=True):
-                        if not nombre_partido_radar:
-                            st.error("Debes ponerle un nombre al partido.")
-                        else:
-                            if supabase is not None:
-                                nuevo_codigo = generar_codigo() 
-                                datos_radar = {
-                                    "codigo": nuevo_codigo,
-                                    "partido": nombre_partido_radar,
-                                    "estrategia": "Estrategia Libre Directa", 
-                                    "seleccion_inicial": mercado_display,
-                                    "seleccion_cobertura": "N/A (Radar)", 
-                                    "plataforma_inicial": plataforma_radar,
-                                    "plataforma_dutch_secundaria": "",
-                                    "plataforma_cobertura": "",
-                                    "capital_total": float(stake_pre),
-                                    "cuota_inicial": float(cuota_mercado),
-                                    "stake_1": float(stake_pre),
-                                    "reserva_stake_2": 0.0, 
-                                    "cuota_objetivo": 0.0, 
-                                    "cuota_stop_loss": 0.0, 
-                                    "estado": "RADAR", 
-                                    "tipo_banca": "SIMULACION",
-                                    "cuota_base_audit": float(c_loc_pre), 
-                                    "cuota_empate_audit": float(c_emp_pre),
-                                    "cuota_dc_audit": 0.0,
-                                    "cuota_amenaza_audit": float(c_vis_pre),
-                                    "es_dutching": False,
-                                    "stake_dutch_base": 0.0,
-                                    "stake_dutch_empate": 0.0
-                                }
-                                
-                                try:
-                                    supabase.table("historial_trading").insert(datos_radar).execute()
-                                    st.session_state.ia_activa = False 
-                                    st.success(f"✅ ¡Partido '{nombre_partido_radar}' guardado con éxito! Ref: {nuevo_codigo}")
-                                    st.rerun()
-                                except Exception as db_err:
-                                    st.error(f"❌ Error en la estructura de base de datos: {str(db_err)}")
+                    # ----------------- AUDITORÍA: AMBOS ANOTAN -----------------
+                    if mercado_evaluar == "Ambos Anotan (BTTS)":
+                        st.markdown("##### ⚖️ Frente a Frente: SÍ vs NO")
+                        c_btts1, c_btts2 = st.columns(2)
+                        cuota_ofrecida_si = c_btts1.number_input("Cuota Ofrecida por el SÍ:", min_value=1.01, value=1.85, step=0.05)
+                        cuota_ofrecida_no = c_btts2.number_input("Cuota Ofrecida por el NO:", min_value=1.01, value=1.85, step=0.05)
+                        
+                        cuota_minima_si = 1 / prob_btts_si if prob_btts_si > 0 else 99.0
+                        cuota_minima_no = 1 / prob_btts_no if prob_btts_no > 0 else 99.0
+                        
+                        ev_si = (prob_btts_si * (stake_pre * cuota_ofrecida_si - stake_pre)) - (prob_btts_no * stake_pre)
+                        ev_no = (prob_btts_no * (stake_pre * cuota_ofrecida_no - stake_pre)) - (prob_btts_si * stake_pre)
+                        
+                        roi_si = (ev_si / stake_pre) * 100
+                        roi_no = (ev_no / stake_pre) * 100
+
+                        col_res_si, col_res_no = st.columns(2)
+                        
+                        # Panel SÍ
+                        with col_res_si:
+                            bg_si = "#ECFDF5" if ev_si > 0 else "#FEF2F2"
+                            b_color_si = "#10B981" if ev_si > 0 else "#EF4444"
+                            st.markdown(f"""
+                            <div style="background-color: {bg_si}; border: 2px solid {b_color_si}; padding: 15px; border-radius: 8px;">
+                                <h4 style="color:{b_color_si}; text-align:center; margin-top:0;">💥 INVERTIR AL SÍ</h4>
+                                <p style="margin:0;"><b>Cuota Mínima Exigida:</b> {cuota_minima_si:.2f}</p>
+                                <p style="margin:0;"><b>Casa te Ofrece:</b> {cuota_ofrecida_si:.2f}</p>
+                                <hr style="margin:10px 0;">
+                                <h5 style="text-align:center; margin:0; color:{b_color_si};">ROI Proyectado: {roi_si:.1f}%</h5>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                        # Panel NO
+                        with col_res_no:
+                            bg_no = "#ECFDF5" if ev_no > 0 else "#FEF2F2"
+                            b_color_no = "#10B981" if ev_no > 0 else "#EF4444"
+                            st.markdown(f"""
+                            <div style="background-color: {bg_no}; border: 2px solid {b_color_no}; padding: 15px; border-radius: 8px;">
+                                <h4 style="color:{b_color_no}; text-align:center; margin-top:0;">🛡️ INVERTIR AL NO</h4>
+                                <p style="margin:0;"><b>Cuota Mínima Exigida:</b> {cuota_minima_no:.2f}</p>
+                                <p style="margin:0;"><b>Casa te Ofrece:</b> {cuota_ofrecida_no:.2f}</p>
+                                <hr style="margin:10px 0;">
+                                <h5 style="text-align:center; margin:0; color:{b_color_no};">ROI Proyectado: {roi_no:.1f}%</h5>
+                            </div>
+                            """, unsafe_allow_html=True)
+
+                    # ----------------- AUDITORÍA: 1X2 -----------------
+                    elif mercado_evaluar == "Mercado 1X2":
+                        opcion_1x2 = st.radio("¿A qué equipo quieres auditar?", ["Gana Local", "Empate", "Gana Visita"], horizontal=True)
+                        cuota_ofrecida_1x2 = st.number_input(f"Cuota Ofrecida por {opcion_1x2}:", min_value=1.01, value=2.0, step=0.05)
+                        
+                        prob_objetivo = prob_local if opcion_1x2 == "Gana Local" else (prob_empate if opcion_1x2 == "Empate" else prob_visita)
+                        cuota_minima = 1 / prob_objetivo if prob_objetivo > 0 else 99.0
+                        
+                        ev_1x2 = (prob_objetivo * (stake_pre * cuota_ofrecida_1x2 - stake_pre)) - ((1 - prob_objetivo) * stake_pre)
+                        roi_1x2 = (ev_1x2 / stake_pre) * 100
+                        
+                        bg_1x2 = "#ECFDF5" if ev_1x2 > 0 else "#FEF2F2"
+                        b_color_1x2 = "#10B981" if ev_1x2 > 0 else "#EF4444"
+                        mensaje = "✅ VALOR ENCONTRADO" if ev_1x2 > 0 else "🚨 TRAMPA DETECTADA"
+                        
+                        st.markdown(f"""
+                        <div style="background-color: {bg_1x2}; border: 2px solid {b_color_1x2}; padding: 20px; border-radius: 8px; text-align: center;">
+                            <h3 style="color:{b_color_1x2}; margin-top:0;">{mensaje}</h3>
+                            <p style="font-size:1.1rem; margin:0;">Para <b>{opcion_1x2}</b>, la IA exige una cuota mínima de <b>{cuota_minima:.2f}</b>.</p>
+                            <h4 style="color:{b_color_1x2}; margin: 10px 0;">ROI Proyectado: {roi_1x2:.1f}%</h4>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    # ----------------- AUDITORÍA: GOLES -----------------
+                    elif mercado_evaluar == "Línea de Goles":
+                        linea_g = st.number_input("¿Qué línea de goles quieres auditar?", min_value=0.5, max_value=8.5, value=2.5, step=1.0)
+                        mercado_display = f"Goles ({linea_g})"
+                        c_gol1, c_gol2 = st.columns(2)
+                        cuota_over = c_gol1.number_input(f"Cuota MÁS de {linea_g}:", min_value=1.01, value=1.85, step=0.05)
+                        cuota_under = c_gol2.number_input(f"Cuota MENOS de {linea_g}:", min_value=1.01, value=1.85, step=0.05)
+                        
+                        total_goles_hist = df_gemelas['home_score'] + df_gemelas['away_score']
+                        prob_over = len(df_gemelas[total_goles_hist > linea_g]) / total_gemelas if total_gemelas > 0 else 0
+                        prob_under = len(df_gemelas[total_goles_hist < linea_g]) / total_gemelas if total_gemelas > 0 else 0
+                        
+                        cuota_min_over = 1 / prob_over if prob_over > 0 else 99.0
+                        cuota_min_under = 1 / prob_under if prob_under > 0 else 99.0
+                        
+                        ev_o = (prob_over * (stake_pre * cuota_over - stake_pre)) - (prob_under * stake_pre)
+                        ev_u = (prob_under * (stake_pre * cuota_under - stake_pre)) - (prob_over * stake_pre)
+                        
+                        col_go, col_gu = st.columns(2)
+                        with col_go:
+                            bg_o = "#ECFDF5" if ev_o > 0 else "#FEF2F2"
+                            b_c_o = "#10B981" if ev_o > 0 else "#EF4444"
+                            st.markdown(f"<div style='background-color:{bg_o}; border:2px solid {b_c_o}; padding:15px; border-radius:8px; text-align:center;'><h4 style='color:{b_c_o}; margin:0;'>⬆️ OVER {linea_g}</h4><p>Prob: {prob_over*100:.1f}%</p><p>Cuota Mínima: {cuota_min_over:.2f}</p><h5 style='color:{b_c_o};'>ROI: {(ev_o/stake_pre)*100:.1f}%</h5></div>", unsafe_allow_html=True)
+                        with col_gu:
+                            bg_u = "#ECFDF5" if ev_u > 0 else "#FEF2F2"
+                            b_c_u = "#10B981" if ev_u > 0 else "#EF4444"
+                            st.markdown(f"<div style='background-color:{bg_u}; border:2px solid {b_c_u}; padding:15px; border-radius:8px; text-align:center;'><h4 style='color:{b_c_u}; margin:0;'>⬇️ UNDER {linea_g}</h4><p>Prob: {prob_under*100:.1f}%</p><p>Cuota Mínima: {cuota_min_under:.2f}</p><h5 style='color:{b_c_u};'>ROI: {(ev_u/stake_pre)*100:.1f}%</h5></div>", unsafe_allow_html=True)
+
+                    # ==================================================================
+                    # 4️⃣ ZONA DE GUARDADO EN EL RADAR
+                    # ==================================================================
+                    if mercado_evaluar != "-- Selecciona un mercado --":
+                        st.markdown("---")
+                        st.markdown("### 📡 Guardar en Radar En Vivo")
+                        st.write("¿Encontraste valor? Guárdalo en tu lista de seguimiento.")
+                        
+                        rp1, rp2 = st.columns(2)
+                        with rp1:
+                            nombre_partido_radar = st.text_input("Nombre del Partido:", placeholder="Ej: Real Madrid vs Man City")
+                        with rp2:
+                            plataforma_radar_sel = st.selectbox("Plataforma a usar:", ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Otra"], key="plat_radar")
+                            plataforma_radar = st.text_input("Especifica la plataforma:") if plataforma_radar_sel == "Otra" else plataforma_radar_sel
+                        
+                        if st.button("📌 Mandar al Radar", use_container_width=True):
+                            if not nombre_partido_radar:
+                                st.error("Debes ponerle un nombre al partido.")
                             else:
-                                st.error("Conecta Supabase primero.")
+                                if supabase is not None:
+                                    import random
+                                    nuevo_codigo = f"SCAN-{random.randint(1000,9999)}"
+                                    
+                                    # Determinamos qué cuota guardar según lo que estaba evaluando
+                                    c_guardar = 2.0
+                                    if mercado_evaluar == "Ambos Anotan (BTTS)": c_guardar = cuota_ofrecida_si if ev_si > ev_no else cuota_ofrecida_no
+                                    elif mercado_evaluar == "Mercado 1X2": c_guardar = cuota_ofrecida_1x2
+                                    elif mercado_evaluar == "Línea de Goles": c_guardar = cuota_over if ev_o > ev_u else cuota_under
+
+                                    datos_radar = {
+                                        "codigo": nuevo_codigo,
+                                        "partido": nombre_partido_radar,
+                                        "estrategia": "Escáner Oráculo", 
+                                        "seleccion_inicial": mercado_display,
+                                        "plataforma_inicial": plataforma_radar,
+                                        "capital_total": float(stake_pre),
+                                        "cuota_inicial": float(c_guardar),
+                                        "stake_1": float(stake_pre),
+                                        "estado": "RADAR", 
+                                        "tipo_banca": "SIMULACION",
+                                        "cuota_base_audit": float(c_loc_pre), 
+                                        "cuota_empate_audit": float(c_emp_pre),
+                                        "cuota_amenaza_audit": float(c_vis_pre),
+                                    }
+                                    
+                                    try:
+                                        supabase.table("historial_trading").insert(datos_radar).execute()
+                                        st.session_state.ia_pre_activa = False 
+                                        st.success(f"✅ ¡Partido '{nombre_partido_radar}' guardado con éxito! Ref: {nuevo_codigo}")
+                                        st.rerun()
+                                    except Exception as db_err:
+                                        st.error(f"❌ Error al guardar en Radar: {str(db_err)}")
+                                else:
+                                    st.error("Conecta Supabase primero.")
 
     # ---------------------------------------------------------
     # PESTAÑA 2: RADAR EN VIVO (Watchlist y Ejecución)
