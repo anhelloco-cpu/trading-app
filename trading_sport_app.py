@@ -50,10 +50,7 @@ def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav
                             jerarquia_pre, apm_global_fav, apm_global_deb, apm_global_ganador, apm_global_perdedor,
                             mom_reciente_loc, mom_reciente_vis, mom_combinado, diferencial_mom, 
                             mom_post_gol_fav, mom_post_gol_deb, mom_post_gol_ganador, mom_post_gol_perdedor,
-                            precision_ofensiva_fav, resistencia_defensiva_fav, 
-                            precision_ofensiva_deb, resistencia_defensiva_deb,
-                            precision_ofensiva_ganador, resistencia_defensiva_ganador, 
-                            precision_ofensiva_perdedor, resistencia_defensiva_perdedor):
+                            tp_fav, tp_deb, tp_ganador, tp_perdedor):
     
     # ---------------------------------------------------------
     # 🐯 PATRÓN SÍ #1: EL TIGRE HERIDO
@@ -66,13 +63,10 @@ def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav
         mom_post_gol_fav > 1.0 and 
         mom_post_gol_deb < 0.4 and 
         diferencial_mom > 0.7 and
-        # -- Bloque de Eficiencia --
-        precision_ofensiva_fav == 999.0 and 
-        resistencia_defensiva_fav < 30.0 and 
-        precision_ofensiva_deb < 30.0 and 
-        resistencia_defensiva_deb == 999.0):
+        # -- Bloque de Eficiencia (Filtro de Ruido) --
+        tp_fav > 0.40):
         
-        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 (gol de chiripa) pero asedia brutalmente (Mom > 1.0). El empate es inminente. LUZ VERDE SÍ."
+        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 pero asedia brutalmente (Mom > 1.0) y con profundidad (TP > 40%). LUZ VERDE SÍ."
 
     # ---------------------------------------------------------
     # 🔥 PATRÓN SÍ #2: LA REBELDÍA (Favorito Dormido)
@@ -87,13 +81,10 @@ def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav
           apm_global_deb > 0.8 and 
           mom_post_gol_fav < 0.4 and 
           mom_post_gol_deb > 0.8 and
-          # -- Bloque de Eficiencia --
-          precision_ofensiva_fav < 40.0 and 
-          resistencia_defensiva_fav == 999.0 and 
-          precision_ofensiva_deb == 999.0 and 
-          resistencia_defensiva_deb < 40.0):
+          # -- Bloque de Eficiencia (Filtro de Ruido) --
+          tp_deb > 0.40):
           
-        return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia (Mom > 0.8) a una defensa de papel. LUZ VERDE SÍ."
+        return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia (Mom > 0.8) y verticalidad (TP > 40%). LUZ VERDE SÍ."
 
     # ---------------------------------------------------------
     # 🥊 PATRÓN SÍ #3: LA DEVOLUCIÓN RÁPIDA (Fuerzas Parejas)
@@ -107,13 +98,11 @@ def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav
           mom_combinado >= 1.5 and 
           diferencial_mom < 0.2 and 
           mom_post_gol_perdedor > 0.9 and
-          # -- Bloque de Eficiencia --
-          precision_ofensiva_ganador < 40.0 and 
-          resistencia_defensiva_ganador == 999.0 and 
-          precision_ofensiva_perdedor == 999.0 and 
-          resistencia_defensiva_perdedor < 40.0):
+          # -- Bloque de Eficiencia (Filtro de Ruido) --
+          tp_ganador > 0.35 and 
+          tp_perdedor > 0.35):
           
-        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. El perdedor reaccionó con furia inmediata (Mom > 0.9). Intercambio de golpes. LUZ VERDE SÍ."
+        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes intenso y ambos llegan con peligro (TP > 35%). LUZ VERDE SÍ."
 
     # ---------------------------------------------------------
     # 🎭 PATRÓN SÍ #4: EL DESCUENTO POR RELAJACIÓN
@@ -127,17 +116,15 @@ def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav
           apm_global_fav < 0.6 and 
           apm_global_deb > 0.8 and 
           mom_post_gol_deb > 1.0 and
-          # -- Bloque de Eficiencia --
-          precision_ofensiva_fav < 25.0 and 
-          resistencia_defensiva_fav == 999.0 and 
-          precision_ofensiva_deb == 999.0 and 
-          resistencia_defensiva_deb < 25.0):
+          # -- Bloque de Eficiencia (Filtro de Ruido) --
+          tp_deb > 0.45):
           
-        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca con furia (Mom > 1.0) buscando la honra. Gran cuota. LUZ VERDE SÍ."
+        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca furioso y profundo (TP > 45%). LUZ VERDE SÍ."
 
     # Si no encaja en ninguno de los patrones dorados:
     else:
         return "⏳ MODO OBSERVACIÓN: El partido no encaja en los patrones perfectos para el Ambos Anotan SÍ."
+    
 # --- FUNCIONES AUXILIARES BLINDADAS ---
 def generar_codigo():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
@@ -3955,9 +3942,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             gl_rad = cr2.number_input(f"⚽ Goles {eq_loc_ui}:", min_value=0, key=f"glr_{pr['codigo']}", value=st.session_state.get(f"glr_{pr['codigo']}", 0))
                             gv_rad = cr3.number_input(f"⚽ Goles {eq_vis_ui}:", min_value=0, key=f"gvr_{pr['codigo']}", value=st.session_state.get(f"gvr_{pr['codigo']}", 0))
                             
-                            cr4, cr5 = st.columns(2)
-                            al_rad = cr4.number_input(f"🔥 Atq. {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
-                            av_rad = cr5.number_input(f"🔥 Atq. {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
+                            st.markdown("<p style='font-size: 13px; color: #64748B; margin-bottom: 5px;'>Filtro de Verticalidad (Ataques Totales vs Peligrosos)</p>", unsafe_allow_html=True)
+                            cr4, cr5, cr6, cr7 = st.columns(4)
+                            # Ataques Totales
+                            atq_tot_loc = cr4.number_input(f"Atq. Tot {eq_loc_ui}:", min_value=0, key=f"atl_{pr['codigo']}", value=st.session_state.get(f"atl_{pr['codigo']}", 80))
+                            atq_tot_vis = cr5.number_input(f"Atq. Tot {eq_vis_ui}:", min_value=0, key=f"atv_{pr['codigo']}", value=st.session_state.get(f"atv_{pr['codigo']}", 50))
+                            # Ataques Peligrosos
+                            al_rad = cr6.number_input(f"🔥 Peligro {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
+                            av_rad = cr7.number_input(f"🔥 Peligro {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
 
                         with tab_anti_empate:
                             st.markdown("""
@@ -4216,26 +4208,23 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 min_corrido = m_rad
                                 estado_goles = (gl_rad + gv_rad) > 0
                                 
+                                # Cálculo de Tasa de Peligrosidad (Filtro de Ruido)
+                                tp_local = al_rad / atq_tot_loc if atq_tot_loc > 0 else 0.0
+                                tp_visita = av_rad / atq_tot_vis if atq_tot_vis > 0 else 0.0
+
                                 # Asignaciones Lógicas (Favorito vs Débil)
                                 if fav_es_loc:
                                     goles_fav, goles_deb = gl_rad, gv_rad
                                     apm_global_fav, apm_global_deb = apm_global_loc, apm_global_vis
                                     mom_fav, mom_deb = apm_local_dinamico, apm_vis_dinamico
-                                    po_fav = al_rad / gl_rad if gl_rad > 0 else 999.0
-                                    rd_fav = av_rad / gl_rad if gl_rad > 0 else 999.0 
-                                    po_deb = av_rad / gv_rad if gv_rad > 0 else 999.0
-                                    rd_deb = al_rad / gv_rad if gv_rad > 0 else 999.0
+                                    tp_fav, tp_deb = tp_local, tp_visita
                                 elif fav_es_vis:
                                     goles_fav, goles_deb = gv_rad, gl_rad
                                     apm_global_fav, apm_global_deb = apm_global_vis, apm_global_loc
                                     mom_fav, mom_deb = apm_vis_dinamico, apm_local_dinamico
-                                    po_fav = av_rad / gv_rad if gv_rad > 0 else 999.0
-                                    rd_fav = al_rad / gv_rad if gv_rad > 0 else 999.0
-                                    po_deb = al_rad / gl_rad if gl_rad > 0 else 999.0
-                                    rd_deb = av_rad / gl_rad if gl_rad > 0 else 999.0
+                                    tp_fav, tp_deb = tp_visita, tp_local
                                 else:
-                                    goles_fav = goles_deb = apm_global_fav = apm_global_deb = mom_fav = mom_deb = 0
-                                    po_fav = rd_fav = po_deb = rd_deb = 999.0
+                                    goles_fav = goles_deb = apm_global_fav = apm_global_deb = mom_fav = mom_deb = tp_fav = tp_deb = 0
 
                                 # Asignaciones de Ganador / Perdedor (Para Fuerzas Parejas)
                                 if gl_rad > gv_rad:
@@ -4243,23 +4232,16 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     goles_ganador, goles_perdedor = gl_rad, gv_rad
                                     apm_g_ganador, apm_g_perdedor = apm_global_loc, apm_global_vis
                                     mom_ganador, mom_perdedor = apm_local_dinamico, apm_vis_dinamico
-                                    po_ganador = al_rad / gl_rad if gl_rad > 0 else 999.0
-                                    rd_ganador = av_rad / gl_rad if gl_rad > 0 else 999.0
-                                    po_perdedor = av_rad / gv_rad if gv_rad > 0 else 999.0
-                                    rd_perdedor = al_rad / gv_rad if gv_rad > 0 else 999.0
+                                    tp_ganador, tp_perdedor = tp_local, tp_visita
                                 elif gv_rad > gl_rad:
                                     lider_marcador = "No Favorito" if fav_es_loc else "Favorito"
                                     goles_ganador, goles_perdedor = gv_rad, gl_rad
                                     apm_g_ganador, apm_g_perdedor = apm_global_vis, apm_global_loc
                                     mom_ganador, mom_perdedor = apm_vis_dinamico, apm_local_dinamico
-                                    po_ganador = av_rad / gv_rad if gv_rad > 0 else 999.0
-                                    rd_ganador = al_rad / gv_rad if gv_rad > 0 else 999.0
-                                    po_perdedor = al_rad / gl_rad if gl_rad > 0 else 999.0
-                                    rd_perdedor = av_rad / gl_rad if gl_rad > 0 else 999.0
+                                    tp_ganador, tp_perdedor = tp_visita, tp_local
                                 else:
                                     lider_marcador = "Empate"
-                                    goles_ganador = goles_perdedor = apm_g_ganador = apm_g_perdedor = mom_ganador = mom_perdedor = 0
-                                    po_ganador = rd_ganador = po_perdedor = rd_perdedor = 999.0
+                                    goles_ganador = goles_perdedor = apm_g_ganador = apm_g_perdedor = mom_ganador = mom_perdedor = tp_ganador = tp_perdedor = 0
 
                                 # Variables Físicas Conjuntas
                                 mom_combinado = apm_local_dinamico + apm_vis_dinamico
