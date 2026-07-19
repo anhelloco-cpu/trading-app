@@ -3762,15 +3762,25 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         "partido": nombre_partido_radar,
                                         "estrategia": "Escáner Oráculo", 
                                         "seleccion_inicial": mercado_display,
+                                        "seleccion_cobertura": "N/A (Radar)", 
                                         "plataforma_inicial": plataforma_radar,
+                                        "plataforma_dutch_secundaria": "",
+                                        "plataforma_cobertura": "",
                                         "capital_total": float(stake_pre),
                                         "cuota_inicial": float(c_guardar),
                                         "stake_1": float(stake_pre),
+                                        "reserva_stake_2": 0.0, 
+                                        "cuota_objetivo": 0.0, 
+                                        "cuota_stop_loss": 0.0, 
                                         "estado": "RADAR", 
                                         "tipo_banca": "SIMULACION",
                                         "cuota_base_audit": float(c_loc_pre), 
                                         "cuota_empate_audit": float(c_emp_pre),
+                                        "cuota_dc_audit": 0.0,
                                         "cuota_amenaza_audit": float(c_vis_pre),
+                                        "es_dutching": False,
+                                        "stake_dutch_base": 0.0,
+                                        "stake_dutch_empate": 0.0
                                     }
                                     
                                     try:
