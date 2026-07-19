@@ -1405,7 +1405,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     eq_local, eq_vis = "Equipo A", "Equipo B"
 
                                 res_fotos = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
-                                ultima_foto = res_fotos.data[0] if res_fotos.data else {'goles_local': 0, 'goles_vis': 0, 'atkp_local': 0, 'atkp_vis': 0}
+                                ultima_foto = res_fotos.data[0] if res_fotos.data else {'goles_local': 0, 'goles_vis': 0, 'atkp_local': 0, 'atkp_vis': 0, 'atqt_local': 80, 'atqt_vis': 50}
                                 min_base = ultima_foto.get('minuto_evaluado', 0) if res_fotos.data else 0
 
                                 minuto_sugerido = min_base
@@ -1430,17 +1430,74 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     oferta_cashout = st.number_input("💰 Oferta Cashout ($):", min_value=0.0, step=1000.0, value=0.0, key=f"cash_es_{op['codigo']}", help="Escribe lo que te ofrece la casa en el botón de Cerrar Apuesta")
 
                                 st.markdown("<hr style='margin: 5px 0;'>", unsafe_allow_html=True)
+                                
+                                # SECCIÓN DE DATOS: AÑADIDOS LOS ATAQUES TOTALES
+                                st.markdown("<p style='font-size: 13px; color: #64748B; margin-bottom: 5px;'>Estadísticas Actualizadas en Cancha:</p>", unsafe_allow_html=True)
                                 col_t1, col_t2 = st.columns(2)
                                 
                                 with col_t1:
                                     g_local = st.number_input(f"⚽ Goles de {eq_local}", min_value=0, value=int(ultima_foto.get('goles_local', 0)), key=f"g_l_es_{op['codigo']}")
-                                    atkp_local = st.number_input(f"🔥 Atq. de {eq_local}", min_value=0, value=int(ultima_foto.get('atkp_local', 0)), key=f"atk_l_es_{op['codigo']}")
+                                    atqt_local = st.number_input(f"📊 Atq. Tot. de {eq_local}", min_value=0, value=int(ultima_foto.get('atqt_local', 80)), key=f"atqt_l_es_{op['codigo']}")
+                                    atkp_local = st.number_input(f"🔥 Peligro {eq_local}", min_value=0, value=int(ultima_foto.get('atkp_local', 0)), key=f"atk_l_es_{op['codigo']}")
                                 
                                 with col_t2:
                                     g_vis = st.number_input(f"⚽ Goles de {eq_vis}", min_value=0, value=int(ultima_foto.get('goles_vis', 0)), key=f"g_v_es_{op['codigo']}")
-                                    atkp_vis = st.number_input(f"🔥 Atq. de {eq_vis}", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_es_{op['codigo']}")
+                                    atqt_vis = st.number_input(f"📊 Atq. Tot. de {eq_vis}", min_value=0, value=int(ultima_foto.get('atqt_vis', 50)), key=f"atqt_v_es_{op['codigo']}")
+                                    atkp_vis = st.number_input(f"🔥 Peligro {eq_vis}", min_value=0, value=int(ultima_foto.get('atkp_vis', 0)), key=f"atk_v_es_{op['codigo']}")
                                 
                                 st.markdown("---")
+                                
+                                # ====================================================================
+                                # ⚡ MOTOR DE MOMENTUM (¡AHORA TOMA LA FOTO Y CALCULA AL MISMO TIEMPO!)
+                                # ====================================================================
+                                st.markdown("#### ⚡ Motor de Momentum (Aceleración Real)")
+                                
+                                if st.button("📸 Extraer Ancestro, Calcular y Guardar Foto Actual", key=f"btn_mom_{op['codigo']}", use_container_width=True, type="primary"):
+                                    try:
+                                        # 1. BUSCAMOS LA FOTO VIEJA PARA EL MOMENTUM
+                                        res_mom = supabase.table("registro_fotos").select("*").eq("codigo_posicion", op['codigo']).lt("minuto_evaluado", minuto_actual).order("minuto_evaluado", desc=True).limit(1).execute()
+                                        
+                                        if res_mom.data:
+                                            foto_ant = res_mom.data[0]
+                                            min_ant = int(foto_ant['minuto_evaluado'])
+                                            delta_min = minuto_actual - min_ant
+                                            
+                                            if delta_min >= 2:
+                                                atk_l_ant = int(foto_ant['atkp_local'])
+                                                atk_v_ant = int(foto_ant['atkp_vis'])
+                                                
+                                                # Guardamos el resultado en la memoria de la aplicación
+                                                st.session_state[f"apm_l_din_{op['codigo']}"] = max(0.0, (atkp_local - atk_l_ant) / delta_min)
+                                                st.session_state[f"apm_v_din_{op['codigo']}"] = max(0.0, (atkp_vis - atk_v_ant) / delta_min)
+                                                st.session_state[f"mom_txt_{op['codigo']}"] = f"Últimos {delta_min} min (Desde el {min_ant}')"
+                                            else:
+                                                st.warning(f"⚠️ La última foto es del minuto {min_ant}. Deben pasar al menos 2 minutos para medir aceleración precisa.")
+                                        else:
+                                            st.warning("⚠️ No hay fotos anteriores para comparar, pero se guardará esta como la primera foto base.")
+
+                                        # 2. INYECTAMOS LA FOTO NUEVA A SUPABASE INMEDIATAMENTE
+                                        nueva_foto = {
+                                            "codigo_posicion": op['codigo'],
+                                            "minuto_evaluado": minuto_actual,
+                                            "goles_local": g_local,
+                                            "goles_vis": g_vis,
+                                            "atqt_local": atqt_local,
+                                            "atqt_vis": atqt_vis,
+                                            "atkp_local": atkp_local,
+                                            "atkp_vis": atkp_vis,
+                                            "cuota_si": cuota_salida, # Guardamos la cuota de la cobertura
+                                            "cuota_no": op['cuota_inicial']
+                                        }
+                                        
+                                        supabase.table("registro_fotos").insert(nueva_foto).execute()
+                                        st.success(f"✅ ¡Foto del min {minuto_actual} calculada y anclada a la BD con éxito!")
+                                        
+                                    except Exception as e:
+                                        st.error(f"Error procesando la foto táctica: {str(e)}")
+
+                                # Asignación final de variables para la IA
+                                apm_global_loc = atkp_local / max(1, minuto_actual)
+                                apm_global_vis = atkp_vis / max(1, minuto_actual)
                                 
 # -------------------------------------------------------------
                                 # 3. CÁLCULOS MATEMÁTICOS DE IA Y JERARQUÍA HISTÓRICA
@@ -2377,18 +2434,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                     st.info(f"💡 **Retorno Directo:** Como el Cashout es la mejor opción, el dinero regresa a tu banco original ({op.get('plataforma_inicial', 'tu plataforma')}). La operación se cerrará inmediatamente.")
                                     col_btn1, col_btn2 = st.columns(2)
                                     with col_btn1:
-                                        if st.button("📸 Guardar Foto Táctica (Entrenar IA)", key=f"btn_foto_es_{op['codigo']}", use_container_width=True):
-                                            try:
-                                                supabase.table("registro_fotos").insert({
-                                                    "codigo_posicion": str(op['codigo']), "minuto_evaluado": int(minuto_actual),
-                                                    "goles_local": int(g_local), "goles_vis": int(g_vis),
-                                                    "atkp_local": int(atkp_local), "atkp_vis": int(atkp_vis),
-                                                    "ird_calculado": float(round(ird, 2)), "cuota_ofrecida": float(cuota_salida)
-                                                }).execute()
-                                                st.success("✅ Foto inyectada a la IA.")
-                                                st.rerun()
-                                            except Exception as e: st.error(f"❌ Error al guardar foto: {str(e)}")
-                                    with col_btn2:
+                                        
                                         if st.button("✅ LIQUIDAR POR CASHOUT", key=f"btn_cash_{op['codigo']}", use_container_width=True):
                                             hora_actual = datetime.datetime.now().strftime("%H:%M")
                                             supabase.table("historial_trading").update({
