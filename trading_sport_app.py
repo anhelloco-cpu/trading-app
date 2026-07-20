@@ -1389,19 +1389,20 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             
                                             if res_sync.data:
                                                 foto_reciente = res_sync.data[0]
-                                                st.session_state[f"min_es_{op['codigo']}"] = int(foto_reciente['minuto_evaluado'])
-                                                st.session_state[f"g_l_es_{op['codigo']}"] = int(foto_reciente['goles_local'])
-                                                st.session_state[f"g_v_es_{op['codigo']}"] = int(foto_reciente['goles_vis'])
-                                                st.session_state[f"atqt_l_es_{op['codigo']}"] = int(foto_reciente.get('atqt_local', 80))
-                                                st.session_state[f"atqt_v_es_{op['codigo']}"] = int(foto_reciente.get('atqt_vis', 50))
-                                                st.session_state[f"atk_l_es_{op['codigo']}"] = int(foto_reciente['atkp_local'])
-                                                st.session_state[f"atk_v_es_{op['codigo']}"] = int(foto_reciente['atkp_vis'])
+                                                # AQUÍ ESTÁ LA CORRECCIÓN: Las llaves ahora tienen el '_in_' para que hagan match perfecto con las cajas de texto
+                                                st.session_state[f"min_es_in_{op['codigo']}"] = int(foto_reciente['minuto_evaluado'])
+                                                st.session_state[f"g_l_es_in_{op['codigo']}"] = int(foto_reciente['goles_local'])
+                                                st.session_state[f"g_v_es_in_{op['codigo']}"] = int(foto_reciente['goles_vis'])
+                                                st.session_state[f"atqt_l_es_in_{op['codigo']}"] = int(foto_reciente.get('atqt_local', 80))
+                                                st.session_state[f"atqt_v_es_in_{op['codigo']}"] = int(foto_reciente.get('atqt_vis', 50))
+                                                st.session_state[f"atk_l_es_in_{op['codigo']}"] = int(foto_reciente['atkp_local'])
+                                                st.session_state[f"atk_v_es_in_{op['codigo']}"] = int(foto_reciente['atkp_vis'])
                                                 
                                                 if foto_reciente.get('cuota_si') and float(foto_reciente['cuota_si']) > 1.01:
-                                                    st.session_state[f"c_live_es_{op['codigo']}"] = float(foto_reciente['cuota_si'])
+                                                    st.session_state[f"c_live_es_in_{op['codigo']}"] = float(foto_reciente['cuota_si'])
                                                     
                                                 st.success(f"✅ ¡Datos del min {foto_reciente['minuto_evaluado']} importados!")
-                                                st.rerun()  # 👈 ¡ESTE ES EL COMANDO CRÍTICO QUE TE FALTABA PARA QUE PEGUEN LOS DATOS!
+                                                st.rerun()  # 👈 RECARGA LA PANTALLA
                                             else:
                                                 st.warning("⚠️ No hay fotos previas de este partido.")
                                         except Exception as e:
@@ -1424,10 +1425,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 # INPUTS DE DATOS FINANCIEROS Y TÁCTICOS
                                 c_top1, c_top2, c_top3 = st.columns(3)
                                 with c_top1:
-                                    minuto_actual = st.number_input("⏱️ Minuto:", min_value=0, max_value=120, value=st.session_state.get(f"min_es_{op['codigo']}", 0), step=1, key=f"min_es_in_{op['codigo']}")
+                                    minuto_actual = st.number_input("⏱️ Minuto:", min_value=0, max_value=120, step=1, key=f"min_es_in_{op['codigo']}")
                                 with c_top2:
-                                    val_cuota_obj = float(op.get('cuota_objetivo') or 1.01)
-                                    cuota_input_es = st.number_input("📉 Cuota Cobertura:", min_value=1.01, step=0.01, value=st.session_state.get(f"c_live_es_{op['codigo']}", val_cuota_obj), key=f"c_live_es_in_{op['codigo']}")
+                                    cuota_input_es = st.number_input("📉 Cuota Cobertura:", min_value=1.01, step=0.01, key=f"c_live_es_in_{op['codigo']}")
                                     cuota_salida = cuota_input_es if cuota_input_es is not None else 1.01
                                 with c_top3:
                                     oferta_cashout = st.number_input("💰 Oferta Cashout ($):", min_value=0.0, step=1000.0, value=0.0, key=f"cash_es_{op['codigo']}")
@@ -1437,13 +1437,13 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 col_t1, col_t2 = st.columns(2)
                                 with col_t1:
-                                    g_local = st.number_input(f"⚽ Goles de {eq_local}", min_value=0, value=st.session_state.get(f"g_l_es_{op['codigo']}", 0), key=f"g_l_es_in_{op['codigo']}")
-                                    atqt_local = st.number_input(f"📊 Atq. Tot. de {eq_local}", min_value=0, value=st.session_state.get(f"atqt_l_es_{op['codigo']}", 80), key=f"atqt_l_es_in_{op['codigo']}")
-                                    atkp_local = st.number_input(f"🔥 Peligro {eq_local}", min_value=0, value=st.session_state.get(f"atk_l_es_{op['codigo']}", 0), key=f"atk_l_es_in_{op['codigo']}")
+                                    g_local = st.number_input(f"⚽ Goles de {eq_local}", min_value=0, key=f"g_l_es_in_{op['codigo']}")
+                                    atqt_local = st.number_input(f"📊 Atq. Tot. de {eq_local}", min_value=0, key=f"atqt_l_es_in_{op['codigo']}")
+                                    atkp_local = st.number_input(f"🔥 Peligro {eq_local}", min_value=0, key=f"atk_l_es_in_{op['codigo']}")
                                 with col_t2:
-                                    g_vis = st.number_input(f"⚽ Goles de {eq_vis}", min_value=0, value=st.session_state.get(f"g_v_es_{op['codigo']}", 0), key=f"g_v_es_in_{op['codigo']}")
-                                    atqt_vis = st.number_input(f"📊 Atq. Tot. de {eq_vis}", min_value=0, value=st.session_state.get(f"atqt_v_es_{op['codigo']}", 50), key=f"atqt_v_es_in_{op['codigo']}")
-                                    atkp_vis = st.number_input(f"🔥 Peligro {eq_vis}", min_value=0, value=st.session_state.get(f"atk_v_es_{op['codigo']}", 0), key=f"atk_v_es_in_{op['codigo']}")
+                                    g_vis = st.number_input(f"⚽ Goles de {eq_vis}", min_value=0, key=f"g_v_es_in_{op['codigo']}")
+                                    atqt_vis = st.number_input(f"📊 Atq. Tot. de {eq_vis}", min_value=0, key=f"atqt_v_es_in_{op['codigo']}")
+                                    atkp_vis = st.number_input(f"🔥 Peligro {eq_vis}", min_value=0, key=f"atk_v_es_in_{op['codigo']}")
                                 
                                 st.markdown("---")
 
