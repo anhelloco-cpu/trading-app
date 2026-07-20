@@ -2602,25 +2602,10 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
             def clasificar_estrategia(row):
                 est_original = str(row.get('estrategia', ''))
                 sel_ini = str(row.get('seleccion_inicial', ''))
-                texto_mercado = str(row.get('partido', '')).lower()
                 
-                # REGLA MAESTRA: Si el partido dice "ambos anotan", tiene prioridad absoluta
-                if "ambos anotan" in texto_mercado:
-                    if "eSports" in est_original:
-                        return "⚡ eSports: Ambos Anotan"
-                    else:
-                        return "🔥 Binario: Ambos Anotan"
-                        
-                # REGLA MAESTRA 2: Línea de goles
-                elif "línea de goles" in texto_mercado or "linea de goles" in texto_mercado:
-                    if "eSports" in est_original:
-                        return "⚡ eSports: Línea de Goles"
-                    else:
-                        return "⚽ Binario: Línea de Goles"
-                
-                # Si no es ninguno de los anteriores, desglosamos según el tipo de estrategia
+                # Si es eSports, el algoritmo entra a desglosarla según lo que operaste
                 if "eSports" in est_original:
-                    if "menos de" in sel_ini.lower() or "más de" in sel_ini.lower() or "goles" in sel_ini.lower():
+                    if "Menos de" in sel_ini or "Más de" in sel_ini or "Goles" in sel_ini:
                         return "⚡ eSports: Mercado de Goles"
                     elif "+ Gana" in sel_ini:
                         return "⚡ eSports: Fuego Cruzado (Empate Amenaza)"
@@ -2638,13 +2623,18 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
                                 return "⚡ eSports: Histórico (Sin datos de cuota)"
                         except:
                             return "⚡ eSports: Histórico (Sin datos de cuota)"
-                            
                 elif "Binario" in est_original:
-                    return "✍️ Binario: Otros Mercados Personalizados"
+                    # Pasamos todo el texto a minúsculas para que no hayan errores de lectura
+                    texto_mercado = str(row.get('partido', '')).lower()
                     
+                    if "ambos anotan" in texto_mercado:
+                        return "🔥 Binario: Ambos Anotan"
+                    elif "línea de goles" in texto_mercado or "linea de goles" in texto_mercado:
+                        return "⚽ Binario: Línea de Goles"
+                    else:
+                        return "✍️ Binario: Otros Mercados Personalizados"
                 elif not est_original or str(est_original) == 'nan':
                     return "⚽ Estrategia 2: Paz Mental Clásica"
-                    
                 else:
                     return est_original
 
