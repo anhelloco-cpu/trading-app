@@ -1375,7 +1375,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                             )
                             
                             if accion_esports == "📸 Evaluar Asedio y Cazar Cuota":
-                                # 🔄 BOTÓN DE SINCRONIZACIÓN Y LECTURA DE FOTOS
+                                # ------------------------------------------------------------------
+                                # 🔄 BOTÓN DE SINCRONIZACIÓN Y LECTURA DE FOTOS 
+                                # ------------------------------------------------------------------
                                 col_tit1, col_tit2 = st.columns([2, 1])
                                 with col_tit1:
                                     st.markdown("#### ⏱️ Auditoría Táctica y Financiera")
@@ -1394,9 +1396,12 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                 st.session_state[f"atqt_v_es_{op['codigo']}"] = int(foto_reciente.get('atqt_vis', 50))
                                                 st.session_state[f"atk_l_es_{op['codigo']}"] = int(foto_reciente['atkp_local'])
                                                 st.session_state[f"atk_v_es_{op['codigo']}"] = int(foto_reciente['atkp_vis'])
+                                                
                                                 if foto_reciente.get('cuota_si') and float(foto_reciente['cuota_si']) > 1.01:
                                                     st.session_state[f"c_live_es_{op['codigo']}"] = float(foto_reciente['cuota_si'])
+                                                    
                                                 st.success(f"✅ ¡Datos del min {foto_reciente['minuto_evaluado']} importados!")
+                                                st.rerun()  # 👈 ¡ESTE ES EL COMANDO CRÍTICO QUE TE FALTABA PARA QUE PEGUEN LOS DATOS!
                                             else:
                                                 st.warning("⚠️ No hay fotos previas de este partido.")
                                         except Exception as e:
@@ -1412,7 +1417,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 else:
                                     eq_local = solo_partido if len(solo_partido) > 1 else "Equipo Local"
                                     eq_vis = "Equipo Visitante"
-                                if "Ambos Anotan" in eq_local or "[" in eq_local: eq_local, eq_vis = "Equipo A", "Equipo B"
+                                    
+                                if "Ambos Anotan" in eq_local or "[" in eq_local: 
+                                    eq_local, eq_vis = "Opción A", "Opción B"
 
                                 # INPUTS DE DATOS FINANCIEROS Y TÁCTICOS
                                 c_top1, c_top2, c_top3 = st.columns(3)
@@ -1730,10 +1737,9 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         [f"✅ Ganó {sel_ini} (Cobro completo)", f"❌ Perdió {sel_ini} (Pérdida Stake 1)"],
                                         key=f"rad_dir_es_{op['codigo']}"
                                     )
-                                    st.markdown("---")
-                                    
-                                    goles_finales_seleccion = st.number_input(f"⚽ Goles Equipo A:", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
-                                    goles_finales_rival = st.number_input(f"⚽ Goles Equipo B:", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
+                                    st.markdown("🤖 **Marcador / Puntos Finales para Entrenamiento IA**")
+                                    goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {eq_local}:", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
+                                    goles_finales_rival = st.number_input(f"🚀 Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
                                     
                                     if st.form_submit_button("Registrar Liquidación Directa"):
                                         utilidad = utilidad_original_maxima if "Ganó" in resultado_directo else -op['stake_1']
@@ -2404,8 +2410,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                 
                                 st.markdown("---")
                                 st.markdown("🤖 **Datos para Entrenamiento de IA (Obligatorio)**")
-                                goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {eq_local}:", min_value=0, step=1, value=0, key=f"gf_sel_cob_{op['codigo']}")
-                                goles_finales_rival = st.number_input(f"🚀 Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_cob_{op['codigo']}")
+                                goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {eq_local}:", min_value=0, step=1, value=0, key=f"gf_sel_es_{op['codigo']}")
+                                goles_finales_rival = st.number_input(f"🚀 Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_es_{op['codigo']}")
                                 
                                 if st.form_submit_button("Cerrar Libro Mayor"):
                                     gano_fase1 = False
