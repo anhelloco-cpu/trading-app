@@ -1729,7 +1729,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         st.success(f"¡Cobertura TOTAL fijada a cuota {cuota_salida}! Pasa a liquidación.")
                                         st.rerun()
                             else:
-                                # LIQUIDACIÓN DIRECTA
+                                # LIQUIDACIÓN DIRECTA FASE 1
                                 with st.form(f"get_dir_es_{op['codigo']}"):
                                     st.markdown("#### 🏁 Conciliación Directa (Sin Cobertura)")
                                     resultado_directo = st.radio(
@@ -1737,7 +1737,23 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         [f"✅ Ganó {sel_ini} (Cobro completo)", f"❌ Perdió {sel_ini} (Pérdida Stake 1)"],
                                         key=f"rad_dir_es_{op['codigo']}"
                                     )
-                                    st.markdown("🤖 **Marcador / Puntos Finales para Entrenamiento IA**")
+                                    st.markdown("---")
+                                    
+                                    # --- EXTRACTOR DE NOMBRES DE EQUIPOS (Corrección del NameError) ---
+                                    partido_str = str(op.get('partido', ''))
+                                    solo_partido = partido_str.split("|")[0].replace("🏟️", "").strip() if "|" in partido_str else partido_str
+                                    txt_norm = solo_partido.lower().replace("vs.", "vs").replace("-", "vs")
+                                    if "vs" in txt_norm:
+                                        eq_local = txt_norm.split("vs")[0].strip().title()
+                                        eq_vis = txt_norm.split("vs")[1].strip().title()
+                                    else:
+                                        eq_local = solo_partido if len(solo_partido) > 1 else "Equipo Local"
+                                        eq_vis = "Equipo Visitante"
+                                        
+                                    if "Ambos Anotan" in eq_local or "[" in eq_local: 
+                                        eq_local, eq_vis = "Opción A", "Opción B"
+                                    # ------------------------------------------------------------------
+
                                     goles_finales_seleccion = st.number_input(f"⚽ Goles finales de {eq_local}:", min_value=0, step=1, value=0, key=f"gf_sel_dir_es_{op['codigo']}")
                                     goles_finales_rival = st.number_input(f"🚀 Goles finales de {eq_vis}:", min_value=0, step=1, value=0, key=f"gf_riv_dir_es_{op['codigo']}")
                                     
