@@ -3783,22 +3783,39 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
                         
                         capital_ya_investido = 0.0
+                        inversiones_previas = []
+
                         if supabase is not None:
                             try:
+                                # Consultamos TODAS las balas disparadas en este partido exacto
                                 res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
                                 if res_exp.data:
-                                    capital_ya_investido = sum(float(x.get('stake_1', 0.0)) for x in res_exp.data)
-                            except Exception: pass
+                                    inversiones_previas = [float(x.get('stake_1', 0.0)) for x in res_exp.data if float(x.get('stake_1', 0.0)) > 0]
+                                    capital_ya_investido = sum(inversiones_previas)
+                            except Exception:
+                                capital_ya_investido = 0.0
 
-                        # 🔥 CONGELAMOS EL PRESUPUESTO: Usamos el capital planeado al inicio, no varía si tu saldo global baja
+                        # Congelamos el presupuesto del partido
                         presupuesto_partido = float(pr.get('capital_total', tope_maximo_evento))
+                        
+                        # Cálculo de Cupo Restante en Pesos
                         cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
 
+                        # Panel Informativo del Centro de Costos
                         st.markdown(f"""
                         <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                            <div><span style="font-size: 0.85rem; color: #64748B;">Presupuesto (Congelado):</span><br><b style="color: #1E293B;">${presupuesto_partido:,.0f} COP</b></div>
-                            <div><span style="font-size: 0.85rem; color: #64748B;">Capital Comprometido:</span><br><b style="color: #D97706;">${capital_ya_investido:,.0f} COP</b></div>
-                            <div><span style="font-size: 0.85rem; color: #64748B;">Cupo Disponible:</span><br><b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'};">${cupo_disponible_partido:,.0f} COP</b></div>
+                            <div>
+                                <span style="font-size: 0.85rem; color: #64748B;">Presupuesto (Congelado):</span><br>
+                                <b style="color: #1E293B; font-size: 1.05rem;">${presupuesto_partido:,.0f} COP</b>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.85rem; color: #64748B;">Capital Comprometido:</span><br>
+                                <b style="color: #D97706; font-size: 1.05rem;">${capital_ya_investido:,.0f} COP</b>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.85rem; color: #64748B;">Cupo Disponible:</span><br>
+                                <b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'}; font-size: 1.05rem;">${cupo_disponible_partido:,.0f} COP</b>
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -3812,44 +3829,64 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             key=f"modo_cap_{pr['codigo']}"
                         )
                         
-                        # --- MATEMÁTICA PURA SOBRE PRESUPUESTO BASE ---
-                        # Las bolsas son porcentajes fijos del capital inicial del partido
-                        tope_kamikaze = presupuesto_partido * 0.20
-                        tope_moderado = presupuesto_partido * 0.30
-                        tope_conservador = presupuesto_partido * 0.50
+                        # --- MATEMÁTICA INTELIGENTE DE BOLSAS ---
+                        bolsas_teoricas = {
+                            "kamikaze": presupuesto_partido * 0.20,
+                            "moderado": presupuesto_partido * 0.30,
+                            "conservador": presupuesto_partido * 0.50
+                        }
+                        
+                        usado_kam, usado_mod, usado_con = False, False, False
+                        
+                        # El sistema revisa la base de datos y tacha ("quema") la bala correspondiente
+                        for inv in inversiones_previas:
+                            dist = {}
+                            if not usado_kam: dist["kamikaze"] = abs(inv - bolsas_teoricas["kamikaze"])
+                            if not usado_mod: dist["moderado"] = abs(inv - bolsas_teoricas["moderado"])
+                            if not usado_con: dist["conservador"] = abs(inv - bolsas_teoricas["conservador"])
+                            if dist:
+                                mejor = min(dist, key=dist.get)
+                                if mejor == "kamikaze": usado_kam = True
+                                elif mejor == "moderado": usado_mod = True
+                                elif mejor == "conservador": usado_con = True
 
-                        # El límite inicial por defecto es todo el cupo disponible
+                        val_kamikaze = 0.0 if usado_kam else bolsas_teoricas["kamikaze"]
+                        val_moderado = 0.0 if usado_mod else bolsas_teoricas["moderado"]
+                        val_conservador = 0.0 if usado_con else bolsas_teoricas["conservador"]
+
                         limite_final_inversion = cupo_disponible_partido
                         
                         if "Control Total" in modo_gestion:
                             tipo_entrada = st.selectbox(
                                 "Nivel de riesgo de esta entrada:",
-                                ["🔥 Kamikaze (Max 20%)", "⚖️ Moderado (Max 30%)", "🛡️ Conservador (Max 50%)"],
+                                [f"🔥 Kamikaze (Max 20%) {'- AGOTADO' if usado_kam else ''}", 
+                                 f"⚖️ Moderado (Max 30%) {'- AGOTADO' if usado_mod else ''}", 
+                                 f"🛡️ Conservador (Max 50%) {'- AGOTADO' if usado_con else ''}"],
                                 key=f"tipo_ent_{pr['codigo']}"
                             )
-                            # El límite es el tope fijo de la bolsa, pero SIEMPRE restringido por lo que queda en la billetera general
-                            if "Kamikaze" in tipo_entrada: 
-                                limite_final_inversion = min(cupo_disponible_partido, tope_kamikaze)
-                            elif "Moderado" in tipo_entrada: 
-                                limite_final_inversion = min(cupo_disponible_partido, tope_moderado)
-                            else: 
-                                limite_final_inversion = min(cupo_disponible_partido, tope_conservador)
+                            if "Kamikaze" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_kamikaze)
+                            elif "Moderado" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_moderado)
+                            else: limite_final_inversion = min(cupo_disponible_partido, val_conservador)
 
-                        # Botones visuales fijos para inyectar rápido (siempre visibles, limitados por la plata real que queda)
+                        # Botones visuales que se BLOQUEAN individualmente si la bala fue quemada
                         col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
                         with col_btn_k1:
-                            # Te muestra el valor fijo de la bolsa, pero si lo hundes inyecta máximo lo que permite el límite
-                            if st.button(f"🔥 Kamikaze\n${tope_kamikaze:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=(cupo_disponible_partido<=0)):
-                                st.session_state[stk_key] = float(min(cupo_disponible_partido, tope_kamikaze))
+                            if st.button(f"🔥 Kamikaze\n${bolsas_teoricas['kamikaze']:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=usado_kam or cupo_disponible_partido <= 0):
+                                st.session_state[stk_key] = float(min(val_kamikaze, cupo_disponible_partido))
                         with col_btn_k2:
-                            if st.button(f"⚖️ Moderado\n${tope_moderado:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=(cupo_disponible_partido<=0)):
-                                st.session_state[stk_key] = float(min(cupo_disponible_partido, tope_moderado))
+                            if st.button(f"⚖️ Moderado\n${bolsas_teoricas['moderado']:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=usado_mod or cupo_disponible_partido <= 0):
+                                st.session_state[stk_key] = float(min(val_moderado, cupo_disponible_partido))
                         with col_btn_k3:
-                            if st.button(f"🛡️ Conservador\n${tope_conservador:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=(cupo_disponible_partido<=0)):
-                                st.session_state[stk_key] = float(min(cupo_disponible_partido, tope_conservador))
+                            if st.button(f"🛡️ Conservador\n${bolsas_teoricas['conservador']:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=usado_con or cupo_disponible_partido <= 0):
+                                st.session_state[stk_key] = float(min(val_conservador, cupo_disponible_partido))
 
-                        if stk_key not in st.session_state: st.session_state[stk_key] = float(min(1000.0, limite_final_inversion))
-                        if st.session_state[stk_key] > limite_final_inversion: st.session_state[stk_key] = float(limite_final_inversion)
+                        # Ajuste inicial de la memoria de inversión
+                        if stk_key not in st.session_state:
+                            st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), max(1.0, limite_final_inversion)))
+
+                        # Aseguramos que la memoria nunca sobrepase el límite final calculado
+                        if st.session_state[stk_key] > limite_final_inversion:
+                            st.session_state[stk_key] = float(limite_final_inversion)
 
                         # CAJA DE INVERSIÓN FINAL
                         if limite_final_inversion <= 0:
