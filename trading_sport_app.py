@@ -3869,9 +3869,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         if max_roi_pct > 0:
                             col_lim1, col_lim2 = st.columns(2)
                             with col_lim1:
-                                tp_rad = st.slider("Utilidad Deseada (Take Profit):", min_value=1.0, max_value=max(1.0, float(max_roi_pct - 0.5)), value=min(5.0, max(1.0, float(max_roi_pct / 2))), step=0.5, format="%.1f%%", key=f"tp_{pr['codigo']}")
+                                tp_rad = st.slider("Utilidad Deseada (Take Profit):", min_value=1.0, max_value=max(1.0, float(max_roi_pct - 0.5)), value=min(30.0, max(1.0, float(max_roi_pct / 2))), step=0.5, format="%.1f%%", key=f"tp_{pr['codigo']}")
                             with col_lim2:
-                                sl_rad = st.slider("Pérdida Máxima (Stop Loss):", min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
+                                sl_rad = st.slider("Pérdida Máxima (Stop Loss):", min_value=1.0, max_value=100.0, value=50.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
                             
                             utilidad_objetivo_dinero = stake_ent_rad * (tp_rad / 100.0)
                             inyeccion_necesaria_tp = utilidad_max_posible - utilidad_objetivo_dinero
