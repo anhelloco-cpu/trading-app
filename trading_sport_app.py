@@ -369,7 +369,7 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
                 st.markdown("#### 📥 Registrar Depósito en Casa")
                 plat_in = st.selectbox("¿En qué casa vas a fondear?", todas_las_plataformas)
                 plat_in_otra = st.text_input("Especificar plataforma:") if plat_in == "Otra" else ""
-                monto = st.number_input("Monto a Consignar (COP):", min_value=500, step=500, value=10000)
+                monto = st.number_input("Monto a Consignar (COP):", min_value=100, step=100, value=10000, format="%.0f")
                 
                 if st.form_submit_button("Fijar Depósito (Banca Real)"):
                     plataforma_final = plat_in_otra if plat_in == "Otra" else plat_in
@@ -431,7 +431,7 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
                 st.markdown("#### 📥 Fondeo Virtual")
                 plat_in = st.selectbox("Plataforma simulada:", todas_las_plataformas)
                 plat_in_otra = st.text_input("Especificar plataforma:") if plat_in == "Otra" else ""
-                monto = st.number_input("Monto a Consignar (COP):", min_value=500, step=500, value=10000)
+                monto = st.number_input("Monto a Consignar (COP):", min_value=100, step=100, value=10000)
                 
                 if st.form_submit_button("Fijar Fondeo Virtual"):
                     plataforma_final = plat_in_otra if plat_in == "Otra" else plat_in
@@ -449,7 +449,7 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
                 st.markdown("#### 📤 Retiro Virtual")
                 plat_out = st.selectbox("Plataforma simulada:", todas_las_plataformas)
                 plat_out_otra = st.text_input("Especificar plataforma:") if plat_out == "Otra" else ""
-                monto = st.number_input("Monto a Retirar (COP):", min_value=500, step=500, value=100)
+                monto = st.number_input("Monto a Retirar (COP):", min_value=1.0, step=100.0, value=1.0)
             
                 
                 if st.form_submit_button("Fijar Retiro Virtual"):
