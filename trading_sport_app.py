@@ -3775,9 +3775,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         # ==================================================================
                         # 💵 DECISIÓN DE CAPITAL Y AUDITORÍA DE CUPO (POST-ANÁLISIS)
                         # ==================================================================
+                        st.markdown("---")
                         st.markdown("#### 💰 Decisión de Capital a Invertir")
                         
-                        # CORRECCIÓN BUG 10K: Extrae el código exacto (Ej: SCAN-9934)
+                        # Extrae el código exacto (Ej: SCAN-9934)
                         partes_codigo = pr['codigo'].split("-")
                         codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
                         
@@ -3789,17 +3790,19 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     capital_ya_investido = sum(float(x.get('stake_1', 0.0)) for x in res_exp.data)
                             except Exception: pass
 
-                        cupo_disponible_partido = max(0.0, tope_maximo_evento - capital_ya_investido)
+                        # 🔥 CONGELAMOS EL PRESUPUESTO: Usamos el capital planeado al inicio, no varía si tu saldo global baja
+                        presupuesto_partido = float(pr.get('capital_total', tope_maximo_evento))
+                        cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
 
                         st.markdown(f"""
                         <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                            <div><span style="font-size: 0.85rem; color: #64748B;">Presupuesto (5% Max):</span><br><b style="color: #1E293B;">${tope_maximo_evento:,.0f} COP</b></div>
+                            <div><span style="font-size: 0.85rem; color: #64748B;">Presupuesto (Congelado):</span><br><b style="color: #1E293B;">${presupuesto_partido:,.0f} COP</b></div>
                             <div><span style="font-size: 0.85rem; color: #64748B;">Capital Comprometido:</span><br><b style="color: #D97706;">${capital_ya_investido:,.0f} COP</b></div>
                             <div><span style="font-size: 0.85rem; color: #64748B;">Cupo Disponible:</span><br><b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'};">${cupo_disponible_partido:,.0f} COP</b></div>
                         </div>
                         """, unsafe_allow_html=True)
 
-                        stk_key = f"stk_ent_{pr['codigo']}"
+                        stk_key = f"stk_ent_cap_{pr['codigo']}"
 
                         # SELECTOR DE MODO
                         modo_gestion = st.radio(
@@ -3809,30 +3812,42 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             key=f"modo_cap_{pr['codigo']}"
                         )
                         
+                        # --- MATEMÁTICA ESTRICTA DE CONTROL TOTAL ---
+                        # Restamos lo que ya invertiste de cada bolsa específica para no dejarte repetir
+                        val_kamikaze = max(0.0, (presupuesto_partido * 0.20) - capital_ya_investido)
+                        val_moderado = max(0.0, (presupuesto_partido * 0.30) - capital_ya_investido)
+                        val_conservador = max(0.0, (presupuesto_partido * 0.50) - capital_ya_investido)
+
                         limite_final_inversion = cupo_disponible_partido
                         
                         if "Control Total" in modo_gestion:
                             tipo_entrada = st.selectbox(
                                 "Nivel de riesgo de esta entrada:",
-                                ["🔥 Kamikaze (Max 20% del presupuesto)", "⚖️ Moderado (Max 30% del presupuesto)", "🛡️ Conservador (Max 50% del presupuesto)"],
+                                ["🔥 Kamikaze (Max 20%)", "⚖️ Moderado (Max 30%)", "🛡️ Conservador (Max 50%)"],
                                 key=f"tipo_ent_{pr['codigo']}"
                             )
-                            if "Kamikaze" in tipo_entrada: limite_teorico = tope_maximo_evento * 0.20
-                            elif "Moderado" in tipo_entrada: limite_teorico = tope_maximo_evento * 0.30
-                            else: limite_teorico = tope_maximo_evento * 0.50
-                                
-                            # Cuidamos que el límite teórico no se pase de lo que realmente queda en la billetera
-                            limite_final_inversion = min(cupo_disponible_partido, limite_teorico)
+                            if "Kamikaze" in tipo_entrada: limite_final_inversion = val_kamikaze
+                            elif "Moderado" in tipo_entrada: limite_final_inversion = val_moderado
+                            else: limite_final_inversion = val_conservador
 
-                        if stk_key not in st.session_state:
-                            st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), limite_final_inversion))
+                        # Botones visuales que se DESACTIVAN si ya consumiste esa bolsa
+                        col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
+                        with col_btn_k1:
+                            if st.button(f"🔥 Kamikaze\n${val_kamikaze:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=(val_kamikaze<=0)):
+                                st.session_state[stk_key] = float(val_kamikaze)
+                        with col_btn_k2:
+                            if st.button(f"⚖️ Moderado\n${val_moderado:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=(val_moderado<=0)):
+                                st.session_state[stk_key] = float(val_moderado)
+                        with col_btn_k3:
+                            if st.button(f"🛡️ Conservador\n${val_conservador:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=(val_conservador<=0)):
+                                st.session_state[stk_key] = float(val_conservador)
 
-                        if st.session_state[stk_key] > limite_final_inversion:
-                            st.session_state[stk_key] = float(limite_final_inversion)
+                        if stk_key not in st.session_state: st.session_state[stk_key] = float(min(1000.0, limite_final_inversion))
+                        if st.session_state[stk_key] > limite_final_inversion: st.session_state[stk_key] = float(limite_final_inversion)
 
                         # CAJA DE INVERSIÓN FINAL
                         if limite_final_inversion <= 0:
-                            st.error("🚨 Cupo agotado para este partido. No puedes inyectar más capital.")
+                            st.error("🚨 Cupo agotado para el modo seleccionado. Estás protegido.")
                             stake_ent_rad = 0.0
                         else:
                             stake_ent_rad = st.number_input(
@@ -3843,7 +3858,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 key=stk_key,
                                 format="%.2f"
                             )
-                        st.markdown("<br>", unsafe_allow_html=True)
                                 
                         # ==================================================================
                         # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
@@ -3974,7 +3988,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             if 'id' in registro_clonado: del registro_clonado['id']
                                             
                                             supabase.table("historial_trading").insert(registro_clonado).execute()
-                                            supabase.table("historial_trading").update({"stake_1": 0.0, "capital_total": 0.0}).eq("codigo", pr['codigo']).execute()
+                                            supabase.table("historial_trading").update({"stake_1": 0.0}).eq("codigo", pr['codigo']).execute()
                                             
                                             st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
                                         else:
