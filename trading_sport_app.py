@@ -335,7 +335,7 @@ st.sidebar.subheader("🛡️ Umbrales de Riesgo")
 max_riesgo_real = st.sidebar.slider("Exposición máxima Dinero Real (%):", min_value=5, max_value=100, value=10, step=5)
 max_riesgo_simulacion = st.sidebar.slider("Exposición máxima Simulación (%):", min_value=5, max_value=100, value=30, step=5)
 
-st.title("⚖️ Sistema de Trading Automático")
+st.title("⚖️ Sistema de Trading Deportivo con IA y Gestión de Capital")
 
 # =====================================================================
 # MÓDULO: GESTIÓN DE CAPITAL (CONSIGNAR Y RETIRAR)
