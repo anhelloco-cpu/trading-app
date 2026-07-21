@@ -300,6 +300,8 @@ if not df_cajas_simuladas.empty:
     saldo_simulacion = df_cajas_simuladas['Saldo Actual (COP)'].sum()
 else:
     saldo_simulacion = obtener_saldo_banca("SIMULACION")
+    # --- CÁLCULO DEL TOPE MÁXIMO POR EVENTO (El 5% de la caja) ---
+    tope_maximo_evento = max(0.0, saldo_real * 0.05)
 
 # --- LISTADO DE PLATAFORMAS (CASAS DE APUESTAS) ---
 plataformas_colombia = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia"]
@@ -2900,7 +2902,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             with col_m1:
                 margen = st.slider("🎯 Margen de Búsqueda de Gemelos (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
             with col_m2:
-                stake_pre = st.number_input("Stake Planeado ($ COP):", min_value=500, value=5000, step=5000)
+                # Modificado: Mínimo 100 pesos, Máximo sugerido el tope del 5%
+                stake_pre = st.number_input("Stake Planeado ($ COP):", min_value=100.0, value=float(min(5000.0, tope_maximo_evento)), step=100.0, format="%.2f")
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -3192,7 +3195,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         else:
                             eq_loc_ui = "Local"
                             eq_vis_ui = "Visita"
-                                       
+                                        
                         # ------------------------------------------------------------------
                         # 🎛️ PANEL DE EVALUACIÓN MULTI-ESTRATEGIA
                         # ------------------------------------------------------------------
@@ -3316,8 +3319,44 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             </div>
                             """, unsafe_allow_html=True)
 
+                        # ==================================================================
+                        # 💵 AUDITORÍA DE CUPO Y PRESUPUESTO DEL PARTIDO (REGLA DEL 5%)
+                        # ==================================================================
+                        codigo_base = pr['codigo'].split("-")[0] # Extrae el código madre (Ej: SCAN-9934)
+                        capital_ya_investido = 0.0
+
+                        if supabase is not None:
+                            try:
+                                # Consultamos lo invertido en el Radar y en operaciones Abiertas/EN VIVO de este partido
+                                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                                if res_exp.data:
+                                    capital_ya_investido = sum(float(x.get('stake_1', 0.0)) for x in res_exp.data)
+                            except Exception:
+                                capital_ya_investido = 0.0
+
+                        # Cálculo de Cupo Restante en Pesos
+                        cupo_disponible_partido = max(0.0, tope_maximo_evento - capital_ya_investido)
+
+                        # Panel Informativo del Centro de Costos
+                        st.markdown(f"""
+                        <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 0.85rem; color: #64748B;">Presupuesto Evento (5% Max):</span><br>
+                                <b style="color: #1E293B; font-size: 1.05rem;">${tope_maximo_evento:,.0f} COP</b>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.85rem; color: #64748B;">Capital Comprometido:</span><br>
+                                <b style="color: #D97706; font-size: 1.05rem;">${capital_ya_investido:,.0f} COP</b>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.85rem; color: #64748B;">Cupo Disponible:</span><br>
+                                <b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'}; font-size: 1.05rem;">${cupo_disponible_partido:,.0f} COP</b>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
                         # ------------------------------------------------------------------
-                        # 🧲 MEMORIA PARA QUE LAS CUOTAS NO SE BORREN AL EVALUAR
+                        # 🧲 MEMORIA DE CUOTAS Y CAJA INTELIGENTE CONTROLADA
                         # ------------------------------------------------------------------
                         c_ent_key = f"c_ent_{pr['codigo']}"
                         if c_ent_key not in st.session_state:
@@ -3329,8 +3368,30 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
 
                         stk_key = f"stk_ent_{pr['codigo']}"
+
+                        # BANDERAS Y BOTONES RÁPIDOS DE SUGERENCIA (Kamikaze, Moderado, Conservador)
+                        col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
+                        val_kamikaze = round(saldo_real * 0.0125, 2)
+                        val_moderado = round(saldo_real * 0.025, 2)
+                        val_conservador = round(saldo_real * 0.05, 2)
+
+                        with col_btn_k1:
+                            if st.button(f"🔥 Kamikaze\n${val_kamikaze:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True):
+                                st.session_state[stk_key] = float(min(val_kamikaze, cupo_disponible_partido))
+                        with col_btn_k2:
+                            if st.button(f"⚖️ Moderado\n${val_moderado:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True):
+                                st.session_state[stk_key] = float(min(val_moderado, cupo_disponible_partido))
+                        with col_btn_k3:
+                            if st.button(f"🛡️ Conservador\n${min(val_conservador, cupo_disponible_partido):,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True):
+                                st.session_state[stk_key] = float(cupo_disponible_partido)
+
+                        # Ajuste inicial de la memoria
                         if stk_key not in st.session_state:
-                            st.session_state[stk_key] = int(max(5000, int(pr.get('stake_1', 5000))))
+                            st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), cupo_disponible_partido))
+
+                        # Aseguramos que la memoria nunca sobrepase el cupo real disponible
+                        if st.session_state[stk_key] > cupo_disponible_partido:
+                            st.session_state[stk_key] = float(cupo_disponible_partido)
 
                         col_ent1, col_ent2, col_ent3 = st.columns(3)
                         with col_ent1:
@@ -3338,7 +3399,19 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         with col_ent2:
                             cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, step=0.05, key=c_am_key)
                         with col_ent3:
-                            stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, step=5000, key=stk_key)
+                            # CAJA INTELIGENTE: Si no hay cupo se bloquea en 0. Si hay cupo, permite digitar desde 100 hasta el cupo disponible
+                            if cupo_disponible_partido <= 0:
+                                st.error("🚨 Presupuesto agotado")
+                                stake_ent_rad = 0.0
+                            else:
+                                stake_ent_rad = st.number_input(
+                                    f"Capital a Invertir (Max ${cupo_disponible_partido:,.0f}):",
+                                    min_value=100.0,
+                                    max_value=float(cupo_disponible_partido),
+                                    step=500.0,
+                                    key=stk_key,
+                                    format="%.2f"
+                                )
 
 
                         # ==================================================================
@@ -3514,9 +3587,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     elif (mc <= 45 and eg == True and jp in ["Favorito", "Súper Favorito"] and lm == "Favorito" and gf == 1 and gd == 0 and agf < 0.6 and agd > 0.8 and mpg_f < 0.4 and mpg_d > 0.8 and tp_d > 0.40):
                                         return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia (Mom > 0.8) y verticalidad (TP > 40%). LUZ VERDE SÍ."
                                     elif (mc <= 45 and eg == True and jp == "Fuerzas Parejas" and (goles_ganador == 1 and goles_perdedor == 0) and agg > 0.7 and agp > 0.8 and m_comb >= 1.5 and d_mom < 0.2 and mpg_p > 0.9 and tp_g > 0.35 and tp_p > 0.35):
-                                        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes intenso y ambos llegan con peligro (TP > 35%). LUZ VERDE SÍ."
+                                        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes contraataques (TP > 35%). LUZ VERDE SÍ."
                                     elif (mc <= 45 and eg == True and jp in ["Favorito", "Súper Favorito"] and lm == "Favorito" and gf >= 2 and gd == 0 and agf < 0.6 and agd > 0.8 and mpg_d > 1.0 and tp_d > 0.45):
-                                        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca furioso y profundo (TP > 45%). LUZ VERDE SÍ."
+                                        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca profundo (TP > 45%). LUZ VERDE SÍ."
                                     return None
 
                                 patron_encontrado = detectar_patron_btts_si(
