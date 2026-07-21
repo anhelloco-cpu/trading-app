@@ -3821,13 +3821,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 except Exception:
                                     capital_ya_investido = 0.0
 
-                            presupuesto_partido = float(pr.get('capital_total', tope_maximo_evento))
+                            # RESTAURADO: Usamos el tope máximo original para evitar que el presupuesto caiga a cero
+                            presupuesto_partido = float(tope_maximo_evento)
                             cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
 
                             st.markdown(f"""
                             <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <span style="font-size: 0.85rem; color: #64748B;">Presupuesto (Congelado):</span><br>
+                                    <span style="font-size: 0.85rem; color: #64748B;">Presupuesto Evento (5% Max):</span><br>
                                     <b style="color: #1E293B; font-size: 1.05rem;">${presupuesto_partido:,.0f} COP</b>
                                 </div>
                                 <div>
@@ -3876,7 +3877,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             limite_final_inversion = cupo_disponible_partido
                             
                             if "Control Total" in modo_gestion:
-                                # Creamos las opciones basándonos SOLO en el perfil autorizado
                                 opciones_permitidas = []
                                 if es_kamikaze: opciones_permitidas.append(f"🔥 Kamikaze (Max 20%) {'- AGOTADO' if usado_kam else ''}")
                                 if es_moderado: opciones_permitidas.append(f"⚖️ Moderado (Max 30%) {'- AGOTADO' if usado_mod else ''}")
@@ -3891,7 +3891,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 elif "Moderado" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_moderado)
                                 else: limite_final_inversion = min(cupo_disponible_partido, val_conservador)
 
-                            # Botones visuales. Si no es el perfil evaluado, el botón se bloquea automáticamente.
                             col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
                             with col_btn_k1:
                                 if st.button(f"🔥 Kamikaze\n${bolsas_teoricas['kamikaze']:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=usado_kam or cupo_disponible_partido <= 0 or not es_kamikaze):
