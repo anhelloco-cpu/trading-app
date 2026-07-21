@@ -3708,14 +3708,13 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 # 💎 DICTAMEN DE TRADING Y VALUE BETTING
                                 # ------------------------------------------------------------------
                                 aprueba_key = f"oraculo_aprueba_{pr['codigo']}"
-                                st.session_state[aprueba_key] = False # 🔴 Candado maestro cerrado por defecto
+                                perfil_aprobado_key = f"perfil_evaluado_{pr['codigo']}"
 
                                 if mdo_str == "Ambos Anotan":
                                     cuota_justa_si = 1 / prob_si if prob_si > 0.01 else 99.0
                                     cuota_justa_no = 1 / prob_no if prob_no > 0.01 else 99.0
                                     
                                     if seleccion_final_rad == "Sí":
-                                        # Leemos las cuotas guardadas en memoria para evaluar la ventaja real
                                         cuota_act_si = st.session_state.get(c_ent_key, cuota_ent_rad)
                                         ventaja = cuota_act_si - cuota_justa_si
                                         prob_mercado = prob_si
@@ -3729,7 +3728,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
                                             texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_act_si:.2f}**. Entra ya."
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
-                                            st.session_state[aprueba_key] = True # 🟢 LUZ VERDE
+                                            # 🟢 LUZ VERDE Y MEMORIA DE RIESGO
+                                            st.session_state[aprueba_key] = True 
+                                            st.session_state[perfil_aprobado_key] = perfil_riesgo
                                         elif ventaja >= 0:
                                             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
                                             texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil {perfil_riesgo.split(' ')[1]} exige ganancia superior."
@@ -3754,7 +3755,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
                                             texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_no:.2f}**. ¡Mete la plata YA!"
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
-                                            st.session_state[aprueba_key] = True # 🟢 LUZ VERDE
+                                            # 🟢 LUZ VERDE Y MEMORIA DE RIESGO
+                                            st.session_state[aprueba_key] = True 
+                                            st.session_state[perfil_aprobado_key] = perfil_riesgo
                                         elif ventaja >= 0:
                                             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
                                             texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil exige mayor margen."
@@ -3777,8 +3780,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     """, unsafe_allow_html=True)
                                     st.markdown("---")
                                 else:
-                                    # Si auditas Mercado 1X2 o Goles, por ahora no bloqueamos para no dañar el flujo
+                                    # Para otros mercados (1X2, Goles), aprobamos directo y guardamos el perfil
                                     st.session_state[aprueba_key] = True
+                                    st.session_state[perfil_aprobado_key] = perfil_riesgo
 
                             except Exception as e:
                                 st.error(f"Error procesando IA táctica: {e}")
@@ -3794,6 +3798,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         else:
                             st.markdown("---")
                             st.markdown("#### 💰 Decisión de Capital a Invertir")
+                            
+                            # Leemos qué perfil fue el que autorizó la bóveda
+                            perfil_evaluado_guardado = st.session_state.get(f"perfil_evaluado_{pr['codigo']}", "MODERADO")
+                            es_kamikaze = "AGRESIVO" in perfil_evaluado_guardado
+                            es_moderado = "MODERADO" in perfil_evaluado_guardado
+                            es_conservador = "CONSERVADOR" in perfil_evaluado_guardado
                             
                             # Extrae el código exacto (Ej: SCAN-9934)
                             partes_codigo = pr['codigo'].split("-")
@@ -3866,26 +3876,31 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             limite_final_inversion = cupo_disponible_partido
                             
                             if "Control Total" in modo_gestion:
+                                # Creamos las opciones basándonos SOLO en el perfil autorizado
+                                opciones_permitidas = []
+                                if es_kamikaze: opciones_permitidas.append(f"🔥 Kamikaze (Max 20%) {'- AGOTADO' if usado_kam else ''}")
+                                if es_moderado: opciones_permitidas.append(f"⚖️ Moderado (Max 30%) {'- AGOTADO' if usado_mod else ''}")
+                                if es_conservador: opciones_permitidas.append(f"🛡️ Conservador (Max 50%) {'- AGOTADO' if usado_con else ''}")
+                                
                                 tipo_entrada = st.selectbox(
-                                    "Nivel de riesgo de esta entrada:",
-                                    [f"🔥 Kamikaze (Max 20%) {'- AGOTADO' if usado_kam else ''}", 
-                                     f"⚖️ Moderado (Max 30%) {'- AGOTADO' if usado_mod else ''}", 
-                                     f"🛡️ Conservador (Max 50%) {'- AGOTADO' if usado_con else ''}"],
+                                    "Nivel de riesgo AUTORIZADO por el Oráculo:",
+                                    opciones_permitidas,
                                     key=f"tipo_ent_{pr['codigo']}"
                                 )
                                 if "Kamikaze" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_kamikaze)
                                 elif "Moderado" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_moderado)
                                 else: limite_final_inversion = min(cupo_disponible_partido, val_conservador)
 
+                            # Botones visuales. Si no es el perfil evaluado, el botón se bloquea automáticamente.
                             col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
                             with col_btn_k1:
-                                if st.button(f"🔥 Kamikaze\n${bolsas_teoricas['kamikaze']:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=usado_kam or cupo_disponible_partido <= 0):
+                                if st.button(f"🔥 Kamikaze\n${bolsas_teoricas['kamikaze']:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=usado_kam or cupo_disponible_partido <= 0 or not es_kamikaze):
                                     st.session_state[stk_key] = float(min(val_kamikaze, cupo_disponible_partido))
                             with col_btn_k2:
-                                if st.button(f"⚖️ Moderado\n${bolsas_teoricas['moderado']:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=usado_mod or cupo_disponible_partido <= 0):
+                                if st.button(f"⚖️ Moderado\n${bolsas_teoricas['moderado']:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=usado_mod or cupo_disponible_partido <= 0 or not es_moderado):
                                     st.session_state[stk_key] = float(min(val_moderado, cupo_disponible_partido))
                             with col_btn_k3:
-                                if st.button(f"🛡️ Conservador\n${bolsas_teoricas['conservador']:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=usado_con or cupo_disponible_partido <= 0):
+                                if st.button(f"🛡️ Conservador\n${bolsas_teoricas['conservador']:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=usado_con or cupo_disponible_partido <= 0 or not es_conservador):
                                     st.session_state[stk_key] = float(min(val_conservador, cupo_disponible_partido))
 
                             if stk_key not in st.session_state:
