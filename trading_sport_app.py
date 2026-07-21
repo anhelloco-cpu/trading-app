@@ -3338,6 +3338,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             val_am = float(pr.get('cuota_amenaza_audit') or 1.90)
                             st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
 
+                        col_ent1, col_ent2 = st.columns(2)
+                        with col_ent1:
+                            cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, step=0.05, key=c_ent_key)
+                        with col_ent2:
+                            cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, step=0.05, key=c_am_key)
+
                         # ==================================================================
                         # 📸 BOTÓN DE BITÁCORA (CAPTURAR MOMENTUM + CUOTAS SI/NO)
                         # ==================================================================
@@ -3345,16 +3351,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         if st.button("📸 Tomar Foto Táctica y Financiera", key=f"btn_foto_live_{pr['codigo']}", use_container_width=True):
                             if supabase is not None:
                                 try:
-                                    # Para la foto tomamos el valor del estado si existe, sino valores por defecto
-                                    cuota_ent_temp = st.session_state.get(c_ent_key, 2.0)
-                                    cuota_am_temp = st.session_state.get(c_am_key, 1.90)
-                                    
                                     if seleccion_final_rad == "Sí":
-                                        val_cuota_si = float(cuota_ent_temp)
-                                        val_cuota_no = float(cuota_am_temp)
+                                        val_cuota_si = float(cuota_ent_rad)
+                                        val_cuota_no = float(cuota_amenaza_rad)
                                     elif seleccion_final_rad == "No":
-                                        val_cuota_si = float(cuota_am_temp)
-                                        val_cuota_no = float(cuota_ent_temp)
+                                        val_cuota_si = float(cuota_amenaza_rad)
+                                        val_cuota_no = float(cuota_ent_rad)
                                     else:
                                         val_cuota_si = 0.0
                                         val_cuota_no = 0.0
@@ -3710,9 +3712,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     cuota_justa_no = 1 / prob_no if prob_no > 0.01 else 99.0
                                     
                                     if seleccion_final_rad == "Sí":
-                                        # Leemos las cuotas guardadas en memoria para evaluar la ventaja real
-                                        cuota_act_si = st.session_state.get(c_ent_key, cuota_ent_rad)
-                                        ventaja = cuota_act_si - cuota_justa_si
+                                        ventaja = cuota_ent_rad - cuota_justa_si
                                         prob_mercado = prob_si
                                         cuota_justa = cuota_justa_si
                                         
@@ -3722,31 +3722,30 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
                                         elif ventaja >= ventaja_min_exigida:
                                             alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
-                                            texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_act_si:.2f}**. Entra ya."
+                                            texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_ent_rad:.2f}**. Entra ya."
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
                                         elif ventaja >= 0:
                                             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
                                             texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil {perfil_riesgo.split(' ')[1]} exige ganancia superior."
                                             bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
                                         else:
-                                            if (cuota_justa - cuota_act_si) <= 0.40 and m_rad < 75:
+                                            if (cuota_justa - cuota_ent_rad) <= 0.40 and m_rad < 75:
                                                 alerta_accion = f"⏳ **PACIENCIA (ESPERA A QUE SUBA EL SÍ)**"
-                                                texto_accion = f"Pagan muy poco (**{cuota_act_si:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera."
+                                                texto_accion = f"Pagan muy poco (**{cuota_ent_rad:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera."
                                                 bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
                                             else:
                                                 alerta_accion = f"🚫 **DESCARTADO (TRAMPA EN EL SÍ)**"
-                                                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_si:.2f}**. Aborta."
+                                                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_ent_rad:.2f}**. Aborta."
                                                 bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
                                                 
                                     else: # Seleccionó "No"
-                                        cuota_act_no = st.session_state.get(c_ent_key, cuota_ent_rad)
-                                        ventaja = cuota_act_no - cuota_justa_no
+                                        ventaja = cuota_ent_rad - cuota_justa_no
                                         prob_mercado = prob_no
                                         cuota_justa = cuota_justa_no
                                         
                                         if ventaja >= ventaja_min_exigida:
                                             alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
-                                            texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_no:.2f}**. ¡Mete la plata YA!"
+                                            texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_ent_rad:.2f}**. ¡Mete la plata YA!"
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
                                         elif ventaja >= 0:
                                             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
@@ -3754,7 +3753,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
                                         else:
                                             alerta_accion = f"🚫 **LLEGASTE TARDE AL NO**"
-                                            texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_act_no:.2f}**. Pérdida matemática."
+                                            texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_ent_rad:.2f}**. Pérdida matemática."
                                             bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
                                             
                                     st.markdown(f"""
@@ -3774,50 +3773,35 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 st.error(f"Error procesando IA táctica: {e}")
 
                         # ==================================================================
-                        # 💵 AUDITORÍA DE CUPO Y PRESUPUESTO DEL PARTIDO (REGLA DEL 5%)
+                        # 💵 DECISIÓN DE CAPITAL Y AUDITORÍA DE CUPO (POST-ANÁLISIS)
                         # ==================================================================
-                        # CORRECCIÓN BUG 10K: Extrae el código exacto (Ej: SCAN-9934), no toda la base
+                        st.markdown("#### 💰 Decisión de Capital a Invertir")
+                        
+                        # CORRECCIÓN BUG 10K: Extrae el código exacto (Ej: SCAN-9934)
                         partes_codigo = pr['codigo'].split("-")
-                        codigo_base = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
+                        codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
                         
                         capital_ya_investido = 0.0
-
                         if supabase is not None:
                             try:
-                                # Consultamos lo invertido en este partido exacto
-                                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
                                 if res_exp.data:
                                     capital_ya_investido = sum(float(x.get('stake_1', 0.0)) for x in res_exp.data)
-                            except Exception:
-                                capital_ya_investido = 0.0
+                            except Exception: pass
 
-                        # Cálculo de Cupo Restante en Pesos
                         cupo_disponible_partido = max(0.0, tope_maximo_evento - capital_ya_investido)
 
-                        # Panel Informativo del Centro de Costos
                         st.markdown(f"""
                         <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <span style="font-size: 0.85rem; color: #64748B;">Presupuesto Evento (5% Max):</span><br>
-                                <b style="color: #1E293B; font-size: 1.05rem;">${tope_maximo_evento:,.0f} COP</b>
-                            </div>
-                            <div>
-                                <span style="font-size: 0.85rem; color: #64748B;">Capital Comprometido:</span><br>
-                                <b style="color: #D97706; font-size: 1.05rem;">${capital_ya_investido:,.0f} COP</b>
-                            </div>
-                            <div>
-                                <span style="font-size: 0.85rem; color: #64748B;">Cupo Disponible:</span><br>
-                                <b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'}; font-size: 1.05rem;">${cupo_disponible_partido:,.0f} COP</b>
-                            </div>
+                            <div><span style="font-size: 0.85rem; color: #64748B;">Presupuesto (5% Max):</span><br><b style="color: #1E293B;">${tope_maximo_evento:,.0f} COP</b></div>
+                            <div><span style="font-size: 0.85rem; color: #64748B;">Capital Comprometido:</span><br><b style="color: #D97706;">${capital_ya_investido:,.0f} COP</b></div>
+                            <div><span style="font-size: 0.85rem; color: #64748B;">Cupo Disponible:</span><br><b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'};">${cupo_disponible_partido:,.0f} COP</b></div>
                         </div>
                         """, unsafe_allow_html=True)
 
-                        # ------------------------------------------------------------------
-                        # 🧲 CAJA INTELIGENTE CONTROLADA Y DECISIÓN DE CAPITAL
-                        # ------------------------------------------------------------------
                         stk_key = f"stk_ent_{pr['codigo']}"
 
-                        # --- SELECTOR DE MODO LIBRE VS CONTROL TOTAL ---
+                        # SELECTOR DE MODO
                         modo_gestion = st.radio(
                             "⚙️ Modo de Asignación de Capital:",
                             ["🔓 Libre (Todo el cupo disponible)", "🔒 Control Total (Limitar por nivel de riesgo)"],
@@ -3833,44 +3817,33 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 ["🔥 Kamikaze (Max 20% del presupuesto)", "⚖️ Moderado (Max 30% del presupuesto)", "🛡️ Conservador (Max 50% del presupuesto)"],
                                 key=f"tipo_ent_{pr['codigo']}"
                             )
-                            if "Kamikaze" in tipo_entrada:
-                                limite_teorico = tope_maximo_evento * 0.20
-                            elif "Moderado" in tipo_entrada:
-                                limite_teorico = tope_maximo_evento * 0.30
-                            else:
-                                limite_teorico = tope_maximo_evento * 0.50
+                            if "Kamikaze" in tipo_entrada: limite_teorico = tope_maximo_evento * 0.20
+                            elif "Moderado" in tipo_entrada: limite_teorico = tope_maximo_evento * 0.30
+                            else: limite_teorico = tope_maximo_evento * 0.50
                                 
-                            # El límite final es el teórico, pero NUNCA puede superar lo que te queda en el bolsillo
+                            # Cuidamos que el límite teórico no se pase de lo que realmente queda en la billetera
                             limite_final_inversion = min(cupo_disponible_partido, limite_teorico)
 
-                        # Ajuste inicial de la memoria de inversión
                         if stk_key not in st.session_state:
                             st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), limite_final_inversion))
 
-                        # Aseguramos que la memoria nunca sobrepase el límite final calculado
                         if st.session_state[stk_key] > limite_final_inversion:
                             st.session_state[stk_key] = float(limite_final_inversion)
 
-                        col_ent1, col_ent2, col_ent3 = st.columns(3)
-                        with col_ent1:
-                            # Reflejamos las cuotas guardadas previamente
-                            st.info(f"📈 Cuota Seleccionada: **{st.session_state.get(c_ent_key, 2.0):.2f}**")
-                        with col_ent2:
-                            st.info(f"📉 Cuota Amenaza: **{st.session_state.get(c_am_key, 1.90):.2f}**")
-                        with col_ent3:
-                            # CAJA INTELIGENTE: Si no hay cupo se bloquea en 0. Si hay cupo, restringe al límite
-                            if limite_final_inversion <= 0:
-                                st.error("🚨 Cupo agotado")
-                                stake_ent_rad = 0.0
-                            else:
-                                stake_ent_rad = st.number_input(
-                                    f"Inversión (Max ${limite_final_inversion:,.0f}):",
-                                    min_value=100.0,
-                                    max_value=float(limite_final_inversion),
-                                    step=500.0,
-                                    key=stk_key,
-                                    format="%.2f"
-                                )
+                        # CAJA DE INVERSIÓN FINAL
+                        if limite_final_inversion <= 0:
+                            st.error("🚨 Cupo agotado para este partido. No puedes inyectar más capital.")
+                            stake_ent_rad = 0.0
+                        else:
+                            stake_ent_rad = st.number_input(
+                                f"Capital a Invertir (Max ${limite_final_inversion:,.0f}):",
+                                min_value=100.0,
+                                max_value=float(limite_final_inversion),
+                                step=500.0,
+                                key=stk_key,
+                                format="%.2f"
+                            )
+                        st.markdown("<br>", unsafe_allow_html=True)
                                 
                         # ==================================================================
                         # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
@@ -3990,7 +3963,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         }
 
                                         if retener_radar:
-                                            # CORRECCIÓN DE DISPARO: Usar el código exacto
+                                            # AQUÍ TAMBIÉN APLICAMOS EL CÓDIGO EXACTO PARA QUE CLONE BIEN
                                             res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base_exacto}-%").execute()
                                             numero_hijo = len(res_hijos.data) + 1
                                             codigo_hijo = f"{codigo_base_exacto}-{numero_hijo:02d}"
@@ -4001,7 +3974,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             if 'id' in registro_clonado: del registro_clonado['id']
                                             
                                             supabase.table("historial_trading").insert(registro_clonado).execute()
-                                            # Vaciamos la memoria base para el Radar
                                             supabase.table("historial_trading").update({"stake_1": 0.0, "capital_total": 0.0}).eq("codigo", pr['codigo']).execute()
                                             
                                             st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
