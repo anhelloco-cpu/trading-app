@@ -1393,8 +1393,8 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                                 st.session_state[f"min_es_in_{op['codigo']}"] = int(foto_reciente['minuto_evaluado'])
                                                 st.session_state[f"g_l_es_in_{op['codigo']}"] = int(foto_reciente['goles_local'])
                                                 st.session_state[f"g_v_es_in_{op['codigo']}"] = int(foto_reciente['goles_vis'])
-                                                st.session_state[f"atqt_l_es_in_{op['codigo']}"] = int(foto_reciente.get('atqt_local', 80))
-                                                st.session_state[f"atqt_v_es_in_{op['codigo']}"] = int(foto_reciente.get('atqt_vis', 50))
+                                                st.session_state[f"atqt_l_es_in_{op['codigo']}"] = int(foto_reciente.get('atqt_local', 0))
+                                                st.session_state[f"atqt_v_es_in_{op['codigo']}"] = int(foto_reciente.get('atqt_vis', 0))
                                                 st.session_state[f"atk_l_es_in_{op['codigo']}"] = int(foto_reciente['atkp_local'])
                                                 st.session_state[f"atk_v_es_in_{op['codigo']}"] = int(foto_reciente['atkp_vis'])
                                                 
@@ -3169,8 +3169,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         st.session_state[f"mr_{pr['codigo']}"] = int(foto_reciente['minuto_evaluado'])
                                         st.session_state[f"glr_{pr['codigo']}"] = int(foto_reciente['goles_local'])
                                         st.session_state[f"gvr_{pr['codigo']}"] = int(foto_reciente['goles_vis'])
-                                        st.session_state[f"atl_{pr['codigo']}"] = int(foto_reciente.get('atqt_local', 80))
-                                        st.session_state[f"atv_{pr['codigo']}"] = int(foto_reciente.get('atqt_vis', 50))
+                                        st.session_state[f"atl_{pr['codigo']}"] = int(foto_reciente.get('atqt_local', 0))
+                                        st.session_state[f"atv_{pr['codigo']}"] = int(foto_reciente.get('atqt_vis', 0))
                                         st.session_state[f"alr_{pr['codigo']}"] = int(foto_reciente['atkp_local'])
                                         st.session_state[f"avr_{pr['codigo']}"] = int(foto_reciente['atkp_vis'])
                                         st.success(f"✅ ¡Datos del min {foto_reciente['minuto_evaluado']} importados!")
@@ -3207,11 +3207,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             st.markdown("<p style='font-size: 13px; color: #64748B; margin-bottom: 5px;'>Filtro de Verticalidad (Ataques Totales vs Peligrosos)</p>", unsafe_allow_html=True)
                             cr4, cr5, cr6, cr7 = st.columns(4)
                             # Ataques Totales
-                            atq_tot_loc = cr4.number_input(f"Atq. Tot {eq_loc_ui}:", min_value=0, key=f"atl_{pr['codigo']}", value=st.session_state.get(f"atl_{pr['codigo']}", 80))
-                            atq_tot_vis = cr5.number_input(f"Atq. Tot {eq_vis_ui}:", min_value=0, key=f"atv_{pr['codigo']}", value=st.session_state.get(f"atv_{pr['codigo']}", 50))
+                            atq_tot_loc = cr4.number_input(f"Atq. Tot {eq_loc_ui}:", min_value=0, key=f"atl_{pr['codigo']}", value=st.session_state.get(f"atl_{pr['codigo']}", 0))
+                            atq_tot_vis = cr5.number_input(f"Atq. Tot {eq_vis_ui}:", min_value=0, key=f"atv_{pr['codigo']}", value=st.session_state.get(f"atv_{pr['codigo']}", 0))
                             # Ataques Peligrosos
-                            al_rad = cr6.number_input(f"🔥 Peligro {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
-                            av_rad = cr7.number_input(f"🔥 Peligro {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
+                            al_rad = cr6.number_input(f"🔥 Peligro {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 0))
+                            av_rad = cr7.number_input(f"🔥 Peligro {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 5))
 
                         with tab_anti_empate:
                             st.markdown("""
