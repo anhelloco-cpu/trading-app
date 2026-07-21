@@ -3374,51 +3374,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             val_am = float(pr.get('cuota_amenaza_audit') or 1.90)
                             st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
 
-                        stk_key = f"stk_ent_{pr['codigo']}"
+                        
 
-                        # BANDERAS Y BOTONES RÁPIDOS DE SUGERENCIA (Kamikaze, Moderado, Conservador)
-                        col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
-                        val_kamikaze = round(saldo_real * 0.0125, 2)
-                        val_moderado = round(saldo_real * 0.025, 2)
-                        val_conservador = round(saldo_real * 0.05, 2)
-
-                        with col_btn_k1:
-                            if st.button(f"🔥 Kamikaze\n${val_kamikaze:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True):
-                                st.session_state[stk_key] = float(min(val_kamikaze, cupo_disponible_partido))
-                        with col_btn_k2:
-                            if st.button(f"⚖️ Moderado\n${val_moderado:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True):
-                                st.session_state[stk_key] = float(min(val_moderado, cupo_disponible_partido))
-                        with col_btn_k3:
-                            if st.button(f"🛡️ Conservador\n${min(val_conservador, cupo_disponible_partido):,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True):
-                                st.session_state[stk_key] = float(cupo_disponible_partido)
-
-                        # Ajuste inicial de la memoria
-                        if stk_key not in st.session_state:
-                            st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), cupo_disponible_partido))
-
-                        # Aseguramos que la memoria nunca sobrepase el cupo real disponible
-                        if st.session_state[stk_key] > cupo_disponible_partido:
-                            st.session_state[stk_key] = float(cupo_disponible_partido)
-
-                        col_ent1, col_ent2, col_ent3 = st.columns(3)
+                        # Solo capturamos la caja fuerte de cuotas para evaluar, sin pedir dinero todavía
+                        col_ent1, col_ent2 = st.columns(2)
                         with col_ent1:
                             cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, step=0.05, key=c_ent_key)
                         with col_ent2:
                             cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, step=0.05, key=c_am_key)
-                        with col_ent3:
-                            # CAJA INTELIGENTE: Si no hay cupo se bloquea en 0. Si hay cupo, permite digitar desde 100 hasta el cupo disponible
-                            if cupo_disponible_partido <= 0:
-                                st.error("🚨 Presupuesto agotado")
-                                stake_ent_rad = 0.0
-                            else:
-                                stake_ent_rad = st.number_input(
-                                    f"Capital a Invertir (Max ${cupo_disponible_partido:,.0f}):",
-                                    min_value=100.0,
-                                    max_value=float(cupo_disponible_partido),
-                                    step=500.0,
-                                    key=stk_key,
-                                    format="%.2f"
-                                )
 
 
                         # ==================================================================
@@ -3848,6 +3811,47 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
                             except Exception as e:
                                 st.error(f"Error procesando IA táctica: {e}")
+
+# ==================================================================
+                        # 💵 INVERSIÓN: DECISIÓN DE CAPITAL (POST-ANÁLISIS)
+                        # ==================================================================
+                        st.markdown("#### 💰 Decisión de Capital a Invertir")
+                        
+                        stk_key = f"stk_ent_{pr['codigo']}"
+                        val_kamikaze = round(saldo_real * 0.0125, 2)
+                        val_moderado = round(saldo_real * 0.025, 2)
+                        val_conservador = round(saldo_real * 0.05, 2)
+
+                        col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
+                        with col_btn_k1:
+                            if st.button(f"🔥 Kamikaze\n${val_kamikaze:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True):
+                                st.session_state[stk_key] = float(min(val_kamikaze, cupo_disponible_partido))
+                        with col_btn_k2:
+                            if st.button(f"⚖️ Moderado\n${val_moderado:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True):
+                                st.session_state[stk_key] = float(min(val_moderado, cupo_disponible_partido))
+                        with col_btn_k3:
+                            if st.button(f"🛡️ Conservador\n${min(val_conservador, cupo_disponible_partido):,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True):
+                                st.session_state[stk_key] = float(cupo_disponible_partido)
+
+                        if stk_key not in st.session_state:
+                            st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), cupo_disponible_partido))
+
+                        if st.session_state[stk_key] > cupo_disponible_partido:
+                            st.session_state[stk_key] = float(cupo_disponible_partido)
+
+                        if cupo_disponible_partido <= 0:
+                            st.error("🚨 Presupuesto agotado para este partido.")
+                            stake_ent_rad = 0.0
+                        else:
+                            stake_ent_rad = st.number_input(
+                                f"Capital a Invertir (Max ${cupo_disponible_partido:,.0f}):", 
+                                min_value=100.0, 
+                                max_value=float(cupo_disponible_partido), 
+                                step=500.0, 
+                                key=stk_key, 
+                                format="%.2f"
+                            )
+                        st.markdown("<br>", unsafe_allow_html=True)
                                 
                         # ==================================================================
                         # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
