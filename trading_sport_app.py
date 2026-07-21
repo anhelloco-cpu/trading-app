@@ -3812,12 +3812,13 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             key=f"modo_cap_{pr['codigo']}"
                         )
                         
-                        # --- MATEMÁTICA ESTRICTA DE CONTROL TOTAL ---
-                        # Restamos lo que ya invertiste de cada bolsa específica para no dejarte repetir
-                        val_kamikaze = max(0.0, (presupuesto_partido * 0.20) - capital_ya_investido)
-                        val_moderado = max(0.0, (presupuesto_partido * 0.30) - capital_ya_investido)
-                        val_conservador = max(0.0, (presupuesto_partido * 0.50) - capital_ya_investido)
+                        # --- MATEMÁTICA PURA SOBRE PRESUPUESTO BASE ---
+                        # Las bolsas son porcentajes fijos del capital inicial del partido
+                        tope_kamikaze = presupuesto_partido * 0.20
+                        tope_moderado = presupuesto_partido * 0.30
+                        tope_conservador = presupuesto_partido * 0.50
 
+                        # El límite inicial por defecto es todo el cupo disponible
                         limite_final_inversion = cupo_disponible_partido
                         
                         if "Control Total" in modo_gestion:
@@ -3826,21 +3827,26 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 ["🔥 Kamikaze (Max 20%)", "⚖️ Moderado (Max 30%)", "🛡️ Conservador (Max 50%)"],
                                 key=f"tipo_ent_{pr['codigo']}"
                             )
-                            if "Kamikaze" in tipo_entrada: limite_final_inversion = val_kamikaze
-                            elif "Moderado" in tipo_entrada: limite_final_inversion = val_moderado
-                            else: limite_final_inversion = val_conservador
+                            # El límite es el tope fijo de la bolsa, pero SIEMPRE restringido por lo que queda en la billetera general
+                            if "Kamikaze" in tipo_entrada: 
+                                limite_final_inversion = min(cupo_disponible_partido, tope_kamikaze)
+                            elif "Moderado" in tipo_entrada: 
+                                limite_final_inversion = min(cupo_disponible_partido, tope_moderado)
+                            else: 
+                                limite_final_inversion = min(cupo_disponible_partido, tope_conservador)
 
-                        # Botones visuales que se DESACTIVAN si ya consumiste esa bolsa
+                        # Botones visuales fijos para inyectar rápido (siempre visibles, limitados por la plata real que queda)
                         col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
                         with col_btn_k1:
-                            if st.button(f"🔥 Kamikaze\n${val_kamikaze:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=(val_kamikaze<=0)):
-                                st.session_state[stk_key] = float(val_kamikaze)
+                            # Te muestra el valor fijo de la bolsa, pero si lo hundes inyecta máximo lo que permite el límite
+                            if st.button(f"🔥 Kamikaze\n${tope_kamikaze:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=(cupo_disponible_partido<=0)):
+                                st.session_state[stk_key] = float(min(cupo_disponible_partido, tope_kamikaze))
                         with col_btn_k2:
-                            if st.button(f"⚖️ Moderado\n${val_moderado:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=(val_moderado<=0)):
-                                st.session_state[stk_key] = float(val_moderado)
+                            if st.button(f"⚖️ Moderado\n${tope_moderado:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=(cupo_disponible_partido<=0)):
+                                st.session_state[stk_key] = float(min(cupo_disponible_partido, tope_moderado))
                         with col_btn_k3:
-                            if st.button(f"🛡️ Conservador\n${val_conservador:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=(val_conservador<=0)):
-                                st.session_state[stk_key] = float(val_conservador)
+                            if st.button(f"🛡️ Conservador\n${tope_conservador:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=(cupo_disponible_partido<=0)):
+                                st.session_state[stk_key] = float(min(cupo_disponible_partido, tope_conservador))
 
                         if stk_key not in st.session_state: st.session_state[stk_key] = float(min(1000.0, limite_final_inversion))
                         if st.session_state[stk_key] > limite_final_inversion: st.session_state[stk_key] = float(limite_final_inversion)
