@@ -3707,12 +3707,17 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 # ------------------------------------------------------------------
                                 # 💎 DICTAMEN DE TRADING Y VALUE BETTING
                                 # ------------------------------------------------------------------
+                                aprueba_key = f"oraculo_aprueba_{pr['codigo']}"
+                                st.session_state[aprueba_key] = False # 🔴 Candado maestro cerrado por defecto
+
                                 if mdo_str == "Ambos Anotan":
                                     cuota_justa_si = 1 / prob_si if prob_si > 0.01 else 99.0
                                     cuota_justa_no = 1 / prob_no if prob_no > 0.01 else 99.0
                                     
                                     if seleccion_final_rad == "Sí":
-                                        ventaja = cuota_ent_rad - cuota_justa_si
+                                        # Leemos las cuotas guardadas en memoria para evaluar la ventaja real
+                                        cuota_act_si = st.session_state.get(c_ent_key, cuota_ent_rad)
+                                        ventaja = cuota_act_si - cuota_justa_si
                                         prob_mercado = prob_si
                                         cuota_justa = cuota_justa_si
                                         
@@ -3722,38 +3727,41 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
                                         elif ventaja >= ventaja_min_exigida:
                                             alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
-                                            texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_ent_rad:.2f}**. Entra ya."
+                                            texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_act_si:.2f}**. Entra ya."
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
+                                            st.session_state[aprueba_key] = True # 🟢 LUZ VERDE
                                         elif ventaja >= 0:
                                             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
                                             texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil {perfil_riesgo.split(' ')[1]} exige ganancia superior."
                                             bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
                                         else:
-                                            if (cuota_justa - cuota_ent_rad) <= 0.40 and m_rad < 75:
+                                            if (cuota_justa - cuota_act_si) <= 0.40 and m_rad < 75:
                                                 alerta_accion = f"⏳ **PACIENCIA (ESPERA A QUE SUBA EL SÍ)**"
-                                                texto_accion = f"Pagan muy poco (**{cuota_ent_rad:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera."
+                                                texto_accion = f"Pagan muy poco (**{cuota_act_si:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera."
                                                 bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
                                             else:
                                                 alerta_accion = f"🚫 **DESCARTADO (TRAMPA EN EL SÍ)**"
-                                                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_ent_rad:.2f}**. Aborta."
+                                                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_si:.2f}**. Aborta."
                                                 bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
                                                 
                                     else: # Seleccionó "No"
-                                        ventaja = cuota_ent_rad - cuota_justa_no
+                                        cuota_act_no = st.session_state.get(c_ent_key, cuota_ent_rad)
+                                        ventaja = cuota_act_no - cuota_justa_no
                                         prob_mercado = prob_no
                                         cuota_justa = cuota_justa_no
                                         
                                         if ventaja >= ventaja_min_exigida:
                                             alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
-                                            texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_ent_rad:.2f}**. ¡Mete la plata YA!"
+                                            texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_no:.2f}**. ¡Mete la plata YA!"
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
+                                            st.session_state[aprueba_key] = True # 🟢 LUZ VERDE
                                         elif ventaja >= 0:
                                             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
                                             texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil exige mayor margen."
                                             bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
                                         else:
                                             alerta_accion = f"🚫 **LLEGASTE TARDE AL NO**"
-                                            texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_ent_rad:.2f}**. Pérdida matemática."
+                                            texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_act_no:.2f}**. Pérdida matemática."
                                             bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
                                             
                                     st.markdown(f"""
@@ -3768,6 +3776,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     </div>
                                     """, unsafe_allow_html=True)
                                     st.markdown("---")
+                                else:
+                                    # Si auditas Mercado 1X2 o Goles, por ahora no bloqueamos para no dañar el flujo
+                                    st.session_state[aprueba_key] = True
 
                             except Exception as e:
                                 st.error(f"Error procesando IA táctica: {e}")
@@ -3775,280 +3786,288 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         # ==================================================================
                         # 💵 DECISIÓN DE CAPITAL Y AUDITORÍA DE CUPO (POST-ANÁLISIS)
                         # ==================================================================
-                        st.markdown("---")
-                        st.markdown("#### 💰 Decisión de Capital a Invertir")
+                        aprueba_key = f"oraculo_aprueba_{pr['codigo']}"
                         
-                        # Extrae el código exacto (Ej: SCAN-9934)
-                        partes_codigo = pr['codigo'].split("-")
-                        codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
-                        
-                        capital_ya_investido = 0.0
-                        inversiones_previas = []
-
-                        if supabase is not None:
-                            try:
-                                # Consultamos TODAS las balas disparadas en este partido exacto
-                                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
-                                if res_exp.data:
-                                    inversiones_previas = [float(x.get('stake_1', 0.0)) for x in res_exp.data if float(x.get('stake_1', 0.0)) > 0]
-                                    capital_ya_investido = sum(inversiones_previas)
-                            except Exception:
-                                capital_ya_investido = 0.0
-
-                        # Congelamos el presupuesto del partido
-                        presupuesto_partido = float(pr.get('capital_total', tope_maximo_evento))
-                        
-                        # Cálculo de Cupo Restante en Pesos
-                        cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
-
-                        # Panel Informativo del Centro de Costos
-                        st.markdown(f"""
-                        <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <span style="font-size: 0.85rem; color: #64748B;">Presupuesto (Congelado):</span><br>
-                                <b style="color: #1E293B; font-size: 1.05rem;">${presupuesto_partido:,.0f} COP</b>
-                            </div>
-                            <div>
-                                <span style="font-size: 0.85rem; color: #64748B;">Capital Comprometido:</span><br>
-                                <b style="color: #D97706; font-size: 1.05rem;">${capital_ya_investido:,.0f} COP</b>
-                            </div>
-                            <div>
-                                <span style="font-size: 0.85rem; color: #64748B;">Cupo Disponible:</span><br>
-                                <b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'}; font-size: 1.05rem;">${cupo_disponible_partido:,.0f} COP</b>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-
-                        stk_key = f"stk_ent_cap_{pr['codigo']}"
-
-                        # SELECTOR DE MODO
-                        modo_gestion = st.radio(
-                            "⚙️ Modo de Asignación de Capital:",
-                            ["🔓 Libre (Todo el cupo disponible)", "🔒 Control Total (Limitar por nivel de riesgo)"],
-                            horizontal=True,
-                            key=f"modo_cap_{pr['codigo']}"
-                        )
-                        
-                        # --- MATEMÁTICA INTELIGENTE DE BOLSAS ---
-                        bolsas_teoricas = {
-                            "kamikaze": presupuesto_partido * 0.20,
-                            "moderado": presupuesto_partido * 0.30,
-                            "conservador": presupuesto_partido * 0.50
-                        }
-                        
-                        usado_kam, usado_mod, usado_con = False, False, False
-                        
-                        # El sistema revisa la base de datos y tacha ("quema") la bala correspondiente
-                        for inv in inversiones_previas:
-                            dist = {}
-                            if not usado_kam: dist["kamikaze"] = abs(inv - bolsas_teoricas["kamikaze"])
-                            if not usado_mod: dist["moderado"] = abs(inv - bolsas_teoricas["moderado"])
-                            if not usado_con: dist["conservador"] = abs(inv - bolsas_teoricas["conservador"])
-                            if dist:
-                                mejor = min(dist, key=dist.get)
-                                if mejor == "kamikaze": usado_kam = True
-                                elif mejor == "moderado": usado_mod = True
-                                elif mejor == "conservador": usado_con = True
-
-                        val_kamikaze = 0.0 if usado_kam else bolsas_teoricas["kamikaze"]
-                        val_moderado = 0.0 if usado_mod else bolsas_teoricas["moderado"]
-                        val_conservador = 0.0 if usado_con else bolsas_teoricas["conservador"]
-
-                        limite_final_inversion = cupo_disponible_partido
-                        
-                        if "Control Total" in modo_gestion:
-                            tipo_entrada = st.selectbox(
-                                "Nivel de riesgo de esta entrada:",
-                                [f"🔥 Kamikaze (Max 20%) {'- AGOTADO' if usado_kam else ''}", 
-                                 f"⚖️ Moderado (Max 30%) {'- AGOTADO' if usado_mod else ''}", 
-                                 f"🛡️ Conservador (Max 50%) {'- AGOTADO' if usado_con else ''}"],
-                                key=f"tipo_ent_{pr['codigo']}"
-                            )
-                            if "Kamikaze" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_kamikaze)
-                            elif "Moderado" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_moderado)
-                            else: limite_final_inversion = min(cupo_disponible_partido, val_conservador)
-
-                        # Botones visuales que se BLOQUEAN individualmente si la bala fue quemada
-                        col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
-                        with col_btn_k1:
-                            if st.button(f"🔥 Kamikaze\n${bolsas_teoricas['kamikaze']:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=usado_kam or cupo_disponible_partido <= 0):
-                                st.session_state[stk_key] = float(min(val_kamikaze, cupo_disponible_partido))
-                        with col_btn_k2:
-                            if st.button(f"⚖️ Moderado\n${bolsas_teoricas['moderado']:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=usado_mod or cupo_disponible_partido <= 0):
-                                st.session_state[stk_key] = float(min(val_moderado, cupo_disponible_partido))
-                        with col_btn_k3:
-                            if st.button(f"🛡️ Conservador\n${bolsas_teoricas['conservador']:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=usado_con or cupo_disponible_partido <= 0):
-                                st.session_state[stk_key] = float(min(val_conservador, cupo_disponible_partido))
-
-                        # Ajuste inicial de la memoria de inversión
-                        if stk_key not in st.session_state:
-                            st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), max(1.0, limite_final_inversion)))
-
-                        # Aseguramos que la memoria nunca sobrepase el límite final calculado
-                        if st.session_state[stk_key] > limite_final_inversion:
-                            st.session_state[stk_key] = float(limite_final_inversion)
-
-                        # CAJA DE INVERSIÓN FINAL
-                        if limite_final_inversion <= 0:
-                            st.error("🚨 Cupo agotado para el modo seleccionado. Estás protegido.")
-                            stake_ent_rad = 0.0
+                        # EL ESCUDO: Si no ha evaluado o el Oráculo dijo NO, se esconde la plata
+                        if not st.session_state.get(key_oraculo, False):
+                            st.info("👈 Presiona '🧠 Validar con Oráculo Táctico' para evaluar el mercado. La bóveda está cerrada.")
+                        elif not st.session_state.get(aprueba_key, False):
+                            st.error("🛑 **LUZ ROJA DEL ORÁCULO:** Operar aquí destruirá tu rentabilidad a largo plazo. La bóveda ha sido bloqueada. 🛡️")
                         else:
-                            stake_ent_rad = st.number_input(
-                                f"Capital a Invertir (Max ${limite_final_inversion:,.0f}):",
-                                min_value=100.0,
-                                max_value=float(limite_final_inversion),
-                                step=500.0,
-                                key=stk_key,
-                                format="%.2f"
-                            )
-                                
-                        # ==================================================================
-                        # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
-                        # ==================================================================
-                        lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"]
-                        plat_previa = pr.get('plataforma_inicial', 'BetPlay')
-                        idx_plat = lista_casas.index(plat_previa) if plat_previa in lista_casas else 0
-                        
-                        col_plat1, col_plat2 = st.columns(2)
-                        with col_plat1:
-                            plat_rad_sel = st.selectbox("Casa de Apuestas (Entrada):", lista_casas, index=idx_plat, key=f"plat_{pr['codigo']}")
-                        with col_plat2:
-                            if plat_rad_sel == "Otra":
-                                plat_rad_final = st.text_input("Especifica la plataforma:", key=f"otra_{pr['codigo']}")
-                            else:
-                                plat_rad_final = plat_rad_sel
-                                st.write("")
+                            st.markdown("---")
+                            st.markdown("#### 💰 Decisión de Capital a Invertir")
+                            
+                            # Extrae el código exacto (Ej: SCAN-9934)
+                            partes_codigo = pr['codigo'].split("-")
+                            codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
+                            
+                            capital_ya_investido = 0.0
+                            inversiones_previas = []
 
-                        retorno_bruto_esperado = stake_ent_rad * cuota_ent_rad
-                        utilidad_max_posible = retorno_bruto_esperado - stake_ent_rad
-                        max_roi_pct = (utilidad_max_posible / stake_ent_rad) * 100 if stake_ent_rad > 0 else 0
-                        
-                        if max_roi_pct > 0:
-                            col_lim1, col_lim2 = st.columns(2)
-                            with col_lim1:
-                                tp_rad = st.slider("Utilidad Deseada (Take Profit):", min_value=1.0, max_value=max(1.0, float(max_roi_pct - 0.5)), value=min(30.0, max(1.0, float(max_roi_pct / 2))), step=0.5, format="%.1f%%", key=f"tp_{pr['codigo']}")
-                            with col_lim2:
-                                sl_rad = st.slider("Pérdida Máxima (Stop Loss):", min_value=1.0, max_value=100.0, value=50.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
+                            if supabase is not None:
+                                try:
+                                    # Consultamos TODAS las balas disparadas en este partido exacto
+                                    res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                                    if res_exp.data:
+                                        inversiones_previas = [float(x.get('stake_1', 0.0)) for x in res_exp.data if float(x.get('stake_1', 0.0)) > 0]
+                                        capital_ya_investido = sum(inversiones_previas)
+                                except Exception:
+                                    capital_ya_investido = 0.0
+
+                            # Congelamos el presupuesto del partido
+                            presupuesto_partido = float(pr.get('capital_total', tope_maximo_evento))
                             
-                            utilidad_objetivo_dinero = stake_ent_rad * (tp_rad / 100.0)
-                            inyeccion_necesaria_tp = utilidad_max_posible - utilidad_objetivo_dinero
-                            cuota_cazar_rad = retorno_bruto_esperado / inyeccion_necesaria_tp if inyeccion_necesaria_tp > 0 else 0
-                            
-                            perdida_maxima = stake_ent_rad * (sl_rad / 100.0)
-                            inyeccion_necesaria_sl = utilidad_max_posible + perdida_maxima
-                            cuota_sl_rad = retorno_bruto_esperado / inyeccion_necesaria_sl
-                            
+                            # Cálculo de Cupo Restante en Pesos
+                            cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
+
+                            # Panel Informativo del Centro de Costos
                             st.markdown(f"""
-                            <div style="display:flex; justify-content:space-around; background-color: #F8FAFC; padding: 10px; border-radius: 5px;">
-                                <span style="color:#15803D;">🟢 <b>Take Profit:</b> Cuota {cuota_cazar_rad:.2f}</span>
-                                <span style="color:#B91C1C;">🔴 <b>Stop Loss:</b> Cuota {cuota_sl_rad:.2f}</span>
+                            <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <span style="font-size: 0.85rem; color: #64748B;">Presupuesto (Congelado):</span><br>
+                                    <b style="color: #1E293B; font-size: 1.05rem;">${presupuesto_partido:,.0f} COP</b>
+                                </div>
+                                <div>
+                                    <span style="font-size: 0.85rem; color: #64748B;">Capital Comprometido:</span><br>
+                                    <b style="color: #D97706; font-size: 1.05rem;">${capital_ya_investido:,.0f} COP</b>
+                                </div>
+                                <div>
+                                    <span style="font-size: 0.85rem; color: #64748B;">Cupo Disponible:</span><br>
+                                    <b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'}; font-size: 1.05rem;">${cupo_disponible_partido:,.0f} COP</b>
+                                </div>
                             </div>
                             """, unsafe_allow_html=True)
-                        else:
-                            st.warning("La cuota de entrada no permite generar utilidades.")
-                            cuota_cazar_rad = 0; cuota_sl_rad = 0
-                        
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
-                        banca_activa_rad = "REAL" if "Real" in banca_ejecutar else "SIMULACION"
-                        
-                        retener_radar = st.checkbox("🔄 Retener partido en el Radar tras disparar", value=True, key=f"chk_retener_{pr['codigo']}")
-                        
-                        col_disp1, col_disp2 = st.columns(2)
-                        with col_disp1:
-                            if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
-                                if cuota_cazar_rad > 0 and plat_rad_final:
-                                    import datetime
-                                    import joblib
-                                    import pandas as pd
+
+                            stk_key = f"stk_ent_cap_{pr['codigo']}"
+
+                            # SELECTOR DE MODO
+                            modo_gestion = st.radio(
+                                "⚙️ Modo de Asignación de Capital:",
+                                ["🔓 Libre (Todo el cupo disponible)", "🔒 Control Total (Limitar por nivel de riesgo)"],
+                                horizontal=True,
+                                key=f"modo_cap_{pr['codigo']}"
+                            )
+                            
+                            # --- MATEMÁTICA INTELIGENTE DE BOLSAS ---
+                            bolsas_teoricas = {
+                                "kamikaze": presupuesto_partido * 0.20,
+                                "moderado": presupuesto_partido * 0.30,
+                                "conservador": presupuesto_partido * 0.50
+                            }
+                            
+                            usado_kam, usado_mod, usado_con = False, False, False
+                            
+                            # El sistema revisa la base de datos y tacha ("quema") la bala correspondiente
+                            for inv in inversiones_previas:
+                                dist = {}
+                                if not usado_kam: dist["kamikaze"] = abs(inv - bolsas_teoricas["kamikaze"])
+                                if not usado_mod: dist["moderado"] = abs(inv - bolsas_teoricas["moderado"])
+                                if not usado_con: dist["conservador"] = abs(inv - bolsas_teoricas["conservador"])
+                                if dist:
+                                    mejor = min(dist, key=dist.get)
+                                    if mejor == "kamikaze": usado_kam = True
+                                    elif mejor == "moderado": usado_mod = True
+                                    elif mejor == "conservador": usado_con = True
+
+                            val_kamikaze = 0.0 if usado_kam else bolsas_teoricas["kamikaze"]
+                            val_moderado = 0.0 if usado_mod else bolsas_teoricas["moderado"]
+                            val_conservador = 0.0 if usado_con else bolsas_teoricas["conservador"]
+
+                            limite_final_inversion = cupo_disponible_partido
+                            
+                            if "Control Total" in modo_gestion:
+                                tipo_entrada = st.selectbox(
+                                    "Nivel de riesgo de esta entrada:",
+                                    [f"🔥 Kamikaze (Max 20%) {'- AGOTADO' if usado_kam else ''}", 
+                                     f"⚖️ Moderado (Max 30%) {'- AGOTADO' if usado_mod else ''}", 
+                                     f"🛡️ Conservador (Max 50%) {'- AGOTADO' if usado_con else ''}"],
+                                    key=f"tipo_ent_{pr['codigo']}"
+                                )
+                                if "Kamikaze" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_kamikaze)
+                                elif "Moderado" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_moderado)
+                                else: limite_final_inversion = min(cupo_disponible_partido, val_conservador)
+
+                            # Botones visuales que se BLOQUEAN individualmente si la bala fue quemada
+                            col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
+                            with col_btn_k1:
+                                if st.button(f"🔥 Kamikaze\n${bolsas_teoricas['kamikaze']:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=usado_kam or cupo_disponible_partido <= 0):
+                                    st.session_state[stk_key] = float(min(val_kamikaze, cupo_disponible_partido))
+                            with col_btn_k2:
+                                if st.button(f"⚖️ Moderado\n${bolsas_teoricas['moderado']:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=usado_mod or cupo_disponible_partido <= 0):
+                                    st.session_state[stk_key] = float(min(val_moderado, cupo_disponible_partido))
+                            with col_btn_k3:
+                                if st.button(f"🛡️ Conservador\n${bolsas_teoricas['conservador']:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=usado_con or cupo_disponible_partido <= 0):
+                                    st.session_state[stk_key] = float(min(val_conservador, cupo_disponible_partido))
+
+                            # Ajuste inicial de la memoria de inversión
+                            if stk_key not in st.session_state:
+                                st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), max(1.0, limite_final_inversion)))
+
+                            # Aseguramos que la memoria nunca sobrepase el límite final calculado
+                            if st.session_state[stk_key] > limite_final_inversion:
+                                st.session_state[stk_key] = float(limite_final_inversion)
+
+                            # CAJA DE INVERSIÓN FINAL
+                            if limite_final_inversion <= 0:
+                                st.error("🚨 Cupo agotado para el modo seleccionado. Estás protegido.")
+                                stake_ent_rad = 0.0
+                            else:
+                                stake_ent_rad = st.number_input(
+                                    f"Capital a Invertir (Max ${limite_final_inversion:,.0f}):",
+                                    min_value=100.0,
+                                    max_value=float(limite_final_inversion),
+                                    step=500.0,
+                                    key=stk_key,
+                                    format="%.2f"
+                                )
                                     
-                                    try:
-                                        m1x2_rad = joblib.load('modelo_1x2.pkl')
-                                        mgoles_rad = joblib.load('modelo_goles.pkl')
-                                        mbtts_rad = joblib.load('modelo_btts.pkl')
-                                        
-                                        apm_rad = (al_rad + av_rad) / max(1, m_rad)
-                                        ird_rad = min(100.0, apm_rad * 45.0)
-                                        
-                                        X_rad = pd.DataFrame([{
-                                            'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))}])
-                                        
-                                        pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
-                                        pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
-                                        pred_btts_testigo = mbtts_rad.predict(X_rad)[0]
-                                        
-                                        g_totales_actuales = gl_rad + gv_rad
-                                        g_nuevos_esp = max(0, round(pred_goles_testigo) - g_totales_actuales)
-                                        
-                                        c_loc, c_vis = gl_rad, gv_rad
-                                        if pred_1x2_testigo == 1: 
-                                            if c_loc > c_vis: c_vis = c_loc 
-                                            elif c_vis > c_loc: c_loc = c_vis 
-                                            elif g_nuevos_esp >= 2: c_loc += 1; c_vis += 1
-                                        elif pred_1x2_testigo == 2:
-                                            if c_loc <= c_vis: c_loc = c_vis + max(1, g_nuevos_esp)
-                                            else: c_loc += g_nuevos_esp
-                                        else:
-                                            if c_vis <= c_loc: c_vis = c_loc + max(1, g_nuevos_esp)
-                                            else: c_vis += g_nuevos_esp
-
-                                        if pred_btts_testigo == 1:
-                                            if c_loc == 0: c_loc = 1
-                                            if c_vis == 0: c_vis = 1
-
-                                        marcador_ia_testigo = f"{c_loc}-{c_vis}"
-
-                                        partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
-                                        partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
-                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
-                                        
-                                        datos_inyeccion = {
-                                            "estado": "EN VIVO",
-                                            "tipo_banca": banca_activa_rad,
-                                            "estrategia": "Estrategia 3: Binario Personalizado", 
-                                            "partido": partido_formateado,
-                                            "prediccion_ia": marcador_ia_testigo, 
-                                            "seleccion_inicial": seleccion_final_rad,
-                                            "seleccion_cobertura": amenaza_final_rad,
-                                            "plataforma_inicial": plat_rad_final,
-                                            "cuota_inicial": float(cuota_ent_rad),
-                                            "capital_total": float(stake_ent_rad),
-                                            "stake_1": float(stake_ent_rad),
-                                            "cuota_objetivo": float(cuota_cazar_rad),
-                                            "cuota_stop_loss": float(cuota_sl_rad),
-                                            "hora_inicio_partido": hora_actual
-                                        }
-
-                                        if retener_radar:
-                                            # AQUÍ TAMBIÉN APLICAMOS EL CÓDIGO EXACTO PARA QUE CLONE BIEN
-                                            res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base_exacto}-%").execute()
-                                            numero_hijo = len(res_hijos.data) + 1
-                                            codigo_hijo = f"{codigo_base_exacto}-{numero_hijo:02d}"
-                                            
-                                            registro_clonado = dict(pr)
-                                            registro_clonado.update(datos_inyeccion)
-                                            registro_clonado['codigo'] = codigo_hijo
-                                            if 'id' in registro_clonado: del registro_clonado['id']
-                                            
-                                            supabase.table("historial_trading").insert(registro_clonado).execute()
-                                            supabase.table("historial_trading").update({"stake_1": 0.0}).eq("codigo", pr['codigo']).execute()
-                                            
-                                            st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
-                                        else:
-                                            datos_inyeccion['codigo'] = f"{codigo_base_exacto}-01"
-                                            supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
-                                            st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
-                                            
-                                        st.rerun()
-                                    except Exception as err_db:
-                                        st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
+                            # ==================================================================
+                            # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
+                            # ==================================================================
+                            lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"]
+                            plat_previa = pr.get('plataforma_inicial', 'BetPlay')
+                            idx_plat = lista_casas.index(plat_previa) if plat_previa in lista_casas else 0
+                            
+                            col_plat1, col_plat2 = st.columns(2)
+                            with col_plat1:
+                                plat_rad_sel = st.selectbox("Casa de Apuestas (Entrada):", lista_casas, index=idx_plat, key=f"plat_{pr['codigo']}")
+                            with col_plat2:
+                                if plat_rad_sel == "Otra":
+                                    plat_rad_final = st.text_input("Especifica la plataforma:", key=f"otra_{pr['codigo']}")
                                 else:
-                                    st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
-                        with col_disp2:
-                            if st.button("🗑️ ABORTAR (Descartar)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
-                                supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
-                                st.warning("Partido descartado.")
-                                st.rerun()
+                                    plat_rad_final = plat_rad_sel
+                                    st.write("")
+
+                            retorno_bruto_esperado = stake_ent_rad * cuota_ent_rad
+                            utilidad_max_posible = retorno_bruto_esperado - stake_ent_rad
+                            max_roi_pct = (utilidad_max_posible / stake_ent_rad) * 100 if stake_ent_rad > 0 else 0
+                            
+                            if max_roi_pct > 0:
+                                col_lim1, col_lim2 = st.columns(2)
+                                with col_lim1:
+                                    tp_rad = st.slider("Utilidad Deseada (Take Profit):", min_value=1.0, max_value=max(1.0, float(max_roi_pct - 0.5)), value=min(5.0, max(1.0, float(max_roi_pct / 2))), step=0.5, format="%.1f%%", key=f"tp_{pr['codigo']}")
+                                with col_lim2:
+                                    sl_rad = st.slider("Pérdida Máxima (Stop Loss):", min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
+                                
+                                utilidad_objetivo_dinero = stake_ent_rad * (tp_rad / 100.0)
+                                inyeccion_necesaria_tp = utilidad_max_posible - utilidad_objetivo_dinero
+                                cuota_cazar_rad = retorno_bruto_esperado / inyeccion_necesaria_tp if inyeccion_necesaria_tp > 0 else 0
+                                
+                                perdida_maxima = stake_ent_rad * (sl_rad / 100.0)
+                                inyeccion_necesaria_sl = utilidad_max_posible + perdida_maxima
+                                cuota_sl_rad = retorno_bruto_esperado / inyeccion_necesaria_sl
+                                
+                                st.markdown(f"""
+                                <div style="display:flex; justify-content:space-around; background-color: #F8FAFC; padding: 10px; border-radius: 5px;">
+                                    <span style="color:#15803D;">🟢 <b>Take Profit:</b> Cuota {cuota_cazar_rad:.2f}</span>
+                                    <span style="color:#B91C1C;">🔴 <b>Stop Loss:</b> Cuota {cuota_sl_rad:.2f}</span>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.warning("La cuota de entrada no permite generar utilidades.")
+                                cuota_cazar_rad = 0; cuota_sl_rad = 0
+                            
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
+                            banca_activa_rad = "REAL" if "Real" in banca_ejecutar else "SIMULACION"
+                            
+                            retener_radar = st.checkbox("🔄 Retener partido en el Radar tras disparar", value=True, key=f"chk_retener_{pr['codigo']}")
+                            
+                            col_disp1, col_disp2 = st.columns(2)
+                            with col_disp1:
+                                if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
+                                    if cuota_cazar_rad > 0 and plat_rad_final:
+                                        import datetime
+                                        import joblib
+                                        import pandas as pd
+                                        
+                                        try:
+                                            m1x2_rad = joblib.load('modelo_1x2.pkl')
+                                            mgoles_rad = joblib.load('modelo_goles.pkl')
+                                            mbtts_rad = joblib.load('modelo_btts.pkl')
+                                            
+                                            apm_rad = (al_rad + av_rad) / max(1, m_rad)
+                                            ird_rad = min(100.0, apm_rad * 45.0)
+                                            
+                                            X_rad = pd.DataFrame([{
+                                                'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))}])
+                                            
+                                            pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
+                                            pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
+                                            pred_btts_testigo = mbtts_rad.predict(X_rad)[0]
+                                            
+                                            g_totales_actuales = gl_rad + gv_rad
+                                            g_nuevos_esp = max(0, round(pred_goles_testigo) - g_totales_actuales)
+                                            
+                                            c_loc, c_vis = gl_rad, gv_rad
+                                            if pred_1x2_testigo == 1: 
+                                                if c_loc > c_vis: c_vis = c_loc 
+                                                elif c_vis > c_loc: c_loc = c_vis 
+                                                elif g_nuevos_esp >= 2: c_loc += 1; c_vis += 1
+                                            elif pred_1x2_testigo == 2:
+                                                if c_loc <= c_vis: c_loc = c_vis + max(1, g_nuevos_esp)
+                                                else: c_loc += g_nuevos_esp
+                                            else:
+                                                if c_vis <= c_loc: c_vis = c_loc + max(1, g_nuevos_esp)
+                                                else: c_vis += g_nuevos_esp
+
+                                            if pred_btts_testigo == 1:
+                                                if c_loc == 0: c_loc = 1
+                                                if c_vis == 0: c_vis = 1
+
+                                            marcador_ia_testigo = f"{c_loc}-{c_vis}"
+
+                                            partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
+                                            partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
+                                            hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                            
+                                            datos_inyeccion = {
+                                                "estado": "EN VIVO",
+                                                "tipo_banca": banca_activa_rad,
+                                                "estrategia": "Estrategia 3: Binario Personalizado", 
+                                                "partido": partido_formateado,
+                                                "prediccion_ia": marcador_ia_testigo, 
+                                                "seleccion_inicial": seleccion_final_rad,
+                                                "seleccion_cobertura": amenaza_final_rad,
+                                                "plataforma_inicial": plat_rad_final,
+                                                "cuota_inicial": float(cuota_ent_rad),
+                                                "capital_total": float(stake_ent_rad),
+                                                "stake_1": float(stake_ent_rad),
+                                                "cuota_objetivo": float(cuota_cazar_rad),
+                                                "cuota_stop_loss": float(cuota_sl_rad),
+                                                "hora_inicio_partido": hora_actual
+                                            }
+
+                                            if retener_radar:
+                                                res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base_exacto}-%").execute()
+                                                numero_hijo = len(res_hijos.data) + 1
+                                                codigo_hijo = f"{codigo_base_exacto}-{numero_hijo:02d}"
+                                                
+                                                registro_clonado = dict(pr)
+                                                registro_clonado.update(datos_inyeccion)
+                                                registro_clonado['codigo'] = codigo_hijo
+                                                if 'id' in registro_clonado: del registro_clonado['id']
+                                                
+                                                supabase.table("historial_trading").insert(registro_clonado).execute()
+                                                supabase.table("historial_trading").update({"stake_1": 0.0, "capital_total": 0.0}).eq("codigo", pr['codigo']).execute()
+                                                
+                                                st.session_state[key_oraculo] = False # Cierra la bóveda de este partido tras disparar
+                                                st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
+                                            else:
+                                                datos_inyeccion['codigo'] = f"{codigo_base_exacto}-01"
+                                                supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
+                                                st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
+                                                
+                                            st.rerun()
+                                        except Exception as err_db:
+                                            st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
+                                    else:
+                                        st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
+                            with col_disp2:
+                                if st.button("🗑️ ABORTAR (Descartar)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
+                                    supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
+                                    st.warning("Partido descartado.")
+                                    st.rerun()
     # ---------------------------------------------------------
     # PESTAÑA 3: LABORATORIO TÁCTICO (Gatillo Rápido en Vivo)
     # ---------------------------------------------------------
