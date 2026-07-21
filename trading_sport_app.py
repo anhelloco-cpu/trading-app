@@ -3788,11 +3788,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         # ==================================================================
                         aprueba_key = f"oraculo_aprueba_{pr['codigo']}"
                         
-                        # EL ESCUDO: Si no ha evaluado o el Oráculo dijo NO, se esconde la plata
-                        if not st.session_state.get(key_oraculo, False):
-                            st.info("👈 Presiona '🧠 Validar con Oráculo Táctico' para evaluar el mercado. La bóveda está cerrada.")
-                        elif not st.session_state.get(aprueba_key, False):
-                            st.error("🛑 **LUZ ROJA DEL ORÁCULO:** Operar aquí destruirá tu rentabilidad a largo plazo. La bóveda ha sido bloqueada. 🛡️")
+                        # EL ESCUDO MAESTRO: Si no hay luz verde, no se abre la bóveda
+                        if not st.session_state.get(aprueba_key, False):
+                            st.warning("🛑 BÓVEDA CERRADA: Presiona '🧠 Validar con Oráculo Táctico'. Solo podrás inyectar capital si obtienes LUZ VERDE. 🛡️")
                         else:
                             st.markdown("---")
                             st.markdown("#### 💰 Decisión de Capital a Invertir")
@@ -3806,7 +3804,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
                             if supabase is not None:
                                 try:
-                                    # Consultamos TODAS las balas disparadas en este partido exacto
                                     res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
                                     if res_exp.data:
                                         inversiones_previas = [float(x.get('stake_1', 0.0)) for x in res_exp.data if float(x.get('stake_1', 0.0)) > 0]
@@ -3814,13 +3811,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 except Exception:
                                     capital_ya_investido = 0.0
 
-                            # Congelamos el presupuesto del partido
                             presupuesto_partido = float(pr.get('capital_total', tope_maximo_evento))
-                            
-                            # Cálculo de Cupo Restante en Pesos
                             cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
 
-                            # Panel Informativo del Centro de Costos
                             st.markdown(f"""
                             <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
@@ -3840,7 +3833,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
                             stk_key = f"stk_ent_cap_{pr['codigo']}"
 
-                            # SELECTOR DE MODO
                             modo_gestion = st.radio(
                                 "⚙️ Modo de Asignación de Capital:",
                                 ["🔓 Libre (Todo el cupo disponible)", "🔒 Control Total (Limitar por nivel de riesgo)"],
@@ -3848,7 +3840,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 key=f"modo_cap_{pr['codigo']}"
                             )
                             
-                            # --- MATEMÁTICA INTELIGENTE DE BOLSAS ---
                             bolsas_teoricas = {
                                 "kamikaze": presupuesto_partido * 0.20,
                                 "moderado": presupuesto_partido * 0.30,
@@ -3857,7 +3848,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             
                             usado_kam, usado_mod, usado_con = False, False, False
                             
-                            # El sistema revisa la base de datos y tacha ("quema") la bala correspondiente
                             for inv in inversiones_previas:
                                 dist = {}
                                 if not usado_kam: dist["kamikaze"] = abs(inv - bolsas_teoricas["kamikaze"])
@@ -3887,7 +3877,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 elif "Moderado" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_moderado)
                                 else: limite_final_inversion = min(cupo_disponible_partido, val_conservador)
 
-                            # Botones visuales que se BLOQUEAN individualmente si la bala fue quemada
                             col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
                             with col_btn_k1:
                                 if st.button(f"🔥 Kamikaze\n${bolsas_teoricas['kamikaze']:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=usado_kam or cupo_disponible_partido <= 0):
@@ -3899,15 +3888,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 if st.button(f"🛡️ Conservador\n${bolsas_teoricas['conservador']:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=usado_con or cupo_disponible_partido <= 0):
                                     st.session_state[stk_key] = float(min(val_conservador, cupo_disponible_partido))
 
-                            # Ajuste inicial de la memoria de inversión
                             if stk_key not in st.session_state:
                                 st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), max(1.0, limite_final_inversion)))
 
-                            # Aseguramos que la memoria nunca sobrepase el límite final calculado
                             if st.session_state[stk_key] > limite_final_inversion:
                                 st.session_state[stk_key] = float(limite_final_inversion)
 
-                            # CAJA DE INVERSIÓN FINAL
                             if limite_final_inversion <= 0:
                                 st.error("🚨 Cupo agotado para el modo seleccionado. Estás protegido.")
                                 stake_ent_rad = 0.0
@@ -4051,7 +4037,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                                 supabase.table("historial_trading").insert(registro_clonado).execute()
                                                 supabase.table("historial_trading").update({"stake_1": 0.0, "capital_total": 0.0}).eq("codigo", pr['codigo']).execute()
                                                 
-                                                st.session_state[key_oraculo] = False # Cierra la bóveda de este partido tras disparar
+                                                st.session_state[aprueba_key] = False # Resetea la bóveda
                                                 st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
                                             else:
                                                 datos_inyeccion['codigo'] = f"{codigo_base_exacto}-01"
