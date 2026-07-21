@@ -3821,14 +3821,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 except Exception:
                                     capital_ya_investido = 0.0
 
-                            # RESTAURADO: Usamos el tope máximo original para evitar que el presupuesto caiga a cero
-                            presupuesto_partido = float(tope_maximo_evento)
+                            # ✅ EL PRESUPUESTO FIJO: Toma exactamente el capital que asignaste tú, no calcula el 5% de nada
+                            presupuesto_partido = float(pr.get('capital_total', 5000.0))
                             cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
 
                             st.markdown(f"""
                             <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <span style="font-size: 0.85rem; color: #64748B;">Presupuesto Evento (5% Max):</span><br>
+                                    <span style="font-size: 0.85rem; color: #64748B;">Presupuesto Asignado:</span><br>
                                     <b style="color: #1E293B; font-size: 1.05rem;">${presupuesto_partido:,.0f} COP</b>
                                 </div>
                                 <div>
@@ -4049,7 +4049,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                                 if 'id' in registro_clonado: del registro_clonado['id']
                                                 
                                                 supabase.table("historial_trading").insert(registro_clonado).execute()
-                                                supabase.table("historial_trading").update({"stake_1": 0.0, "capital_total": 0.0}).eq("codigo", pr['codigo']).execute()
+                                                
+                                                # ✅ SE ELIMINÓ "capital_total: 0.0" AQUÍ PARA EVITAR QUE SE BORRE EL PRESUPUESTO
+                                                supabase.table("historial_trading").update({"stake_1": 0.0}).eq("codigo", pr['codigo']).execute()
                                                 
                                                 st.session_state[aprueba_key] = False # Resetea la bóveda
                                                 st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
