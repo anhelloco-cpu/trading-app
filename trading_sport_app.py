@@ -3338,12 +3338,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             val_am = float(pr.get('cuota_amenaza_audit') or 1.90)
                             st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
 
-                        col_ent1, col_ent2 = st.columns(2)
-                        with col_ent1:
-                            cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, step=0.05, key=c_ent_key)
-                        with col_ent2:
-                            cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, step=0.05, key=c_am_key)
-
                         # ==================================================================
                         # 📸 BOTÓN DE BITÁCORA (CAPTURAR MOMENTUM + CUOTAS SI/NO)
                         # ==================================================================
@@ -3351,12 +3345,16 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         if st.button("📸 Tomar Foto Táctica y Financiera", key=f"btn_foto_live_{pr['codigo']}", use_container_width=True):
                             if supabase is not None:
                                 try:
+                                    # Para la foto tomamos el valor del estado si existe, sino valores por defecto
+                                    cuota_ent_temp = st.session_state.get(c_ent_key, 2.0)
+                                    cuota_am_temp = st.session_state.get(c_am_key, 1.90)
+                                    
                                     if seleccion_final_rad == "Sí":
-                                        val_cuota_si = float(cuota_ent_rad)
-                                        val_cuota_no = float(cuota_amenaza_rad)
+                                        val_cuota_si = float(cuota_ent_temp)
+                                        val_cuota_no = float(cuota_am_temp)
                                     elif seleccion_final_rad == "No":
-                                        val_cuota_si = float(cuota_amenaza_rad)
-                                        val_cuota_no = float(cuota_ent_rad)
+                                        val_cuota_si = float(cuota_am_temp)
+                                        val_cuota_no = float(cuota_ent_temp)
                                     else:
                                         val_cuota_si = 0.0
                                         val_cuota_no = 0.0
@@ -3712,7 +3710,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     cuota_justa_no = 1 / prob_no if prob_no > 0.01 else 99.0
                                     
                                     if seleccion_final_rad == "Sí":
-                                        ventaja = cuota_ent_rad - cuota_justa_si
+                                        # Leemos las cuotas guardadas en memoria para evaluar la ventaja real
+                                        cuota_act_si = st.session_state.get(c_ent_key, cuota_ent_rad)
+                                        ventaja = cuota_act_si - cuota_justa_si
                                         prob_mercado = prob_si
                                         cuota_justa = cuota_justa_si
                                         
@@ -3722,30 +3722,31 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
                                         elif ventaja >= ventaja_min_exigida:
                                             alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
-                                            texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_ent_rad:.2f}**. Entra ya."
+                                            texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_act_si:.2f}**. Entra ya."
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
                                         elif ventaja >= 0:
                                             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
                                             texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil {perfil_riesgo.split(' ')[1]} exige ganancia superior."
                                             bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
                                         else:
-                                            if (cuota_justa - cuota_ent_rad) <= 0.40 and m_rad < 75:
+                                            if (cuota_justa - cuota_act_si) <= 0.40 and m_rad < 75:
                                                 alerta_accion = f"⏳ **PACIENCIA (ESPERA A QUE SUBA EL SÍ)**"
-                                                texto_accion = f"Pagan muy poco (**{cuota_ent_rad:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera."
+                                                texto_accion = f"Pagan muy poco (**{cuota_act_si:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera."
                                                 bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
                                             else:
                                                 alerta_accion = f"🚫 **DESCARTADO (TRAMPA EN EL SÍ)**"
-                                                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_ent_rad:.2f}**. Aborta."
+                                                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_si:.2f}**. Aborta."
                                                 bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
                                                 
                                     else: # Seleccionó "No"
-                                        ventaja = cuota_ent_rad - cuota_justa_no
+                                        cuota_act_no = st.session_state.get(c_ent_key, cuota_ent_rad)
+                                        ventaja = cuota_act_no - cuota_justa_no
                                         prob_mercado = prob_no
                                         cuota_justa = cuota_justa_no
                                         
                                         if ventaja >= ventaja_min_exigida:
                                             alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
-                                            texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_ent_rad:.2f}**. ¡Mete la plata YA!"
+                                            texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_no:.2f}**. ¡Mete la plata YA!"
                                             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
                                         elif ventaja >= 0:
                                             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
@@ -3753,7 +3754,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
                                         else:
                                             alerta_accion = f"🚫 **LLEGASTE TARDE AL NO**"
-                                            texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_ent_rad:.2f}**. Pérdida matemática."
+                                            texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_act_no:.2f}**. Pérdida matemática."
                                             bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
                                             
                                     st.markdown(f"""
@@ -3812,20 +3813,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         """, unsafe_allow_html=True)
 
                         # ------------------------------------------------------------------
-                        # 🧲 MEMORIA DE CUOTAS Y CAJA INTELIGENTE CONTROLADA
+                        # 🧲 CAJA INTELIGENTE CONTROLADA Y DECISIÓN DE CAPITAL
                         # ------------------------------------------------------------------
-                        c_ent_key = f"c_ent_{pr['codigo']}"
-                        if c_ent_key not in st.session_state:
-                            st.session_state[c_ent_key] = float(pr.get('cuota_inicial', 2.0))
-
-                        c_am_key = f"c_am_{pr['codigo']}"
-                        if c_am_key not in st.session_state:
-                            val_am = float(pr.get('cuota_amenaza_audit') or 1.90)
-                            st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
-
                         stk_key = f"stk_ent_{pr['codigo']}"
 
-                        # --- NUEVO: SELECTOR DE MODO LIBRE VS CONTROL TOTAL ---
+                        # --- SELECTOR DE MODO LIBRE VS CONTROL TOTAL ---
                         modo_gestion = st.radio(
                             "⚙️ Modo de Asignación de Capital:",
                             ["🔓 Libre (Todo el cupo disponible)", "🔒 Control Total (Limitar por nivel de riesgo)"],
@@ -3851,7 +3843,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             # El límite final es el teórico, pero NUNCA puede superar lo que te queda en el bolsillo
                             limite_final_inversion = min(cupo_disponible_partido, limite_teorico)
 
-                        # Ajuste inicial de la memoria
+                        # Ajuste inicial de la memoria de inversión
                         if stk_key not in st.session_state:
                             st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), limite_final_inversion))
 
@@ -3861,9 +3853,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
                         col_ent1, col_ent2, col_ent3 = st.columns(3)
                         with col_ent1:
-                            cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, step=0.05, key=c_ent_key)
+                            # Reflejamos las cuotas guardadas previamente
+                            st.info(f"📈 Cuota Seleccionada: **{st.session_state.get(c_ent_key, 2.0):.2f}**")
                         with col_ent2:
-                            cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, step=0.05, key=c_am_key)
+                            st.info(f"📉 Cuota Amenaza: **{st.session_state.get(c_am_key, 1.90):.2f}**")
                         with col_ent3:
                             # CAJA INTELIGENTE: Si no hay cupo se bloquea en 0. Si hay cupo, restringe al límite
                             if limite_final_inversion <= 0:
@@ -3871,7 +3864,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 stake_ent_rad = 0.0
                             else:
                                 stake_ent_rad = st.number_input(
-                                    f"Capital a Invertir (Max ${limite_final_inversion:,.0f}):",
+                                    f"Inversión (Max ${limite_final_inversion:,.0f}):",
                                     min_value=100.0,
                                     max_value=float(limite_final_inversion),
                                     step=500.0,
