@@ -390,7 +390,7 @@ if estrategia_activa == "💰 Gestión de Capital (Caja)":
                 st.markdown("#### 📤 Registrar Retiro de Ganancias")
                 plat_out = st.selectbox("¿De qué casa retiras dinero?", todas_las_plataformas)
                 plat_out_otra = st.text_input("Especificar plataforma:") if plat_out == "Otra" else ""
-                monto = st.number_input("Monto a Retirar (COP):", min_value=500, step=500, value=1000)
+                monto = st.number_input("Monto a Retirar (COP):", min_value=1.0, step=100.0, value=1.0, format="%.2f")
                 
                 if st.form_submit_button("Fijar Retiro (Banca Real)"):
                     plataforma_final = plat_out_otra if plat_out == "Otra" else plat_out
