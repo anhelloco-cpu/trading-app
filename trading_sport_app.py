@@ -2868,6 +2868,13 @@ elif estrategia_activa == "🔬 Auditoría Cuantitativa (Reporte)":
 # MÓDULO 5: ORÁCULO PREDICTIVO (MACHINE LEARNING BÁSICO)
 # =====================================================================
 elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
+    
+    # 🛡️ BLINDAJE CONTABLE: Calculamos el tope aquí mismo antes de abrir las pestañas
+    try:
+        tope_maximo_evento = max(0.0, saldo_real * 0.05)
+    except NameError:
+        tope_maximo_evento = 5000.0  # Valor de rescate en caso de que el saldo aún no haya cargado
+
     st.markdown("## 🔮 Oráculo Predictivo")
     st.write("Planifica tu entrada al mercado y déjala en el Radar para ejecutarla en vivo basándote en la táctica real.")
 
