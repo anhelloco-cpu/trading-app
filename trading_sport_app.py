@@ -3210,7 +3210,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         
                         with tab_datos:
                             cr1, cr2, cr3 = st.columns(3)
-                            m_rad = cr1.number_input("⏱️ Minuto:", min_value=1, max_value=120, key=f"mr_{pr['codigo']}", value=st.session_state.get(f"mr_{pr['codigo']}", 0))
+                            m_rad = cr1.number_input("⏱️ Minuto:", min_value=0, max_value=120, key=f"mr_{pr['codigo']}", value=st.session_state.get(f"mr_{pr['codigo']}", 0))
                             gl_rad = cr2.number_input(f"⚽ Goles {eq_loc_ui}:", min_value=0, key=f"glr_{pr['codigo']}", value=st.session_state.get(f"glr_{pr['codigo']}", 0))
                             gv_rad = cr3.number_input(f"⚽ Goles {eq_vis_ui}:", min_value=0, key=f"gvr_{pr['codigo']}", value=st.session_state.get(f"gvr_{pr['codigo']}", 0))
                             
