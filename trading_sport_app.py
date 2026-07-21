@@ -3773,23 +3773,18 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 st.error(f"Error procesando IA táctica: {e}")
 
                         # ==================================================================
-                        # 💵 DECISIÓN DE CAPITAL Y AUDITORÍA DE CUPO (POST-ANÁLISIS)
+                        # 💵 AUDITORÍA DE CUPO Y PRESUPUESTO DEL PARTIDO (REGLA DEL 5%)
                         # ==================================================================
-                        st.markdown("#### 💰 Decisión de Capital a Invertir")
-                        
-                        # 🐛 CORRECCIÓN DEL BUG: Agarrar el código exacto "SCAN-1234", no solo "SCAN"
+                        # CORRECCIÓN BUG 10K: Extrae el código exacto (Ej: SCAN-9934), no toda la base
                         partes_codigo = pr['codigo'].split("-")
-                        if len(partes_codigo) >= 2:
-                            codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}"
-                        else:
-                            codigo_base_exacto = pr['codigo']
-                            
+                        codigo_base = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
+                        
                         capital_ya_investido = 0.0
 
                         if supabase is not None:
                             try:
-                                # Consulta EXCLUSIVA para este partido exacto
-                                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                                # Consultamos lo invertido en este partido exacto
+                                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
                                 if res_exp.data:
                                     capital_ya_investido = sum(float(x.get('stake_1', 0.0)) for x in res_exp.data)
                             except Exception:
@@ -3816,43 +3811,73 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         </div>
                         """, unsafe_allow_html=True)
 
+                        # ------------------------------------------------------------------
+                        # 🧲 MEMORIA DE CUOTAS Y CAJA INTELIGENTE CONTROLADA
+                        # ------------------------------------------------------------------
+                        c_ent_key = f"c_ent_{pr['codigo']}"
+                        if c_ent_key not in st.session_state:
+                            st.session_state[c_ent_key] = float(pr.get('cuota_inicial', 2.0))
+
+                        c_am_key = f"c_am_{pr['codigo']}"
+                        if c_am_key not in st.session_state:
+                            val_am = float(pr.get('cuota_amenaza_audit') or 1.90)
+                            st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
+
                         stk_key = f"stk_ent_{pr['codigo']}"
 
-                        # BANDERAS Y BOTONES RÁPIDOS DE SUGERENCIA
-                        col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
-                        val_kamikaze = round(saldo_real * 0.0125, 2)
-                        val_moderado = round(saldo_real * 0.025, 2)
-                        val_conservador = round(saldo_real * 0.05, 2)
-
-                        with col_btn_k1:
-                            if st.button(f"🔥 Kamikaze\n${val_kamikaze:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True):
-                                st.session_state[stk_key] = float(min(val_kamikaze, cupo_disponible_partido))
-                        with col_btn_k2:
-                            if st.button(f"⚖️ Moderado\n${val_moderado:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True):
-                                st.session_state[stk_key] = float(min(val_moderado, cupo_disponible_partido))
-                        with col_btn_k3:
-                            if st.button(f"🛡️ Conservador\n${min(val_conservador, cupo_disponible_partido):,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True):
-                                st.session_state[stk_key] = float(cupo_disponible_partido)
-
-                        if stk_key not in st.session_state:
-                            st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), cupo_disponible_partido))
-
-                        if st.session_state[stk_key] > cupo_disponible_partido:
-                            st.session_state[stk_key] = float(cupo_disponible_partido)
-
-                        # CAJA INTELIGENTE: Si no hay cupo se bloquea en 0.
-                        if cupo_disponible_partido <= 0:
-                            st.error("🚨 Presupuesto agotado para este partido. No puedes inyectar más capital.")
-                            stake_ent_rad = 0.0
-                        else:
-                            stake_ent_rad = st.number_input(
-                                f"Capital a Invertir (Max ${cupo_disponible_partido:,.0f}):",
-                                min_value=100.0,
-                                max_value=float(cupo_disponible_partido),
-                                step=500.0,
-                                key=stk_key,
-                                format="%.2f"
+                        # --- NUEVO: SELECTOR DE MODO LIBRE VS CONTROL TOTAL ---
+                        modo_gestion = st.radio(
+                            "⚙️ Modo de Asignación de Capital:",
+                            ["🔓 Libre (Todo el cupo disponible)", "🔒 Control Total (Limitar por nivel de riesgo)"],
+                            horizontal=True,
+                            key=f"modo_cap_{pr['codigo']}"
+                        )
+                        
+                        limite_final_inversion = cupo_disponible_partido
+                        
+                        if "Control Total" in modo_gestion:
+                            tipo_entrada = st.selectbox(
+                                "Nivel de riesgo de esta entrada:",
+                                ["🔥 Kamikaze (Max 20% del presupuesto)", "⚖️ Moderado (Max 30% del presupuesto)", "🛡️ Conservador (Max 50% del presupuesto)"],
+                                key=f"tipo_ent_{pr['codigo']}"
                             )
+                            if "Kamikaze" in tipo_entrada:
+                                limite_teorico = tope_maximo_evento * 0.20
+                            elif "Moderado" in tipo_entrada:
+                                limite_teorico = tope_maximo_evento * 0.30
+                            else:
+                                limite_teorico = tope_maximo_evento * 0.50
+                                
+                            # El límite final es el teórico, pero NUNCA puede superar lo que te queda en el bolsillo
+                            limite_final_inversion = min(cupo_disponible_partido, limite_teorico)
+
+                        # Ajuste inicial de la memoria
+                        if stk_key not in st.session_state:
+                            st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), limite_final_inversion))
+
+                        # Aseguramos que la memoria nunca sobrepase el límite final calculado
+                        if st.session_state[stk_key] > limite_final_inversion:
+                            st.session_state[stk_key] = float(limite_final_inversion)
+
+                        col_ent1, col_ent2, col_ent3 = st.columns(3)
+                        with col_ent1:
+                            cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, step=0.05, key=c_ent_key)
+                        with col_ent2:
+                            cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, step=0.05, key=c_am_key)
+                        with col_ent3:
+                            # CAJA INTELIGENTE: Si no hay cupo se bloquea en 0. Si hay cupo, restringe al límite
+                            if limite_final_inversion <= 0:
+                                st.error("🚨 Cupo agotado")
+                                stake_ent_rad = 0.0
+                            else:
+                                stake_ent_rad = st.number_input(
+                                    f"Capital a Invertir (Max ${limite_final_inversion:,.0f}):",
+                                    min_value=100.0,
+                                    max_value=float(limite_final_inversion),
+                                    step=500.0,
+                                    key=stk_key,
+                                    format="%.2f"
+                                )
                                 
                         # ==================================================================
                         # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
