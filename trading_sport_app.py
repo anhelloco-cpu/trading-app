@@ -624,7 +624,7 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        capital_total = st.number_input("Capital Total (COP)", min_value=1000, value=min(5000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
+        capital_total = st.number_input("Capital Total (COP)", min_value=500, value=min(5000, int(saldo_disponible)) if saldo_disponible > 10000 else 10000, step=5000)
     with col2:
         utilidad_esperada = st.slider("Utilidad Deseada (%)", min_value=1.0, max_value=30.0, value=10.0, step=0.5)
     with col3:
@@ -662,12 +662,12 @@ elif estrategia_activa == "2️⃣ Estrategia 2: Paz Mental (Fútbol)":
     st.markdown("### 🏢 3. Enrutamiento de Capital (Plataformas)")
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-        plat_1 = st.selectbox(f"🏦 Plataforma para {str_selec_1 if usar_dutching else str_dc}:", ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "1xBet", "Otra"], key="plat1")
+        plat_1 = st.selectbox(f"🏦 Plataforma para {str_selec_1 if usar_dutching else str_dc}:", ["1xBet", "BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Otra"], key="plat1")
         if plat_1 == "Otra": plat_1 = st.text_input("Especifica plataforma 1:", key="otra1")
     
     with col_p2:
         if usar_dutching:
-            plat_2 = st.selectbox(f"🏦 Plataforma para {str_selec_2}:", ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "1xBet", "Otra"], key="plat2")
+            plat_2 = st.selectbox(f"🏦 Plataforma para {str_selec_2}:", ["1xBet", "BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Otra"], key="plat2")
             if plat_2 == "Otra": plat_2 = st.text_input("Especifica plataforma 2:", key="otra2")
         else:
             st.info("🔒 Al usar Doble Oportunidad, todo el Ticket de Fase 1 pertenece a la misma plataforma.")
@@ -1713,7 +1713,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                         st.success(f"¡Cashout registrado! Has cerrado la operación con balance de ${utilidad_cashout:,.0f}.")
                                         st.rerun()
                                 else:
-                                    todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
+                                    todas_las_plataformas = ["1xBet", "BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "Otra"]
                                     plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_es_{op['codigo']}")
                                     plataforma_cob = st.text_input("Especifica la plataforma:", key=f"otra_plat_es_{op['codigo']}") if plataforma_cob_sel == "Otra" else plataforma_cob_sel
                                     
@@ -2100,7 +2100,7 @@ elif estrategia_activa == "🔒 Seguimiento y Liquidación de Posiciones":
                                             
                                     st.markdown("---")
                                     
-                                    todas_las_plataformas = ["BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "1xBet", "Otra"]
+                                    todas_las_plataformas = ["1xBet", "BetPlay", "Wplay", "Rushbet", "Bwin", "Codere", "Yajuego", "Zamba", "Rivalo", "MegApuesta", "Sportium", "Stake", "Otra"]
                                     plataforma_cob_sel = st.selectbox("Plataforma donde cazaste la cobertura:", todas_las_plataformas, key=f"plat_live_{op['codigo']}")
                                     
                                     if plataforma_cob_sel == "Otra":
@@ -2900,7 +2900,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             with col_m1:
                 margen = st.slider("🎯 Margen de Búsqueda de Gemelos (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
             with col_m2:
-                stake_pre = st.number_input("Stake Planeado ($ COP):", min_value=5000, value=50000, step=5000)
+                stake_pre = st.number_input("Stake Planeado ($ COP):", min_value=500, value=5000, step=5000)
 
             st.markdown("<br>", unsafe_allow_html=True)
 
@@ -3082,7 +3082,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         with rp1:
                             nombre_partido_radar = st.text_input("Nombre del Partido:", placeholder="Ej: Real Madrid vs Man City")
                         with rp2:
-                            plataforma_radar_sel = st.selectbox("Plataforma a usar:", ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Otra"], key="plat_radar")
+                            plataforma_radar_sel = st.selectbox("Plataforma a usar:", ["1xBet", "BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Otra"], key="plat_radar")
                             plataforma_radar = st.text_input("Especifica la plataforma:") if plataforma_radar_sel == "Otra" else plataforma_radar_sel
                         
                         if st.button("📌 Mandar al Radar", use_container_width=True):
@@ -3772,8 +3772,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         # ==================================================================
                         # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
                         # ==================================================================
-                        lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"]
-                        plat_previa = pr.get('plataforma_inicial', 'BetPlay')
+                        lista_casas = ["1xBet", "BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "Betfair", "Pinnacle", "Stake", "Otra"]
+                        plat_previa = pr.get('plataforma_inicial', "1xBet")
                         idx_plat = lista_casas.index(plat_previa) if plat_previa in lista_casas else 0
                         
                         col_plat1, col_plat2 = st.columns(2)
@@ -4094,7 +4094,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
         with col_ent2:
             cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, step=0.05, key=c_am_key)
         with col_ent3:
-            stake_ent_rad = st.number_input("Capital Invertido:", min_value=5000, step=5000, key=stk_key)
+            stake_ent_rad = st.number_input("Capital Invertido:", min_value=500, step=500, key=stk_key)
 
         # ==================================================================
         # 📸 BOTÓN DE BITÁCORA (CAPTURAR MOMENTUM)
@@ -4304,7 +4304,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
         # ⚙️ MÓDULO DE DISPARO (INYECCIÓN A BASE DE DATOS)
         # ==================================================================
         st.markdown("#### 🚀 Ejecutar Posición Manual")
-        lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Otra"]
+        lista_casas = ["1xBet", "BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Otra"]
         plat_rad_sel = st.selectbox("Casa de Apuestas:", lista_casas, key=f"plat_{pr['codigo']}")
         
         banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
