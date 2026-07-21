@@ -3179,8 +3179,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         st.session_state[f"mr_{pr['codigo']}"] = int(foto_reciente['minuto_evaluado'])
                                         st.session_state[f"glr_{pr['codigo']}"] = int(foto_reciente['goles_local'])
                                         st.session_state[f"gvr_{pr['codigo']}"] = int(foto_reciente['goles_vis'])
-                                        st.session_state[f"atl_{pr['codigo']}"] = int(foto_reciente.get('atqt_local', 0))
-                                        st.session_state[f"atv_{pr['codigo']}"] = int(foto_reciente.get('atqt_vis', 0))
+                                        st.session_state[f"atl_{pr['codigo']}"] = int(foto_reciente.get('atqt_local', 80))
+                                        st.session_state[f"atv_{pr['codigo']}"] = int(foto_reciente.get('atqt_vis', 50))
                                         st.session_state[f"alr_{pr['codigo']}"] = int(foto_reciente['atkp_local'])
                                         st.session_state[f"avr_{pr['codigo']}"] = int(foto_reciente['atkp_vis'])
                                         st.success(f"✅ ¡Datos del min {foto_reciente['minuto_evaluado']} importados!")
@@ -3217,11 +3217,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             st.markdown("<p style='font-size: 13px; color: #64748B; margin-bottom: 5px;'>Filtro de Verticalidad (Ataques Totales vs Peligrosos)</p>", unsafe_allow_html=True)
                             cr4, cr5, cr6, cr7 = st.columns(4)
                             # Ataques Totales
-                            atq_tot_loc = cr4.number_input(f"Atq. Tot {eq_loc_ui}:", min_value=0, key=f"atl_{pr['codigo']}", value=st.session_state.get(f"atl_{pr['codigo']}", 0))
-                            atq_tot_vis = cr5.number_input(f"Atq. Tot {eq_vis_ui}:", min_value=0, key=f"atv_{pr['codigo']}", value=st.session_state.get(f"atv_{pr['codigo']}", 0))
+                            atq_tot_loc = cr4.number_input(f"Atq. Tot {eq_loc_ui}:", min_value=0, key=f"atl_{pr['codigo']}", value=st.session_state.get(f"atl_{pr['codigo']}", 80))
+                            atq_tot_vis = cr5.number_input(f"Atq. Tot {eq_vis_ui}:", min_value=0, key=f"atv_{pr['codigo']}", value=st.session_state.get(f"atv_{pr['codigo']}", 50))
                             # Ataques Peligrosos
-                            al_rad = cr6.number_input(f"🔥 Peligro {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 0))
-                            av_rad = cr7.number_input(f"🔥 Peligro {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 5))
+                            al_rad = cr6.number_input(f"🔥 Peligro {eq_loc_ui}:", min_value=0, key=f"alr_{pr['codigo']}", value=st.session_state.get(f"alr_{pr['codigo']}", 40))
+                            av_rad = cr7.number_input(f"🔥 Peligro {eq_vis_ui}:", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 25))
 
                         with tab_anti_empate:
                             st.markdown("""
@@ -3326,44 +3326,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             </div>
                             """, unsafe_allow_html=True)
 
-                        # ==================================================================
-                        # 💵 AUDITORÍA DE CUPO Y PRESUPUESTO DEL PARTIDO (REGLA DEL 5%)
-                        # ==================================================================
-                        codigo_base = pr['codigo'].split("-")[0] # Extrae el código madre (Ej: SCAN-9934)
-                        capital_ya_investido = 0.0
-
-                        if supabase is not None:
-                            try:
-                                # Consultamos lo invertido en el Radar y en operaciones Abiertas/EN VIVO de este partido
-                                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
-                                if res_exp.data:
-                                    capital_ya_investido = sum(float(x.get('stake_1', 0.0)) for x in res_exp.data)
-                            except Exception:
-                                capital_ya_investido = 0.0
-
-                        # Cálculo de Cupo Restante en Pesos
-                        cupo_disponible_partido = max(0.0, tope_maximo_evento - capital_ya_investido)
-
-                        # Panel Informativo del Centro de Costos
-                        st.markdown(f"""
-                        <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <span style="font-size: 0.85rem; color: #64748B;">Presupuesto Evento (5% Max):</span><br>
-                                <b style="color: #1E293B; font-size: 1.05rem;">${tope_maximo_evento:,.0f} COP</b>
-                            </div>
-                            <div>
-                                <span style="font-size: 0.85rem; color: #64748B;">Capital Comprometido:</span><br>
-                                <b style="color: #D97706; font-size: 1.05rem;">${capital_ya_investido:,.0f} COP</b>
-                            </div>
-                            <div>
-                                <span style="font-size: 0.85rem; color: #64748B;">Cupo Disponible:</span><br>
-                                <b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'}; font-size: 1.05rem;">${cupo_disponible_partido:,.0f} COP</b>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-
                         # ------------------------------------------------------------------
-                        # 🧲 MEMORIA DE CUOTAS Y CAJA INTELIGENTE CONTROLADA
+                        # 🧲 MEMORIA PARA QUE LAS CUOTAS NO SE BORREN AL EVALUAR
                         # ------------------------------------------------------------------
                         c_ent_key = f"c_ent_{pr['codigo']}"
                         if c_ent_key not in st.session_state:
@@ -3374,15 +3338,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             val_am = float(pr.get('cuota_amenaza_audit') or 1.90)
                             st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
 
-                        
-
-                        # Solo capturamos la caja fuerte de cuotas para evaluar, sin pedir dinero todavía
                         col_ent1, col_ent2 = st.columns(2)
                         with col_ent1:
                             cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, step=0.05, key=c_ent_key)
                         with col_ent2:
                             cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, step=0.05, key=c_am_key)
-
 
                         # ==================================================================
                         # 📸 BOTÓN DE BITÁCORA (CAPTURAR MOMENTUM + CUOTAS SI/NO)
@@ -3557,9 +3517,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     elif (mc <= 45 and eg == True and jp in ["Favorito", "Súper Favorito"] and lm == "Favorito" and gf == 1 and gd == 0 and agf < 0.6 and agd > 0.8 and mpg_f < 0.4 and mpg_d > 0.8 and tp_d > 0.40):
                                         return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia (Mom > 0.8) y verticalidad (TP > 40%). LUZ VERDE SÍ."
                                     elif (mc <= 45 and eg == True and jp == "Fuerzas Parejas" and (goles_ganador == 1 and goles_perdedor == 0) and agg > 0.7 and agp > 0.8 and m_comb >= 1.5 and d_mom < 0.2 and mpg_p > 0.9 and tp_g > 0.35 and tp_p > 0.35):
-                                        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes contraataques (TP > 35%). LUZ VERDE SÍ."
+                                        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes intenso y ambos llegan con peligro (TP > 35%). LUZ VERDE SÍ."
                                     elif (mc <= 45 and eg == True and jp in ["Favorito", "Súper Favorito"] and lm == "Favorito" and gf >= 2 and gd == 0 and agf < 0.6 and agd > 0.8 and mpg_d > 1.0 and tp_d > 0.45):
-                                        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca profundo (TP > 45%). LUZ VERDE SÍ."
+                                        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca furioso y profundo (TP > 45%). LUZ VERDE SÍ."
                                     return None
 
                                 patron_encontrado = detectar_patron_btts_si(
@@ -3812,17 +3772,58 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             except Exception as e:
                                 st.error(f"Error procesando IA táctica: {e}")
 
-# ==================================================================
-                        # 💵 INVERSIÓN: DECISIÓN DE CAPITAL (POST-ANÁLISIS)
+                        # ==================================================================
+                        # 💵 DECISIÓN DE CAPITAL Y AUDITORÍA DE CUPO (POST-ANÁLISIS)
                         # ==================================================================
                         st.markdown("#### 💰 Decisión de Capital a Invertir")
                         
+                        # 🐛 CORRECCIÓN DEL BUG: Agarrar el código exacto "SCAN-1234", no solo "SCAN"
+                        partes_codigo = pr['codigo'].split("-")
+                        if len(partes_codigo) >= 2:
+                            codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}"
+                        else:
+                            codigo_base_exacto = pr['codigo']
+                            
+                        capital_ya_investido = 0.0
+
+                        if supabase is not None:
+                            try:
+                                # Consulta EXCLUSIVA para este partido exacto
+                                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                                if res_exp.data:
+                                    capital_ya_investido = sum(float(x.get('stake_1', 0.0)) for x in res_exp.data)
+                            except Exception:
+                                capital_ya_investido = 0.0
+
+                        # Cálculo de Cupo Restante en Pesos
+                        cupo_disponible_partido = max(0.0, tope_maximo_evento - capital_ya_investido)
+
+                        # Panel Informativo del Centro de Costos
+                        st.markdown(f"""
+                        <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 0.85rem; color: #64748B;">Presupuesto Evento (5% Max):</span><br>
+                                <b style="color: #1E293B; font-size: 1.05rem;">${tope_maximo_evento:,.0f} COP</b>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.85rem; color: #64748B;">Capital Comprometido:</span><br>
+                                <b style="color: #D97706; font-size: 1.05rem;">${capital_ya_investido:,.0f} COP</b>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.85rem; color: #64748B;">Cupo Disponible:</span><br>
+                                <b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'}; font-size: 1.05rem;">${cupo_disponible_partido:,.0f} COP</b>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
                         stk_key = f"stk_ent_{pr['codigo']}"
+
+                        # BANDERAS Y BOTONES RÁPIDOS DE SUGERENCIA
+                        col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
                         val_kamikaze = round(saldo_real * 0.0125, 2)
                         val_moderado = round(saldo_real * 0.025, 2)
                         val_conservador = round(saldo_real * 0.05, 2)
 
-                        col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
                         with col_btn_k1:
                             if st.button(f"🔥 Kamikaze\n${val_kamikaze:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True):
                                 st.session_state[stk_key] = float(min(val_kamikaze, cupo_disponible_partido))
@@ -3839,25 +3840,25 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         if st.session_state[stk_key] > cupo_disponible_partido:
                             st.session_state[stk_key] = float(cupo_disponible_partido)
 
+                        # CAJA INTELIGENTE: Si no hay cupo se bloquea en 0.
                         if cupo_disponible_partido <= 0:
-                            st.error("🚨 Presupuesto agotado para este partido.")
+                            st.error("🚨 Presupuesto agotado para este partido. No puedes inyectar más capital.")
                             stake_ent_rad = 0.0
                         else:
                             stake_ent_rad = st.number_input(
-                                f"Capital a Invertir (Max ${cupo_disponible_partido:,.0f}):", 
-                                min_value=100.0, 
-                                max_value=float(cupo_disponible_partido), 
-                                step=500.0, 
-                                key=stk_key, 
+                                f"Capital a Invertir (Max ${cupo_disponible_partido:,.0f}):",
+                                min_value=100.0,
+                                max_value=float(cupo_disponible_partido),
+                                step=500.0,
+                                key=stk_key,
                                 format="%.2f"
                             )
-                        st.markdown("<br>", unsafe_allow_html=True)
                                 
                         # ==================================================================
                         # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
                         # ==================================================================
-                        lista_casas = ["1xBet", "BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "Betfair", "Pinnacle", "Stake", "Otra"]
-                        plat_previa = pr.get('plataforma_inicial', "1xBet")
+                        lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"]
+                        plat_previa = pr.get('plataforma_inicial', 'BetPlay')
                         idx_plat = lista_casas.index(plat_previa) if plat_previa in lista_casas else 0
                         
                         col_plat1, col_plat2 = st.columns(2)
@@ -3971,9 +3972,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         }
 
                                         if retener_radar:
-                                            res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{pr['codigo']}-%").execute()
+                                            # CORRECCIÓN DE DISPARO: Usar el código exacto
+                                            res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base_exacto}-%").execute()
                                             numero_hijo = len(res_hijos.data) + 1
-                                            codigo_hijo = f"{pr['codigo']}-{numero_hijo:02d}"
+                                            codigo_hijo = f"{codigo_base_exacto}-{numero_hijo:02d}"
                                             
                                             registro_clonado = dict(pr)
                                             registro_clonado.update(datos_inyeccion)
@@ -3981,11 +3983,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             if 'id' in registro_clonado: del registro_clonado['id']
                                             
                                             supabase.table("historial_trading").insert(registro_clonado).execute()
+                                            # Vaciamos la memoria base para el Radar
                                             supabase.table("historial_trading").update({"stake_1": 0.0, "capital_total": 0.0}).eq("codigo", pr['codigo']).execute()
                                             
                                             st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
                                         else:
-                                            datos_inyeccion['codigo'] = f"{pr['codigo']}-01"
+                                            datos_inyeccion['codigo'] = f"{codigo_base_exacto}-01"
                                             supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
                                             st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
                                             
