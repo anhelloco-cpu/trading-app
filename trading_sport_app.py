@@ -4063,7 +4063,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             
                             retener_radar = st.checkbox("🔄 Retener partido en el Radar tras disparar", value=True, key=f"chk_retener_{pr['codigo']}")
                             
-                            col_disp1, col_disp2 = st.columns(2)
+                            col_disp1 = st.columns(1)
                             with col_disp1:
                                 if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
                                     if cuota_cazar_rad > 0 and plat_rad_final:
@@ -4155,7 +4155,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
                                     else:
                                         st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
-                        with col_disp1:
+                        col_disp2 = st.columns(1)
+                        with col_disp2:
                             if st.button("🗑️ ABORTAR (Descartar)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
                                 supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
                                 st.warning("Partido descartado.")
