@@ -2939,24 +2939,23 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             with col_p3:
                 c_vis_pre = st.number_input("Cuota Visita:", min_value=1.01, value=3.50, step=0.05, key="pre_c_vis")
             
-            st.markdown("---")
-            col_m1, col_m2 = st.columns(2)
+            
             st.markdown("---")
             col_m1, col_m2 = st.columns(2)
             with col_m1:
                 margen = st.slider("🎯 Margen de Búsqueda de Gemelos (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
             with col_m2:
-                # 🧮 EL SISTEMA CALCULA TU TECHO MÁXIMO SEGÚN LA BARRA LATERAL
+                # 🧮 EL SISTEMA CALCULA TU TECHO MÁXIMO
                 limite_riesgo_dinero = saldo_real * (max_riesgo_real / 100.0)
                 tope_estricto = float(max(100.0, limite_riesgo_dinero)) 
                 
-                # ✍️ TÚ ESCRIBES LA PLATA, EL SISTEMA TE FRENA SI TE PASAS
+                # ✍️ CAJA TOTALMENTE VACÍA (Sin decisiones mías)
                 stake_pre = st.number_input(
                     f"Stake Planeado (Max {max_riesgo_real}% = ${tope_estricto:,.0f}):", 
-                    min_value=100.0, 
+                    min_value=0.0, 
                     max_value=tope_estricto, 
-                    value=float(min(5000.0, tope_estricto)), # Empieza en 5000, pero lo borras y pones lo que quieras
-                    step=500.0, 
+                    value=0.0,  # <--- AQUÍ ESTABA EL ERROR. Ahora arranca en CERO.
+                    step=1000.0, 
                     format="%.0f"
                 )
 
