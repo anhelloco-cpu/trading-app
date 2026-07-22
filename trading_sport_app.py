@@ -3568,15 +3568,23 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 c_loc_hist = float(pr.get('cuota_base_audit', 2.0))
                                 c_vis_hist = float(pr.get('cuota_amenaza_audit', 2.0))
                                 
+                                # CORRECCIÓN: Definir Favorito estrictamente por cuota matemática menor
+                                es_loc_fav_matematico = c_loc_hist < c_vis_hist
+                                es_vis_fav_matematico = c_vis_hist < c_loc_hist
+                                dif_cuotas = abs(c_loc_hist - c_vis_hist)
+                                
                                 if c_loc_hist <= 1.35 or c_vis_hist <= 1.35: 
                                     jerarquia_pre = "Súper Favorito"
-                                elif (c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3) or (c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3): 
+                                    fav_es_loc = es_loc_fav_matematico
+                                    fav_es_vis = es_vis_fav_matematico
+                                elif dif_cuotas > 0.3: 
                                     jerarquia_pre = "Favorito"
+                                    fav_es_loc = es_loc_fav_matematico
+                                    fav_es_vis = es_vis_fav_matematico
                                 else: 
                                     jerarquia_pre = "Fuerzas Parejas"
-
-                                fav_es_loc = (c_loc_hist < c_vis_hist and (c_vis_hist - c_loc_hist) > 0.3)
-                                fav_es_vis = (c_vis_hist < c_loc_hist and (c_loc_hist - c_vis_hist) > 0.3)
+                                    fav_es_loc = False
+                                    fav_es_vis = False
 
                                 min_corrido = m_rad
                                 estado_goles = (gl_rad + gv_rad) > 0
@@ -3730,13 +3738,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 # ------------------------------------------------------------------
                                 goles_actuales_totales = gl_rad + gv_rad
                                 alerta_señal = ""
-                                fav_es_local = "Local" in jerarquia
-                                fav_es_visita = "Visita" in jerarquia
                                 
                                 if tiene_momentum:
-                                    if (fav_es_local and gv_rad == 1 and gl_rad == 0 and apm_local_dinamico >= umbral_gigante) or \
-                                       (fav_es_visita and gl_rad == 1 and gv_rad == 0 and apm_vis_dinamico >= umbral_gigante):
-                                        equipo_atacando = eq_loc_ui if fav_es_local else eq_vis_ui
+                                    if (fav_es_loc and gv_rad == 1 and gl_rad == 0 and apm_local_dinamico >= umbral_gigante) or \
+                                       (fav_es_vis and gl_rad == 1 and gv_rad == 0 and apm_vis_dinamico >= umbral_gigante):
+                                        equipo_atacando = eq_loc_ui if fav_es_loc else eq_vis_ui
                                         alerta_señal = f"""
                                         <div style="background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 12px; border-radius: 4px; margin-top: 15px;">
                                             <h5 style="margin-top:0; color:#15803D;">🔥 SEÑAL TÁCTICA: EL GIGANTE HERIDO</h5>
@@ -3745,9 +3751,9 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             </p>
                                         </div>
                                         """
-                                    elif (fav_es_local and gl_rad == 1 and gv_rad == 0 and apm_local_dinamico >= umbral_gigante and apm_vis_dinamico <= umbral_asfixia) or \
-                                         (fav_es_visita and gv_rad == 1 and gl_rad == 0 and apm_vis_dinamico >= umbral_gigante and apm_local_dinamico <= umbral_asfixia):
-                                        equipo_asfixiado = eq_vis_ui if fav_es_local else eq_loc_ui
+                                    elif (fav_es_loc and gl_rad == 1 and gv_rad == 0 and apm_local_dinamico >= umbral_gigante and apm_vis_dinamico <= umbral_asfixia) or \
+                                         (fav_es_vis and gv_rad == 1 and gl_rad == 0 and apm_vis_dinamico >= umbral_gigante and apm_local_dinamico <= umbral_asfixia):
+                                        equipo_asfixiado = eq_vis_ui if fav_es_loc else eq_loc_ui
                                         alerta_señal = f"""
                                         <div style="background-color: #FEF2F2; border-left: 5px solid #DC2626; padding: 12px; border-radius: 4px; margin-top: 15px;">
                                             <h5 style="margin-top:0; color:#991B1B;">🛡️ SEÑAL TÁCTICA: ASFIXIA TOTAL</h5>
@@ -3759,8 +3765,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     elif m_rad <= 45 and goles_actuales_totales == 0:
                                         if apm_local_dinamico >= 1.0 or apm_vis_dinamico >= 1.0:
                                             atacante_fuerte = eq_loc_ui if apm_local_dinamico > apm_vis_dinamico else eq_vis_ui
-                                            es_favorito = True if atacante_fuerte in jerarquia else False
-                                            texto_riesgo = "Favorito presionando con furia" if es_favorito else "Peligro de sorpresa del Débil"
+                                            es_favorito_atacando = (atacante_fuerte == eq_loc_ui and fav_es_loc) or (atacante_fuerte == eq_vis_ui and fav_es_vis)
+                                            texto_riesgo = "Favorito presionando con furia" if es_favorito_atacando else "Peligro de sorpresa del Débil"
                                             alerta_señal = f"""
                                             <div style="background-color: #FFFBEB; border-left: 5px solid #D97706; padding: 12px; border-radius: 4px; margin-top: 15px;">
                                                 <h5 style="margin-top:0; color:#B45309;">⚡ SEÑAL DE MOMENTUM: GOL INMINENTE (1T)</h5>
