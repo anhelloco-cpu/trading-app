@@ -3209,6 +3209,73 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         tab_datos, tab_anti_empate = st.tabs(["⚙️ Carga de Datos (APM)", "💣 Calculadora Anti-Empate"])
                         
                         with tab_datos:
+                            # --- ⚡ NUEVO: MÓDULO HÍBRIDO API (AUTO-RELLENADO) ---
+                            st.markdown("""
+                            <div style='background-color: #F0FDF4; padding: 10px 15px; border-radius: 8px; border-left: 5px solid #16A34A; margin-bottom: 15px;'>
+                                <span style='font-size: 0.9rem; color: #166534; font-weight: bold;'>⚡ Auto-Escanear Partido (Opcional)</span>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            col_api1, col_api2 = st.columns([2, 1])
+                            with col_api1:
+                                api_fixture_id = st.text_input("🔗 ID del Partido (API):", key=f"api_id_{pr['codigo']}", placeholder="Ej: 1492290", help="Encuentra este ID en la web de API-Football o usa tu script de prueba.")
+                            with col_api2:
+                                st.markdown("<br>", unsafe_allow_html=True)
+                                if st.button("⚡ Extraer Datos", key=f"btn_api_{pr['codigo']}", use_container_width=True):
+                                    if not api_fixture_id.strip():
+                                        st.warning("Ingresa el ID del partido primero.")
+                                    else:
+                                        import requests
+                                        
+                                        # 🔑 REEMPLAZA ESTO CON TU LLAVE REAL
+                                        API_KEY = "26110cee2e79eff8286acec6fd054558" 
+                                        
+                                        headers = {'x-apisports-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io'}
+                                        
+                                        try:
+                                            with st.spinner("🛰️ Extrayendo datos en vivo..."):
+                                                # Llamada 1: Minutos y Goles
+                                                url_fixture = f"https://v3.football.api-sports.io/fixtures?id={api_fixture_id.strip()}"
+                                                res_fix = requests.get(url_fixture, headers=headers, timeout=5).json()
+                                                
+                                                if res_fix.get('response') and len(res_fix['response']) > 0:
+                                                    p_data = res_fix['response'][0]
+                                                    
+                                                    # Inyectamos a la memoria del sistema
+                                                    st.session_state[f"mr_{pr['codigo']}"] = int(p_data['fixture']['status']['elapsed'] or 0)
+                                                    st.session_state[f"glr_{pr['codigo']}"] = int(p_data['goals']['home'] or 0)
+                                                    st.session_state[f"gvr_{pr['codigo']}"] = int(p_data['goals']['away'] or 0)
+                                                    
+                                                    # Llamada 2: Ataques (Peligrosos y Totales)
+                                                    url_stats = f"https://v3.football.api-sports.io/fixtures/statistics?fixture={api_fixture_id.strip()}"
+                                                    res_stats = requests.get(url_stats, headers=headers, timeout=5).json()
+                                                    
+                                                    if len(res_stats.get('response', [])) >= 2:
+                                                        stats_loc = res_stats['response'][0]['statistics']
+                                                        stats_vis = res_stats['response'][1]['statistics']
+                                                        
+                                                        for stat in stats_loc:
+                                                            if stat['type'] == 'Total attacks': st.session_state[f"atl_{pr['codigo']}"] = int(stat['value'] or 0)
+                                                            elif stat['type'] == 'Dangerous attacks': st.session_state[f"alr_{pr['codigo']}"] = int(stat['value'] or 0)
+                                                                
+                                                        for stat in stats_vis:
+                                                            if stat['type'] == 'Total attacks': st.session_state[f"atv_{pr['codigo']}"] = int(stat['value'] or 0)
+                                                            elif stat['type'] == 'Dangerous attacks': st.session_state[f"avr_{pr['codigo']}"] = int(stat['value'] or 0)
+                                                        
+                                                        st.success("✅ ¡Extracción perfecta! Revisa los números.")
+                                                    else:
+                                                        st.warning("⚠️ Partido sin cobertura de ataques. Se cargaron los goles y el minuto.")
+                                                    
+                                                    st.rerun() # Refresca la pantalla para mostrar los números inyectados
+                                                else:
+                                                    st.error("❌ No existe un partido con ese ID.")
+                                        except Exception as e:
+                                            st.error(f"❌ Error de red: {e}. Digita manualmente.")
+                            
+                            st.markdown("---")
+                            # --- FIN MÓDULO HÍBRIDO API ---
+                            
+                            # TUS CAJAS MANUALES INTACTAS (Ahora leen lo que inyectó la API o lo que tú escribas)
                             cr1, cr2, cr3 = st.columns(3)
                             m_rad = cr1.number_input("⏱️ Minuto:", min_value=0, max_value=120, key=f"mr_{pr['codigo']}", value=st.session_state.get(f"mr_{pr['codigo']}", 0))
                             gl_rad = cr2.number_input(f"⚽ Goles {eq_loc_ui}:", min_value=0, key=f"glr_{pr['codigo']}", value=st.session_state.get(f"glr_{pr['codigo']}", 0))
