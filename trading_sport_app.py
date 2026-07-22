@@ -4097,7 +4097,24 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         if max_roi_pct > 0:
                             col_lim1, col_lim2 = st.columns(2)
                             with col_lim1:
-                                tp_rad = st.slider("Utilidad Deseada (TP):", min_value=1.0, max_value=max(1.0, float(max_roi_pct - 0.5)), value=min(5.0, max(1.0, float(max_roi_pct / 2))), step=0.5, format="%.1f%%", key=f"tp_{pr['codigo']}")
+                                # ------------------------------------------------------------------
+                                # CORRECCIÓN DEL SLIDER: Redondear a múltiplos exactos de 0.5
+                                # ------------------------------------------------------------------
+                                calc_max_tp = max(1.0, float(max_roi_pct - 0.5))
+                                safe_max_tp = max(1.0, round(calc_max_tp * 2.0) / 2.0)
+                                
+                                calc_val_tp = min(5.0, max(1.0, float(max_roi_pct / 2.0)))
+                                safe_val_tp = min(safe_max_tp, max(1.0, round(calc_val_tp * 2.0) / 2.0))
+                                
+                                tp_rad = st.slider(
+                                    "Utilidad Deseada (TP):", 
+                                    min_value=1.0, 
+                                    max_value=float(safe_max_tp), 
+                                    value=float(safe_val_tp), 
+                                    step=0.5, 
+                                    format="%.1f%%", 
+                                    key=f"tp_{pr['codigo']}"
+                                )
                             with col_lim2:
                                 sl_rad = st.slider("Pérdida Máxima (SL):", min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
                             
