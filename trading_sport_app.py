@@ -2941,23 +2941,26 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             
             
             st.markdown("---")
-            col_m1, col_m2 = st.columns(2)
+            col_m1, col_m2, col_m3 = st.columns(3)
             with col_m1:
                 margen = st.slider("🎯 Margen de Búsqueda de Gemelos (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
             with col_m2:
-                # 🧮 EL SISTEMA CALCULA TU TECHO MÁXIMO
-                limite_riesgo_dinero = saldo_real * (max_riesgo_real / 100.0)
-                tope_estricto = float(max(100.0, limite_riesgo_dinero)) 
-                
-                # ✍️ CAJA TOTALMENTE VACÍA (Sin decisiones mías)
-                stake_pre = st.number_input(
-                    f"Stake Planeado (Max {max_riesgo_real}% = ${tope_estricto:,.0f}):", 
-                    min_value=0.0, 
-                    max_value=tope_estricto, 
-                    value=0.0,  # <--- AQUÍ ESTABA EL ERROR. Ahora arranca en CERO.
-                    step=1000.0, 
-                    format="%.0f"
-                )
+                # 🎛️ TÚ DIGITAS EL PORCENTAJE QUE QUIERES ARRIESGAR EN ESTA OPERACIÓN
+                pct_arriesgar = st.number_input("Porcentaje a Arriesgar (%):", min_value=0.1, max_value=100.0, value=5.0, step=0.5)
+            with col_m3:
+                # 🧮 EL SISTEMA TE DICE EL MÁXIMO EN PLATA SEGÚN EL PORCENTAJE QUE TÚ PUSISTE
+                maximo_permitido = float(max(100.0, saldo_real * (pct_arriesgar / 100.0)))
+                st.markdown(f"<div style='margin-top: 28px; padding: 8.5px; background-color: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 5px; text-align: center; color: #1E293B;'>Techo Máximo: <b>${maximo_permitido:,.0f}</b></div>", unsafe_allow_html=True)
+
+            # ✍️ TÚ ESCRIBES TU STAKE LIBREMENTE (Frenado únicamente por el tope de tu porcentaje)
+            stake_pre = st.number_input(
+                "Stake Planeado ($ COP):", 
+                min_value=0.0, 
+                max_value=maximo_permitido, 
+                value=0.0, 
+                step=500.0, 
+                format="%.0f"
+            )
 
             st.markdown("<br>", unsafe_allow_html=True)
 
