@@ -3729,9 +3729,13 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 else: 
                                     jerarquia = "⚖️ Fuerzas Parejas"
 
-                                if apm_local_dinamico > apm_vis_dinamico and (apm_local_dinamico - apm_vis_dinamico) > 0.4: dom_vivo = eq_loc_ui
-                                elif apm_vis_dinamico > apm_local_dinamico and (apm_vis_dinamico - apm_local_dinamico) > 0.4: dom_vivo = eq_vis_ui
-                                else: dom_vivo = "Asedio Dividido"
+                                # CORRECCIÓN: El dominio visual debe mirar el GLOBAL, no solo el momentum de 3 mins
+                                if apm_global_loc > apm_global_vis and (apm_global_loc - apm_global_vis) > 0.15: 
+                                    dom_vivo = eq_loc_ui
+                                elif apm_global_vis > apm_global_loc and (apm_global_vis - apm_global_loc) > 0.15: 
+                                    dom_vivo = eq_vis_ui
+                                else: 
+                                    dom_vivo = "Asedio Dividido"
 
                                 # ------------------------------------------------------------------
                                 # 🎯 3. SEÑALES TÁCTICAS CLÁSICAS
@@ -3740,38 +3744,45 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 alerta_señal = ""
                                 
                                 if tiene_momentum:
-                                    if (fav_es_loc and gv_rad == 1 and gl_rad == 0 and apm_local_dinamico >= umbral_gigante) or \
-                                       (fav_es_vis and gl_rad == 1 and gv_rad == 0 and apm_vis_dinamico >= umbral_gigante):
+                                    # 1. EL GIGANTE HERIDO
+                                    if goles_deb == 1 and goles_fav == 0 and mom_fav >= umbral_gigante:
                                         equipo_atacando = eq_loc_ui if fav_es_loc else eq_vis_ui
                                         alerta_señal = f"""
                                         <div style="background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 12px; border-radius: 4px; margin-top: 15px;">
                                             <h5 style="margin-top:0; color:#15803D;">🔥 SEÑAL TÁCTICA: EL GIGANTE HERIDO</h5>
                                             <p style="margin:0; font-size: 0.9rem; color:#14532D;">
-                                            El débil anotó, pero el Favorito ({equipo_atacando}) cruzó tu umbral táctico con ({max(apm_local_dinamico, apm_vis_dinamico):.2f} APM recientes). Altísima probabilidad de empate inminente.
+                                            El débil anotó, pero el Favorito ({equipo_atacando}) cruzó tu umbral táctico reciente con ({mom_fav:.2f} APM). Altísima probabilidad de empate inminente.
                                             </p>
                                         </div>
                                         """
-                                    elif (fav_es_loc and gl_rad == 1 and gv_rad == 0 and apm_local_dinamico >= umbral_gigante and apm_vis_dinamico <= umbral_asfixia) or \
-                                         (fav_es_vis and gv_rad == 1 and gl_rad == 0 and apm_vis_dinamico >= umbral_gigante and apm_local_dinamico <= umbral_asfixia):
+                                    
+                                    # 2. ASFIXIA TOTAL (Corrección: Exige que el GLOBAL también esté asfixiado, no solo el momentum)
+                                    elif goles_fav == 1 and goles_deb == 0 and mom_fav >= umbral_gigante and mom_deb <= umbral_asfixia and apm_global_deb <= umbral_asfixia:
                                         equipo_asfixiado = eq_vis_ui if fav_es_loc else eq_loc_ui
                                         alerta_señal = f"""
                                         <div style="background-color: #FEF2F2; border-left: 5px solid #DC2626; padding: 12px; border-radius: 4px; margin-top: 15px;">
                                             <h5 style="margin-top:0; color:#991B1B;">🛡️ SEÑAL TÁCTICA: ASFIXIA TOTAL</h5>
                                             <p style="margin:0; font-size: 0.9rem; color:#7F1D1D;">
-                                            El Favorito anotó y no quita el pie del acelerador. El equipo {equipo_asfixiado} está completamente anulado para tu Perfil ({min(apm_local_dinamico, apm_vis_dinamico):.2f} APM). Escenario letal para el SÍ.
+                                            El Favorito anotó y no quita el pie del acelerador. El equipo {equipo_asfixiado} está completamente anulado (Global: {apm_global_deb:.2f} APM | Reciente: {mom_deb:.2f} APM). Escenario letal para el SÍ.
                                             </p>
                                         </div>
                                         """
+                                        
+                                    # 3. GOL INMINENTE
                                     elif m_rad <= 45 and goles_actuales_totales == 0:
-                                        if apm_local_dinamico >= 1.0 or apm_vis_dinamico >= 1.0:
-                                            atacante_fuerte = eq_loc_ui if apm_local_dinamico > apm_vis_dinamico else eq_vis_ui
-                                            es_favorito_atacando = (atacante_fuerte == eq_loc_ui and fav_es_loc) or (atacante_fuerte == eq_vis_ui and fav_es_vis)
-                                            texto_riesgo = "Favorito presionando con furia" if es_favorito_atacando else "Peligro de sorpresa del Débil"
+                                        if mom_fav >= 1.0 or mom_deb >= 1.0:
+                                            if mom_fav > mom_deb:
+                                                atacante_fuerte = eq_loc_ui if fav_es_loc else eq_vis_ui
+                                                texto_riesgo = "Favorito presionando con furia"
+                                            else:
+                                                atacante_fuerte = eq_vis_ui if fav_es_loc else eq_loc_ui
+                                                texto_riesgo = "Peligro de sorpresa del Débil"
+                                                
                                             alerta_señal = f"""
                                             <div style="background-color: #FFFBEB; border-left: 5px solid #D97706; padding: 12px; border-radius: 4px; margin-top: 15px;">
                                                 <h5 style="margin-top:0; color:#B45309;">⚡ SEÑAL DE MOMENTUM: GOL INMINENTE (1T)</h5>
                                                 <p style="margin:0; font-size: 0.9rem; color:#92400E;">
-                                                El equipo {atacante_fuerte} bombardea el arco ({max(apm_local_dinamico, apm_vis_dinamico):.2f} APM). {texto_riesgo}.
+                                                El equipo {atacante_fuerte} bombardea el arco ({max(mom_fav, mom_deb):.2f} APM reciente). {texto_riesgo}.
                                                 </p>
                                             </div>
                                             """
