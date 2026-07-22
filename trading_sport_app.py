@@ -3547,11 +3547,18 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 
                                 if supabase is not None:
                                     try:
-                                        res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lt("minuto_evaluado", m_rad).order("minuto_evaluado", desc=True).limit(1).execute()
+                                        # 1. Buscamos primero una foto que tenga AL MENOS 5 minutos de antigüedad (Filtro anti-ruido)
+                                        res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lte("minuto_evaluado", m_rad - 5).order("minuto_evaluado", desc=True).limit(1).execute()
+                                        
+                                        # 2. Si no hay fotos tan viejas (ej. apenas tomaste la primera hace 2 minutos), usamos la que haya como plan B
+                                        if not res_last.data:
+                                            res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lt("minuto_evaluado", m_rad).order("minuto_evaluado", desc=True).limit(1).execute()
+                                            
                                         if res_last.data:
                                             foto_ant = res_last.data[0]
                                             min_ant = int(foto_ant['minuto_evaluado'])
                                             delta_min = m_rad - min_ant
+                                            
                                             if delta_min >= 2:
                                                 atk_l_ant = int(foto_ant['atkp_local'])
                                                 atk_v_ant = int(foto_ant['atkp_vis'])
