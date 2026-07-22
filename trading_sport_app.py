@@ -3741,6 +3741,35 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 prob_no = probabilidades[0]
                                 prob_si = probabilidades[1]
 
+                                # ------------------------------------------------------------------
+                                # 🧮 TRADUCTOR POISSON (Para Línea de Goles Over/Under)
+                                # ------------------------------------------------------------------
+                                import math
+                                import re
+                                
+                                prob_goles_mas = 0.50
+                                prob_goles_menos = 0.50
+                                
+                                if mdo_str == "Línea de Goles":
+                                    nums_linea = re.findall(r'\d+\.\d+|\d+', sel_ini_rad)
+                                    if nums_linea:
+                                        linea_operacion = float(nums_linea[0])
+                                        goles_techo_under = int(math.floor(linea_operacion))
+                                        
+                                        # Goles esperados según tu modelo ML
+                                        lam = max(0.1, float(pred_goles_rad))
+                                        
+                                        # Suma de probabilidades Poisson desde 0 hasta el techo del Under
+                                        p_under = 0.0
+                                        for k in range(goles_techo_under + 1):
+                                            p_under += (math.exp(-lam) * (lam**k)) / math.factorial(k)
+                                            
+                                        prob_goles_menos = p_under
+                                        prob_goles_mas = 1.0 - p_under
+
+                                # ------------------------------------------------------------------
+                                # ⚖️ REGLAS TÁCTICAS Y PATRONES BTTS (INTACTAS)
+                                # ------------------------------------------------------------------
                                 if (apm_local_dinamico < umbral_asfixia and gl_rad == 0) or (apm_vis_dinamico < umbral_asfixia and gv_rad == 0):
                                     prob_si = prob_si * mult_castigo
                                     prob_no = 1.0 - prob_si
@@ -3969,6 +3998,91 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         </div>
                                     </div>
                                     """, unsafe_allow_html=True)
+                                    
+                                elif mdo_str == "Línea de Goles":
+                                    # --------------------------------------------------------------
+                                    # FASE 2: PATRONES TÁCTICOS PARA GOLES (Over/Under)
+                                    # --------------------------------------------------------------
+                                    if apm_rad >= 1.5 and tp_local > 0.30 and tp_visita > 0.30:
+                                        # TIROTEO ABIERTO: Ambos asedian y pisan el área. Favorece el OVER.
+                                        prob_goles_mas = min(0.95, prob_goles_mas * 1.30)
+                                        prob_goles_menos = 1.0 - prob_goles_mas
+                                    elif apm_rad <= 0.6 and tp_local < 0.20 and tp_visita < 0.20:
+                                        # PACTO DE NO AGRESIÓN: Partido trabado. Favorece el UNDER.
+                                        prob_goles_menos = min(0.95, prob_goles_menos * 1.30)
+                                        prob_goles_mas = 1.0 - prob_goles_menos
+
+                                    cuota_justa_mas = 1 / prob_goles_mas if prob_goles_mas > 0.01 else 99.0
+                                    cuota_justa_menos = 1 / prob_goles_menos if prob_goles_menos > 0.01 else 99.0
+                                    
+                                    # --------------------------------------------------------------
+                                    # FASE 3: DICTAMEN VISUAL Y BLOQUEOS DE RIESGO
+                                    # --------------------------------------------------------------
+                                    if "Más" in seleccion_final_rad:
+                                        cuota_act_mas = st.session_state.get(c_ent_key, cuota_ent_rad)
+                                        ventaja = cuota_act_mas - cuota_justa_mas
+                                        prob_mercado = prob_goles_mas
+                                        cuota_justa = cuota_justa_mas
+                                        
+                                        if m_rad >= minuto_limite_si:
+                                            alerta_accion = "⏳ **BLOQUEO POR RELOJ (LOTERÍA)**"
+                                            texto_accion = f"Tu Perfil {perfil_riesgo.split(' ')[1]} prohíbe apostar a goles tardíos (min > {minuto_limite_si})."
+                                            bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
+                                        elif ventaja >= ventaja_min_exigida:
+                                            alerta_accion = "🔥 **¡DISPARA AL OVER AHORA!**"
+                                            texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_act_mas:.2f}**. Entra ya."
+                                            bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
+                                            st.session_state[aprueba_key] = True 
+                                            st.session_state[perfil_aprobado_key] = perfil_riesgo
+                                        elif ventaja >= 0:
+                                            alerta_accion = "🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
+                                            texto_accion = f"Hay valor matemático (Justa: **{cuota_justa:.2f}**), pero tu Perfil exige ganancia superior."
+                                            bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
+                                        else:
+                                            if (cuota_justa - cuota_act_mas) <= 0.40 and m_rad < 75:
+                                                alerta_accion = "⏳ **PACIENCIA (ESPERA A QUE SUBA LA CUOTA)**"
+                                                texto_accion = f"Pagan muy poco (**{cuota_act_mas:.2f}**). La cuota justa es **{cuota_justa:.2f}**. El over bajará si no hay goles pronto."
+                                                bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
+                                            else:
+                                                alerta_accion = "🚫 **DESCARTADO (TRAMPA EN EL OVER)**"
+                                                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_mas:.2f}**. Matemáticamente en contra. Aborta."
+                                                bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
+                                                
+                                    else:
+                                        cuota_act_menos = st.session_state.get(c_ent_key, cuota_ent_rad)
+                                        ventaja = cuota_act_menos - cuota_justa_menos
+                                        prob_mercado = prob_goles_menos
+                                        cuota_justa = cuota_justa_menos
+                                        
+                                        if ventaja >= ventaja_min_exigida:
+                                            alerta_accion = "🛡️ **¡DISPARA AL UNDER AHORA!**"
+                                            texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_menos:.2f}**. ¡Mete la plata YA!"
+                                            bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
+                                            st.session_state[aprueba_key] = True 
+                                            st.session_state[perfil_aprobado_key] = perfil_riesgo
+                                        elif ventaja >= 0:
+                                            alerta_accion = "🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
+                                            texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil exige mayor margen de error."
+                                            bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
+                                        else:
+                                            alerta_accion = "🚫 **LLEGASTE TARDE AL UNDER**"
+                                            texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_act_menos:.2f}**. No asumas el riesgo."
+                                            bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
+                                            
+                                    apm_global_comb = apm_global_loc + apm_global_vis
+                                    
+                                    st.markdown(f"""
+                                    <div style="background-color: {bg_color}; border-left: 5px solid {border_color}; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                                        <h4 style="margin-top:0; color:{border_color};">{alerta_accion}</h4>
+                                        <p style="margin:0; font-size:0.95rem; color:{text_color};">{texto_accion}</p>
+                                        <hr style="border-color:{border_color}; opacity:0.3; margin: 10px 0;">
+                                        <div style="font-size:0.85rem; color:#475569; display:flex; justify-content:space-between; flex-wrap: wrap; gap: 10px;">
+                                            <span><b>Prob. IA {seleccion_final_rad.upper()}:</b> {prob_mercado*100:.1f}%</span>
+                                            <span><b>Global:</b> {apm_global_comb:.2f} APM | <b>Furia Reciente:</b> {apm_rad:.2f} APM ({texto_momentum})</span>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                    
                                 else:
                                     st.session_state[aprueba_key] = True
                                     st.session_state[perfil_aprobado_key] = perfil_riesgo
