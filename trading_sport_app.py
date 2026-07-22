@@ -3234,14 +3234,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         
                                         try:
                                             with st.spinner("🛰️ Extrayendo datos en vivo..."):
-                                                # Llamada 1: Minutos y Goles (¡Esto ya te funcionó perfecto!)
+                                                # Llamada 1: Minutos y Goles
                                                 url_fixture = f"https://v3.football.api-sports.io/fixtures?id={api_fixture_id.strip()}"
                                                 res_fix = requests.get(url_fixture, headers=headers, timeout=5).json()
                                                 
                                                 if res_fix.get('response') and len(res_fix['response']) > 0:
                                                     p_data = res_fix['response'][0]
                                                     
-                                                    # Inyectamos Minuto y Goles a la memoria
+                                                    # Inyectamos Minuto y Goles a la memoria de forma segura
                                                     st.session_state[f"mr_{pr['codigo']}"] = int(p_data['fixture']['status']['elapsed'] or 0)
                                                     st.session_state[f"glr_{pr['codigo']}"] = int(p_data['goals']['home'] or 0)
                                                     st.session_state[f"gvr_{pr['codigo']}"] = int(p_data['goals']['away'] or 0)
@@ -3255,9 +3255,18 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                                         stats_loc = res_stats['response'][0]['statistics']
                                                         stats_vis = res_stats['response'][1]['statistics']
                                                         
+                                                        # Función interna blindada para limpiar strings como '91%' o 'None'
+                                                        def limpiar_valor(val):
+                                                            if val is None: return 0
+                                                            val_str = str(val).replace('%', '').strip()
+                                                            try:
+                                                                return int(float(val_str))
+                                                            except ValueError:
+                                                                return 0
+
                                                         for stat in stats_loc:
                                                             nombre_stat = str(stat.get('type', '')).lower()
-                                                            valor_stat = int(stat.get('value') or 0)
+                                                            valor_stat = limpiar_valor(stat.get('value'))
                                                             
                                                             if 'total attack' in nombre_stat or nombre_stat == 'attacks':
                                                                 st.session_state[f"atl_{pr['codigo']}"] = valor_stat
@@ -3268,7 +3277,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                                                 
                                                         for stat in stats_vis:
                                                             nombre_stat = str(stat.get('type', '')).lower()
-                                                            valor_stat = int(stat.get('value') or 0)
+                                                            valor_stat = limpiar_valor(stat.get('value'))
                                                             
                                                             if 'total attack' in nombre_stat or nombre_stat == 'attacks':
                                                                 st.session_state[f"atv_{pr['codigo']}"] = valor_stat
