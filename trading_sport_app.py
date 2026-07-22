@@ -3947,129 +3947,133 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 st.error(f"Error procesando IA táctica: {e}")
 
                         # ------------------------------------------------------------------
-                        # 💵 DECISIÓN DE CAPITAL Y AUDITORÍA DE CUPO
-                        # ------------------------------------------------------------------
-                        aprueba_key = f"oraculo_aprueba_{pr['codigo']}"
-                        
-                        if not st.session_state.get(aprueba_key, False):
-                            st.warning("🛑 BÓVEDA CERRADA: Presiona '🧠 Validar con Oráculo Táctico'. Solo podrás inyectar capital si obtienes LUZ VERDE.")
-                        else:
-                            st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
-                            st.markdown("#### 💰 Decisión de Capital a Invertir")
-                            
-                            perfil_evaluado_guardado = st.session_state.get(f"perfil_evaluado_{pr['codigo']}", "MODERADO")
-                            es_kamikaze = "AGRESIVO" in perfil_evaluado_guardado
-                            es_moderado = "MODERADO" in perfil_evaluado_guardado
-                            es_conservador = "CONSERVADOR" in perfil_evaluado_guardado
-                            
-                            partes_codigo = pr['codigo'].split("-")
-                            codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
-                            
-                            capital_ya_investido = 0.0
-                            inversiones_previas = []
-
-                            if supabase is not None:
-                                try:
-                                    res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
-                                    if res_exp.data:
-                                        inversiones_previas = [float(x.get('stake_1', 0.0)) for x in res_exp.data if float(x.get('stake_1', 0.0)) > 0]
-                                        capital_ya_investido = sum(inversiones_previas)
-                                except Exception:
-                                    capital_ya_investido = 0.0
-
-                            presupuesto_partido = float(pr.get('capital_total', 5000.0))
-                            cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
-
-                            st.markdown(f"""
-                            <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                                <div style="text-align:center;">
-                                    <span style="font-size: 0.8rem; color: #64748B;">Presupuesto Asignado:</span><br>
-                                    <b style="color: #1E293B; font-size: 1rem;">${presupuesto_partido:,.0f}</b>
-                                </div>
-                                <div style="text-align:center;">
-                                    <span style="font-size: 0.8rem; color: #64748B;">Comprometido:</span><br>
-                                    <b style="color: #D97706; font-size: 1rem;">${capital_ya_investido:,.0f}</b>
-                                </div>
-                                <div style="text-align:center;">
-                                    <span style="font-size: 0.8rem; color: #64748B;">Cupo Disponible:</span><br>
-                                    <b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'}; font-size: 1rem;">${cupo_disponible_partido:,.0f}</b>
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                            stk_key_cap = f"stk_ent_cap_{pr['codigo']}"
-                            modo_gestion = st.radio(
-                                "⚙️ Modo de Asignación de Capital:",
-                                ["🔓 Libre (Todo el cupo disponible)", "🔒 Control Total (Limitar por nivel de riesgo)"],
-                                horizontal=True,
-                                key=f"modo_cap_{pr['codigo']}"
-                            )
-                            
-                            bolsas_teoricas = {
-                                "kamikaze": presupuesto_partido * 0.20,
-                                "moderado": presupuesto_partido * 0.30,
-                                "conservador": presupuesto_partido * 0.50
-                            }
-                            
-                            usado_kam, usado_mod, usado_con = False, False, False
-                            for inv in inversiones_previas:
-                                dist = {}
-                                if not usado_kam: dist["kamikaze"] = abs(inv - bolsas_teoricas["kamikaze"])
-                                if not usado_mod: dist["moderado"] = abs(inv - bolsas_teoricas["moderado"])
-                                if not usado_con: dist["conservador"] = abs(inv - bolsas_teoricas["conservador"])
-                                if dist:
-                                    mejor = min(dist, key=dist.get)
-                                    if mejor == "kamikaze": usado_kam = True
-                                    elif mejor == "moderado": usado_mod = True
-                                    elif mejor == "conservador": usado_con = True
-
-                            val_kamikaze = 0.0 if usado_kam else bolsas_teoricas["kamikaze"]
-                            val_moderado = 0.0 if usado_mod else bolsas_teoricas["moderado"]
-                            val_conservador = 0.0 if usado_con else bolsas_teoricas["conservador"]
-
-                            limite_final_inversion = cupo_disponible_partido
-                            
-                            if "Control Total" in modo_gestion:
-                                opciones_permitidas = []
-                                if es_kamikaze: opciones_permitidas.append(f"🔥 Kamikaze (Max 20%) {'- AGOTADO' if usado_kam else ''}")
-                                if es_moderado: opciones_permitidas.append(f"⚖️ Moderado (Max 30%) {'- AGOTADO' if usado_mod else ''}")
-                                if es_conservador: opciones_permitidas.append(f"🛡️ Conservador (Max 50%) {'- AGOTADO' if usado_con else ''}")
+                                # 💵 DECISIÓN DE CAPITAL Y AUDITORÍA DE CUPO
+                                # ------------------------------------------------------------------
+                                aprueba_key = f"oraculo_aprueba_{pr['codigo']}"
                                 
-                                tipo_entrada = st.selectbox("Riesgo AUTORIZADO por el Oráculo:", opciones_permitidas, key=f"tipo_ent_{pr['codigo']}")
-                                if "Kamikaze" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_kamikaze)
-                                elif "Moderado" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_moderado)
-                                else: limite_final_inversion = min(cupo_disponible_partido, val_conservador)
+                                if not st.session_state.get(aprueba_key, False):
+                                    st.warning("🛑 BÓVEDA CERRADA: Presiona '🧠 Validar con Oráculo Táctico'. Solo podrás inyectar capital si obtienes LUZ VERDE.")
+                                else:
+                                    st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
+                                    st.markdown("#### 💰 Decisión de Capital a Invertir")
+                                    
+                                    perfil_evaluado_guardado = st.session_state.get(f"perfil_evaluado_{pr['codigo']}", "MODERADO")
+                                    es_kamikaze = "AGRESIVO" in perfil_evaluado_guardado
+                                    es_moderado = "MODERADO" in perfil_evaluado_guardado
+                                    es_conservador = "CONSERVADOR" in perfil_evaluado_guardado
+                                    
+                                    # -----------------------------------------------------------
+                                    # 🛡️ RESCATE DE VARIABLES: Las calculamos internamente para 
+                                    # garantizar que la bóveda nunca sufra de un "NameError"
+                                    # -----------------------------------------------------------
+                                    partes_codigo = pr['codigo'].split("-")
+                                    codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
+                                    
+                                    capital_ya_investido = 0.0
+                                    inversiones_previas = []
 
-                            col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
-                            with col_btn_k1:
-                                if st.button(f"🔥 Kamikaze\n${bolsas_teoricas['kamikaze']:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=usado_kam or cupo_disponible_partido <= 0 or not es_kamikaze):
-                                    st.session_state[stk_key_cap] = float(min(val_kamikaze, cupo_disponible_partido))
-                            with col_btn_k2:
-                                if st.button(f"⚖️ Moderado\n${bolsas_teoricas['moderado']:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=usado_mod or cupo_disponible_partido <= 0 or not es_moderado):
-                                    st.session_state[stk_key_cap] = float(min(val_moderado, cupo_disponible_partido))
-                            with col_btn_k3:
-                                if st.button(f"🛡️ Conservador\n${bolsas_teoricas['conservador']:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=usado_con or cupo_disponible_partido <= 0 or not es_conservador):
-                                    st.session_state[stk_key_cap] = float(min(val_conservador, cupo_disponible_partido))
+                                    if supabase is not None:
+                                        try:
+                                            res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                                            if res_exp.data:
+                                                inversiones_previas = [float(x.get('stake_1', 0.0)) for x in res_exp.data if float(x.get('stake_1', 0.0)) > 0]
+                                                capital_ya_investido = sum(inversiones_previas)
+                                        except Exception:
+                                            pass
 
-                            if stk_key_cap not in st.session_state:
-                                st.session_state[stk_key_cap] = float(min(pr.get('stake_1', 1000.0), max(1.0, limite_final_inversion)))
+                                    presupuesto_partido = float(pr.get('capital_total', 5000.0))
+                                    cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
 
-                            if st.session_state[stk_key_cap] > limite_final_inversion:
-                                st.session_state[stk_key_cap] = float(limite_final_inversion)
+                                    bolsas_teoricas = {
+                                        "kamikaze": presupuesto_partido * 0.20,
+                                        "moderado": presupuesto_partido * 0.30,
+                                        "conservador": presupuesto_partido * 0.50
+                                    }
+                                    
+                                    usado_kam, usado_mod, usado_con = False, False, False
+                                    for inv in inversiones_previas:
+                                        dist = {}
+                                        if not usado_kam: dist["kamikaze"] = abs(inv - bolsas_teoricas["kamikaze"])
+                                        if not usado_mod: dist["moderado"] = abs(inv - bolsas_teoricas["moderado"])
+                                        if not usado_con: dist["conservador"] = abs(inv - bolsas_teoricas["conservador"])
+                                        if dist:
+                                            mejor = min(dist, key=dist.get)
+                                            if mejor == "kamikaze": usado_kam = True
+                                            elif mejor == "moderado": usado_mod = True
+                                            elif mejor == "conservador": usado_con = True
+                                    # -----------------------------------------------------------
 
-                            if limite_final_inversion <= 0:
-                                st.error("🚨 Cupo agotado para el modo seleccionado. Estás protegido.")
-                                stake_ent_rad = 0.0
-                            else:
-                                stake_ent_rad = st.number_input(
-                                    f"Capital a Invertir (Max ${limite_final_inversion:,.0f}):",
-                                    min_value=100.0,
-                                    max_value=float(limite_final_inversion),
-                                    step=500.0,
-                                    key=stk_key_cap,
-                                    format="%.2f"
-                                )
+                                    st.markdown(f"""
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+                                        <div style="text-align:center;">
+                                            <span style="font-size: 0.8rem; color: #64748B;">Presupuesto Asignado:</span><br>
+                                            <b style="color: #1E293B; font-size: 1rem;">${presupuesto_partido:,.0f}</b>
+                                        </div>
+                                        <div style="text-align:center;">
+                                            <span style="font-size: 0.8rem; color: #64748B;">Comprometido:</span><br>
+                                            <b style="color: #D97706; font-size: 1rem;">${capital_ya_investido:,.0f}</b>
+                                        </div>
+                                        <div style="text-align:center;">
+                                            <span style="font-size: 0.8rem; color: #64748B;">Cupo Disponible:</span><br>
+                                            <b style="color: {'#10B981' if cupo_disponible_partido > 0 else '#EF4444'}; font-size: 1rem;">${cupo_disponible_partido:,.0f}</b>
+                                        </div>
+                                    </div>
+                                    """, unsafe_allow_html=True)
 
+                                    stk_key_cap = f"stk_ent_cap_{pr['codigo']}"
+                                    modo_gestion = st.radio(
+                                        "⚙️ Modo de Asignación de Capital:",
+                                        ["🔓 Libre (Todo el cupo disponible)", "🔒 Control Total (Limitar por nivel de riesgo)"],
+                                        horizontal=True,
+                                        key=f"modo_cap_{pr['codigo']}"
+                                    )
+                                    
+                                    val_kamikaze = 0.0 if usado_kam else bolsas_teoricas["kamikaze"]
+                                    val_moderado = 0.0 if usado_mod else bolsas_teoricas["moderado"]
+                                    val_conservador = 0.0 if usado_con else bolsas_teoricas["conservador"]
+
+                                    limite_final_inversion = cupo_disponible_partido
+                                    
+                                    if "Control Total" in modo_gestion:
+                                        opciones_permitidas = []
+                                        if es_kamikaze: opciones_permitidas.append(f"🔥 Kamikaze (Max 20%) {'- AGOTADO' if usado_kam else ''}")
+                                        if es_moderado: opciones_permitidas.append(f"⚖️ Moderado (Max 30%) {'- AGOTADO' if usado_mod else ''}")
+                                        if es_conservador: opciones_permitidas.append(f"🛡️ Conservador (Max 50%) {'- AGOTADO' if usado_con else ''}")
+                                        
+                                        tipo_entrada = st.selectbox("Riesgo AUTORIZADO por el Oráculo:", opciones_permitidas, key=f"tipo_ent_{pr['codigo']}")
+                                        if "Kamikaze" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_kamikaze)
+                                        elif "Moderado" in tipo_entrada: limite_final_inversion = min(cupo_disponible_partido, val_moderado)
+                                        else: limite_final_inversion = min(cupo_disponible_partido, val_conservador)
+
+                                    col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
+                                    with col_btn_k1:
+                                        if st.button(f"🔥 Kamikaze\n${bolsas_teoricas['kamikaze']:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=usado_kam or cupo_disponible_partido <= 0 or not es_kamikaze):
+                                            st.session_state[stk_key_cap] = float(min(val_kamikaze, cupo_disponible_partido))
+                                    with col_btn_k2:
+                                        if st.button(f"⚖️ Moderado\n${bolsas_teoricas['moderado']:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=usado_mod or cupo_disponible_partido <= 0 or not es_moderado):
+                                            st.session_state[stk_key_cap] = float(min(val_moderado, cupo_disponible_partido))
+                                    with col_btn_k3:
+                                        if st.button(f"🛡️ Conservador\n${bolsas_teoricas['conservador']:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=usado_con or cupo_disponible_partido <= 0 or not es_conservador):
+                                            st.session_state[stk_key_cap] = float(min(val_conservador, cupo_disponible_partido))
+
+                                    if stk_key_cap not in st.session_state:
+                                        st.session_state[stk_key_cap] = float(min(pr.get('stake_1', 1000.0), max(1.0, limite_final_inversion)))
+
+                                    if st.session_state[stk_key_cap] > limite_final_inversion:
+                                        st.session_state[stk_key_cap] = float(limite_final_inversion)
+
+                                    if limite_final_inversion <= 0:
+                                        st.error("🚨 Cupo agotado para el modo seleccionado. Estás protegido.")
+                                        stake_ent_rad = 0.0
+                                    else:
+                                        stake_ent_rad = st.number_input(
+                                            f"Capital a Invertir (Max ${limite_final_inversion:,.0f}):",
+                                            min_value=100.0,
+                                            max_value=float(limite_final_inversion),
+                                            step=500.0,
+                                            key=stk_key_cap,
+                                            format="%.2f"
+                                        )
                         # ==================================================================
                         # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
                         # ==================================================================
@@ -4093,7 +4097,24 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         if max_roi_pct > 0:
                             col_lim1, col_lim2 = st.columns(2)
                             with col_lim1:
-                                tp_rad = st.slider("Utilidad Deseada (TP):", min_value=1.0, max_value=max(1.0, float(max_roi_pct - 0.5)), value=min(5.0, max(1.0, float(max_roi_pct / 2))), step=0.5, format="%.1f%%", key=f"tp_{pr['codigo']}")
+                                # ------------------------------------------------------------------
+                                # CORRECCIÓN DEL SLIDER: Redondear a múltiplos exactos de 0.5
+                                # ------------------------------------------------------------------
+                                calc_max_tp = max(1.0, float(max_roi_pct - 0.5))
+                                safe_max_tp = max(1.0, round(calc_max_tp * 2.0) / 2.0)
+                                
+                                calc_val_tp = min(5.0, max(1.0, float(max_roi_pct / 2.0)))
+                                safe_val_tp = min(safe_max_tp, max(1.0, round(calc_val_tp * 2.0) / 2.0))
+                                
+                                tp_rad = st.slider(
+                                    "Utilidad Deseada (TP):", 
+                                    min_value=1.0, 
+                                    max_value=float(safe_max_tp), 
+                                    value=float(safe_val_tp), 
+                                    step=0.5, 
+                                    format="%.1f%%", 
+                                    key=f"tp_{pr['codigo']}"
+                                )
                             with col_lim2:
                                 sl_rad = st.slider("Pérdida Máxima (SL):", min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
                             
@@ -4419,15 +4440,67 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                     st.error(f"❌ Error guardando foto: {e}")
 
         # ==================================================================
-        # 🎛️ SELECTOR DE PERFIL DE RIESGO
+        # 🔍 AUDITORÍA PREVIA DE INVERSIONES (BLOQUEO DE PERFILES AGOTADOS)
         # ==================================================================
-        st.markdown("---")
+        partes_codigo = pr['codigo'].split("-")
+        codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
+        
+        capital_ya_investido = 0.0
+        inversiones_previas = []
+
+        if supabase is not None:
+            try:
+                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                if res_exp.data:
+                    inversiones_previas = [float(x.get('stake_1', 0.0)) for x in res_exp.data if float(x.get('stake_1', 0.0)) > 0]
+                    capital_ya_investido = sum(inversiones_previas)
+            except Exception:
+                capital_ya_investido = 0.0
+
+        presupuesto_partido = float(pr.get('capital_total', 5000.0))
+        cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
+
+        bolsas_teoricas = {
+            "kamikaze": presupuesto_partido * 0.20,
+            "moderado": presupuesto_partido * 0.30,
+            "conservador": presupuesto_partido * 0.50
+        }
+        
+        usado_kam, usado_mod, usado_con = False, False, False
+        for inv in inversiones_previas:
+            dist = {}
+            if not usado_kam: dist["kamikaze"] = abs(inv - bolsas_teoricas["kamikaze"])
+            if not usado_mod: dist["moderado"] = abs(inv - bolsas_teoricas["moderado"])
+            if not usado_con: dist["conservador"] = abs(inv - bolsas_teoricas["conservador"])
+            if dist:
+                mejor = min(dist, key=dist.get)
+                if mejor == "kamikaze": usado_kam = True
+                elif mejor == "moderado": usado_mod = True
+                elif mejor == "conservador": usado_con = True
+
+        # ------------------------------------------------------------------
+        # 🎛️ SELECTOR DE PERFIL DE RIESGO DINÁMICO
+        # ------------------------------------------------------------------
+        st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
         st.markdown("#### 🎛️ Perfil de Riesgo Operativo")
+        
+        opciones_riesgo = ["🛡️ CONSERVADOR (Modo Francotirador)", "⚖️ MODERADO (Modo Táctico)"]
+        
+        # Si Kamikaze NO se ha usado, lo agregamos a la lista. Si ya se usó, bloqueamos el acceso.
+        if not usado_kam:
+            opciones_riesgo.append("🔥 AGRESIVO (Modo Kamikaze)")
+        else:
+            st.info("🔥 Bala Kamikaze agotada: Ya inyectaste capital con este riesgo. El Oráculo ha bloqueado el acceso para proteger la banca.")
+            
+        # Ajustamos el valor por defecto: si está disponible Kamikaze, apuntamos a Moderado (1). Si no, a Conservador (0)
+        idx_riesgo = 1 if not usado_kam else 0
+        
         perfil_riesgo = st.selectbox(
-            "Selecciona la rigidez de los candados matemáticos:",
-            ["🛡️ CONSERVADOR (Modo Francotirador)", "⚖️ MODERADO (Modo Táctico)", "🔥 AGRESIVO (Modo Kamikaze)"],
-            index=1,
-            key=f"perfil_{pr['codigo']}"
+            "Rigidez de los candados matemáticos:",
+            opciones_riesgo,
+            index=idx_riesgo,
+            key=f"perfil_{pr['codigo']}",
+            label_visibility="collapsed"
         )
         
         if "CONSERVADOR" in perfil_riesgo:
