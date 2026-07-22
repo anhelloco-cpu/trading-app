@@ -4504,37 +4504,56 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                     st.warning("⚠️ Ajusta la cuota del Débil, no permite cobertura matemática.")
 
         # ==================================================================
-        # 💰 LÓGICA DE CONFIGURACIÓN Y CUOTAS
+        # 💰 LÓGICA DE CONFIGURACIÓN Y CUOTAS 
         # ==================================================================
-        st.markdown("---")
+        st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
         st.markdown("#### ⚙️ Configurar Mercado y Cuotas En Vivo")
         
         sel_ini_rad = str(pr.get('seleccion_inicial', ''))
         mercado_actual = str(pr.get('mercado', ''))
         
-        if "Más" in sel_ini_rad or "Menos" in sel_ini_rad or "Goles" in mercado_actual or "Over" in sel_ini_rad or "Under" in sel_ini_rad:
-            mdo_str = "Línea de Goles"
-            import re
-            numeros = re.findall(r'\d+\.\d+|\d+', sel_ini_rad)
-            linea = numeros[0] if numeros else "2.5"
-            opciones_mercado = [f"Más de {linea}", f"Menos de {linea}"]
-            sel_ini_limpia = f"Más de {linea}" if ("Más" in sel_ini_rad or "Over" in sel_ini_rad) else f"Menos de {linea}"
-        elif "Ambos Anotan" in mercado_actual or "Ambos" in sel_ini_rad or "Sí" in sel_ini_rad or "No" in sel_ini_rad:
-            mdo_str = "Ambos Anotan"
-            opciones_mercado = ["Sí", "No"]
-            sel_ini_limpia = "Sí" if ("Sí" in sel_ini_rad or "Si" in sel_ini_rad) else "No"
-        elif "Local" in sel_ini_rad or "Visita" in sel_ini_rad or "Empate" in sel_ini_rad or "1X2" in mercado_actual:
-            mdo_str = "Mercado 1X2"
-            if "Local" in sel_ini_rad:
-                sel_ini_limpia = "Local"; opciones_mercado = ["Local", "Empate / Visita"]
-            elif "Visita" in sel_ini_rad:
-                sel_ini_limpia = "Visita"; opciones_mercado = ["Visita", "Local / Empate"]
+        # 🎛️ SELECTOR MANUAL DE RESPALDO: Te deja forzar el mercado si lo necesitas
+        forzar_cambio = st.checkbox("🔄 Forzar cambio manual de mercado", value=False, key=f"forzar_mdo_{pr['codigo']}")
+        
+        if forzar_cambio:
+            tipo_manual = st.selectbox("Selecciona:", ["Línea de Goles", "Ambos Anotan", "Mercado 1X2"], key=f"tipo_man_{pr['codigo']}")
+            if "Goles" in tipo_manual:
+                mdo_str = "Línea de Goles"
+                opciones_mercado = ["Más de 2.5", "Menos de 2.5"]
+                sel_ini_limpia = "Más de 2.5"
+            elif "Ambos Anotan" in tipo_manual:
+                mdo_str = "Ambos Anotan"
+                opciones_mercado = ["Sí", "No"]
+                sel_ini_limpia = "Sí"
             else:
-                sel_ini_limpia = "Empate"; opciones_mercado = ["Empate", "Cualquiera Gana"]
+                mdo_str = "Mercado 1X2"
+                opciones_mercado = ["Local", "Empate", "Visita"]
+                sel_ini_limpia = "Local"
         else:
-            mdo_str = mercado_actual if mercado_actual else "Mercado Personalizado"
-            sel_ini_limpia = sel_ini_rad
-            opciones_mercado = [sel_ini_limpia, "Opción Contraria"]
+            # 🛡️ TU LÓGICA ORIGINAL EXACTA (100% Preservada sin omitir nada)
+            if "Más" in sel_ini_rad or "Menos" in sel_ini_rad or "Goles" in mercado_actual or "Over" in sel_ini_rad or "Under" in sel_ini_rad:
+                mdo_str = "Línea de Goles"
+                import re
+                numeros = re.findall(r'\d+\.\d+|\d+', sel_ini_rad)
+                linea = numeros[0] if numeros else "2.5"
+                opciones_mercado = [f"Más de {linea}", f"Menos de {linea}"]
+                sel_ini_limpia = f"Más de {linea}" if ("Más" in sel_ini_rad or "Over" in sel_ini_rad) else f"Menos de {linea}"
+            elif "Ambos Anotan" in mercado_actual or "Ambos" in sel_ini_rad or "Sí" in sel_ini_rad or "No" in sel_ini_rad:
+                mdo_str = "Ambos Anotan"
+                opciones_mercado = ["Sí", "No"]
+                sel_ini_limpia = "Sí" if ("Sí" in sel_ini_rad or "Si" in sel_ini_rad) else "No"
+            elif "Local" in sel_ini_rad or "Visita" in sel_ini_rad or "Empate" in sel_ini_rad or "1X2" in mercado_actual:
+                mdo_str = "Mercado 1X2"
+                if "Local" in sel_ini_rad:
+                    sel_ini_limpia = "Local"; opciones_mercado = ["Local", "Empate / Visita"]
+                elif "Visita" in sel_ini_rad:
+                    sel_ini_limpia = "Visita"; opciones_mercado = ["Visita", "Local / Empate"]
+                else:
+                    sel_ini_limpia = "Empate"; opciones_mercado = ["Empate", "Cualquiera Gana"]
+            else:
+                mdo_str = mercado_actual if mercado_actual else "Mercado Personalizado"
+                sel_ini_limpia = sel_ini_rad
+                opciones_mercado = [sel_ini_limpia, "Opción Contraria"]
                 
             st.markdown("<p style='font-size: 14px; margin-bottom: 5px;'>La Amenaza a Cubrir:</p>", unsafe_allow_html=True)
             st.markdown(f"""
