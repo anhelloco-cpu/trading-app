@@ -3506,17 +3506,47 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 st.error("Supabase no está conectado.")
 
                         # ------------------------------------------------------------------
-                        # 🎛️ SELECTOR DE PERFIL DE RIESGO
+                        # 🎛️ SELECTOR DE PERFIL DE RIESGO INTELIGENTE
                         # ------------------------------------------------------------------
+                        # 1. Leemos la base de datos rápido para saber qué hemos usado
+                        inversiones_previas_audit = []
+                        if supabase is not None:
+                            try:
+                                p_codigo = pr['codigo'].split("-")
+                                cod_base = f"{p_codigo[0]}-{p_codigo[1]}" if len(p_codigo) >= 2 else pr['codigo']
+                                res_audit = supabase.table("historial_trading").select("stake_1").like("codigo", f"{cod_base}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                                if res_audit.data: inversiones_previas_audit = [float(x.get('stake_1', 0.0)) for x in res_audit.data if float(x.get('stake_1', 0.0)) > 0]
+                            except: pass
+
+                        p_total = float(pr.get('capital_total', 5000.0))
+                        b_teo = {"kamikaze": p_total * 0.20, "moderado": p_total * 0.30, "conservador": p_total * 0.50}
+                        
+                        uso_kam, uso_mod, uso_con = False, False, False
+                        for inv in inversiones_previas_audit:
+                            dists = {}
+                            if not uso_kam: dists["kamikaze"] = abs(inv - b_teo["kamikaze"])
+                            if not uso_mod: dists["moderado"] = abs(inv - b_teo["moderado"])
+                            if not uso_con: dists["conservador"] = abs(inv - b_teo["conservador"])
+                            if dists:
+                                mej = min(dists, key=dists.get)
+                                if mej == "kamikaze": uso_kam = True
+                                elif mej == "moderado": uso_mod = True
+                                elif mej == "conservador": uso_con = True
+
                         st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
                         st.markdown("#### 🎛️ Perfil de Riesgo Operativo")
-                        perfil_riesgo = st.selectbox(
-                            "Rigidez de los candados matemáticos:",
-                            ["🛡️ CONSERVADOR (Modo Francotirador)", "⚖️ MODERADO (Modo Táctico)", "🔥 AGRESIVO (Modo Kamikaze)"],
-                            index=1,
-                            key=f"perfil_{pr['codigo']}",
-                            label_visibility="collapsed"
-                        )
+                        
+                        # 2. Construimos el menú solo con los que están libres
+                        opciones_riesgo = []
+                        if not uso_con: opciones_riesgo.append("🛡️ CONSERVADOR (Modo Francotirador)")
+                        if not uso_mod: opciones_riesgo.append("⚖️ MODERADO (Modo Táctico)")
+                        if not uso_kam: opciones_riesgo.append("🔥 AGRESIVO (Modo Kamikaze)")
+                        
+                        if len(opciones_riesgo) == 0:
+                            opciones_riesgo = ["🚫 TODOS LOS PERFILES AGOTADOS"]
+                            st.warning("⚠️ Ya operaste este partido con todos los perfiles de riesgo posibles.")
+                            
+                        perfil_riesgo = st.selectbox("Rigidez:", opciones_riesgo, index=0, key=f"perfil_{pr['codigo']}", label_visibility="collapsed")
                         
                         if "CONSERVADOR" in perfil_riesgo:
                             umbral_asfixia = 0.8; mult_castigo = 0.10; umbral_gigante = 0.9; ventaja_min_exigida = 0.50; minuto_limite_si = 70
@@ -4093,7 +4123,20 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         if max_roi_pct > 0:
                             col_lim1, col_lim2 = st.columns(2)
                             with col_lim1:
-                                tp_rad = st.slider("Utilidad Deseada (TP):", min_value=1.0, max_value=max(1.0, float(max_roi_pct - 0.5)), value=min(5.0, max(1.0, float(max_roi_pct / 2))), step=0.5, format="%.1f%%", key=f"tp_{pr['codigo']}")
+                                calc_max_tp = max(1.0, float(max_roi_pct - 0.5))
+                            safe_max_tp = max(1.0, round(calc_max_tp * 2.0) / 2.0)
+                            calc_val_tp = min(5.0, max(1.0, float(max_roi_pct / 2.0)))
+                            safe_val_tp = min(safe_max_tp, max(1.0, round(calc_val_tp * 2.0) / 2.0))
+                            
+                            tp_rad = st.slider(
+                                "Utilidad Deseada (TP):", 
+                                min_value=1.0, 
+                                max_value=float(safe_max_tp), 
+                                value=float(safe_val_tp), 
+                                step=0.5, 
+                                format="%.1f%%", 
+                                key=f"tp_{pr['codigo']}"
+                            )
                             with col_lim2:
                                 sl_rad = st.slider("Pérdida Máxima (SL):", min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
                             
