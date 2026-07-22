@@ -3195,7 +3195,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 else:
                                     st.error("Conecta Supabase primero.")
 
-    # ---------------------------------------------------------
+    # # ---------------------------------------------------------
     # PESTAÑA 2: RADAR EN VIVO (Watchlist y Ejecución)
     # ---------------------------------------------------------
     with tab_radar:
@@ -3464,11 +3464,18 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             val_am = float(pr.get('cuota_amenaza_audit') or 1.90)
                             st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
 
-                        col_ent1, col_ent2 = st.columns(2)
+                        # ✅ RESTAURADO: La caja maestra de stake en vivo (Fuera de la bóveda)
+                        stk_key = f"stk_ent_{pr['codigo']}"
+                        if stk_key not in st.session_state:
+                            st.session_state[stk_key] = int(max(5000, int(pr.get('stake_1', 500))))
+
+                        col_ent1, col_ent2, col_ent3 = st.columns(3)
                         with col_ent1:
-                            cuota_ent_rad = st.number_input("Cuota de tu Selección:", min_value=1.01, step=0.05, key=c_ent_key)
+                            cuota_ent_rad = st.number_input("Cuota Selección:", min_value=1.01, step=0.05, key=c_ent_key)
                         with col_ent2:
-                            cuota_amenaza_rad = st.number_input("Cuota Amenaza a Cubrir:", min_value=1.01, step=0.05, key=c_am_key)
+                            cuota_amenaza_rad = st.number_input("Cuota Amenaza:", min_value=1.01, step=0.05, key=c_am_key)
+                        with col_ent3:
+                            stake_ent_rad = st.number_input("Capital Invertido:", min_value=500, step=500, key=stk_key)
 
                         # ------------------------------------------------------------------
                         # 📸 BOTÓN DE BITÁCORA
@@ -3899,16 +3906,15 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     </div>
                                     """, unsafe_allow_html=True)
                                 else:
-                                    # Para otros mercados (1X2, Goles), aprobamos directo y guardamos el perfil
                                     st.session_state[aprueba_key] = True
                                     st.session_state[perfil_aprobado_key] = perfil_riesgo
 
                             except Exception as e:
                                 st.error(f"Error procesando IA táctica: {e}")
 
-                        # ==================================================================
+                        # ------------------------------------------------------------------
                         # 💵 DECISIÓN DE CAPITAL Y AUDITORÍA DE CUPO
-                        # ==================================================================
+                        # ------------------------------------------------------------------
                         aprueba_key = f"oraculo_aprueba_{pr['codigo']}"
                         
                         if not st.session_state.get(aprueba_key, False):
@@ -3957,7 +3963,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             </div>
                             """, unsafe_allow_html=True)
 
-                            stk_key = f"stk_ent_cap_{pr['codigo']}"
+                            stk_key_cap = f"stk_ent_cap_{pr['codigo']}"
                             modo_gestion = st.radio(
                                 "⚙️ Modo de Asignación de Capital:",
                                 ["🔓 Libre (Todo el cupo disponible)", "🔒 Control Total (Limitar por nivel de riesgo)"],
@@ -4003,19 +4009,19 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             col_btn_k1, col_btn_k2, col_btn_k3 = st.columns(3)
                             with col_btn_k1:
                                 if st.button(f"🔥 Kamikaze\n${bolsas_teoricas['kamikaze']:,.0f}", key=f"btn_kam_{pr['codigo']}", use_container_width=True, disabled=usado_kam or cupo_disponible_partido <= 0 or not es_kamikaze):
-                                    st.session_state[stk_key] = float(min(val_kamikaze, cupo_disponible_partido))
+                                    st.session_state[stk_key_cap] = float(min(val_kamikaze, cupo_disponible_partido))
                             with col_btn_k2:
                                 if st.button(f"⚖️ Moderado\n${bolsas_teoricas['moderado']:,.0f}", key=f"btn_mod_{pr['codigo']}", use_container_width=True, disabled=usado_mod or cupo_disponible_partido <= 0 or not es_moderado):
-                                    st.session_state[stk_key] = float(min(val_moderado, cupo_disponible_partido))
+                                    st.session_state[stk_key_cap] = float(min(val_moderado, cupo_disponible_partido))
                             with col_btn_k3:
                                 if st.button(f"🛡️ Conservador\n${bolsas_teoricas['conservador']:,.0f}", key=f"btn_cons_{pr['codigo']}", use_container_width=True, disabled=usado_con or cupo_disponible_partido <= 0 or not es_conservador):
-                                    st.session_state[stk_key] = float(min(val_conservador, cupo_disponible_partido))
+                                    st.session_state[stk_key_cap] = float(min(val_conservador, cupo_disponible_partido))
 
-                            if stk_key not in st.session_state:
-                                st.session_state[stk_key] = float(min(pr.get('stake_1', 1000.0), max(1.0, limite_final_inversion)))
+                            if stk_key_cap not in st.session_state:
+                                st.session_state[stk_key_cap] = float(min(pr.get('stake_1', 1000.0), max(1.0, limite_final_inversion)))
 
-                            if st.session_state[stk_key] > limite_final_inversion:
-                                st.session_state[stk_key] = float(limite_final_inversion)
+                            if st.session_state[stk_key_cap] > limite_final_inversion:
+                                st.session_state[stk_key_cap] = float(limite_final_inversion)
 
                             if limite_final_inversion <= 0:
                                 st.error("🚨 Cupo agotado para el modo seleccionado. Estás protegido.")
@@ -4026,150 +4032,150 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     min_value=100.0,
                                     max_value=float(limite_final_inversion),
                                     step=500.0,
-                                    key=stk_key,
+                                    key=stk_key_cap,
                                     format="%.2f"
                                 )
-                                    
-                            # ==================================================================
-                            # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
-                            # ==================================================================
-                            lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"]
-                            plat_previa = pr.get('plataforma_inicial', 'BetPlay')
-                            idx_plat = lista_casas.index(plat_previa) if plat_previa in lista_casas else 0
-                            
-                            col_plat1, col_plat2 = st.columns(2)
-                            with col_plat1:
-                                plat_rad_sel = st.selectbox("Casa de Apuestas (Entrada):", lista_casas, index=idx_plat, key=f"plat_{pr['codigo']}")
-                            with col_plat2:
-                                if plat_rad_sel == "Otra":
-                                    plat_rad_final = st.text_input("Especifica la plataforma:", key=f"otra_{pr['codigo']}")
-                                else:
-                                    plat_rad_final = plat_rad_sel
 
-                            retorno_bruto_esperado = stake_ent_rad * cuota_ent_rad
-                            utilidad_max_posible = retorno_bruto_esperado - stake_ent_rad
-                            max_roi_pct = (utilidad_max_posible / stake_ent_rad) * 100 if stake_ent_rad > 0 else 0
-                            
-                            if max_roi_pct > 0:
-                                col_lim1, col_lim2 = st.columns(2)
-                                with col_lim1:
-                                    tp_rad = st.slider("Utilidad Deseada (TP):", min_value=1.0, max_value=max(1.0, float(max_roi_pct - 0.5)), value=min(5.0, max(1.0, float(max_roi_pct / 2))), step=0.5, format="%.1f%%", key=f"tp_{pr['codigo']}")
-                                with col_lim2:
-                                    sl_rad = st.slider("Pérdida Máxima (SL):", min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
-                                
-                                utilidad_objetivo_dinero = stake_ent_rad * (tp_rad / 100.0)
-                                inyeccion_necesaria_tp = utilidad_max_posible - utilidad_objetivo_dinero
-                                cuota_cazar_rad = retorno_bruto_esperado / inyeccion_necesaria_tp if inyeccion_necesaria_tp > 0 else 0
-                                
-                                perdida_maxima = stake_ent_rad * (sl_rad / 100.0)
-                                inyeccion_necesaria_sl = utilidad_max_posible + perdida_maxima
-                                cuota_sl_rad = retorno_bruto_esperado / inyeccion_necesaria_sl
-                                
-                                st.markdown(f"""
-                                <div style="display:flex; justify-content:space-around; background-color: #F8FAFC; padding: 12px; border-radius: 5px; margin-top: 10px;">
-                                    <span style="color:#15803D;">🟢 <b>Take Profit:</b> Cuota {cuota_cazar_rad:.2f}</span>
-                                    <span style="color:#B91C1C;">🔴 <b>Stop Loss:</b> Cuota {cuota_sl_rad:.2f}</span>
-                                </div>
-                                """, unsafe_allow_html=True)
-                            else:
-                                st.warning("La cuota de entrada no permite generar utilidades.")
-                                cuota_cazar_rad = 0; cuota_sl_rad = 0
-                            
-                            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                            banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
-                            banca_activa_rad = "REAL" if "Real" in banca_ejecutar else "SIMULACION"
-                            
-                            retener_radar = st.checkbox("🔄 Retener partido en el Radar tras disparar", value=True, key=f"chk_retener_{pr['codigo']}")
-                            
-                            if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
-                                if cuota_cazar_rad > 0 and plat_rad_final:
-                                    import datetime
-                                    import joblib
-                                    import pandas as pd
-                                    
-                                    try:
-                                        m1x2_rad = joblib.load('modelo_1x2.pkl')
-                                        mgoles_rad = joblib.load('modelo_goles.pkl')
-                                        mbtts_rad = joblib.load('modelo_btts.pkl')
-                                        
-                                        apm_rad = (al_rad + av_rad) / max(1, m_rad)
-                                        ird_rad = min(100.0, apm_rad * 45.0)
-                                        
-                                        X_rad = pd.DataFrame([{
-                                            'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))}])
-                                        
-                                        pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
-                                        pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
-                                        pred_btts_testigo = mbtts_rad.predict(X_rad)[0]
-                                        
-                                        g_totales_actuales = gl_rad + gv_rad
-                                        g_nuevos_esp = max(0, round(pred_goles_testigo) - g_totales_actuales)
-                                        
-                                        c_loc, c_vis = gl_rad, gv_rad
-                                        if pred_1x2_testigo == 1: 
-                                            if c_loc > c_vis: c_vis = c_loc 
-                                            elif c_vis > c_loc: c_loc = c_vis 
-                                            elif g_nuevos_esp >= 2: c_loc += 1; c_vis += 1
-                                        elif pred_1x2_testigo == 2:
-                                            if c_loc <= c_vis: c_loc = c_vis + max(1, g_nuevos_esp)
-                                            else: c_loc += g_nuevos_esp
-                                        else:
-                                            if c_vis <= c_loc: c_vis = c_loc + max(1, g_nuevos_esp)
-                                            else: c_vis += g_nuevos_esp
-
-                                        if pred_btts_testigo == 1:
-                                            if c_loc == 0: c_loc = 1
-                                            if c_vis == 0: c_vis = 1
-
-                                        marcador_ia_testigo = f"{c_loc}-{c_vis}"
-
-                                        partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
-                                        partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
-                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
-                                        
-                                        datos_inyeccion = {
-                                            "estado": "EN VIVO",
-                                            "tipo_banca": banca_activa_rad,
-                                            "estrategia": "Estrategia 3: Binario Personalizado", 
-                                            "partido": partido_formateado,
-                                            "prediccion_ia": marcador_ia_testigo, 
-                                            "seleccion_inicial": seleccion_final_rad,
-                                            "seleccion_cobertura": amenaza_final_rad,
-                                            "plataforma_inicial": plat_rad_final,
-                                            "cuota_inicial": float(cuota_ent_rad),
-                                            "capital_total": float(stake_ent_rad),
-                                            "stake_1": float(stake_ent_rad),
-                                            "cuota_objetivo": float(cuota_cazar_rad),
-                                            "cuota_stop_loss": float(cuota_sl_rad),
-                                            "hora_inicio_partido": hora_actual
-                                        }
-
-                                        if retener_radar:
-                                            res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base_exacto}-%").execute()
-                                            numero_hijo = len(res_hijos.data) + 1
-                                            codigo_hijo = f"{codigo_base_exacto}-{numero_hijo:02d}"
-                                            
-                                            registro_clonado = dict(pr)
-                                            registro_clonado.update(datos_inyeccion)
-                                            registro_clonado['codigo'] = codigo_hijo
-                                            if 'id' in registro_clonado: del registro_clonado['id']
-                                            
-                                            supabase.table("historial_trading").insert(registro_clonado).execute()
-                                            supabase.table("historial_trading").update({"stake_1": 0.0}).eq("codigo", pr['codigo']).execute()
-                                            
-                                            st.session_state[aprueba_key] = False
-                                            st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
-                                        else:
-                                            datos_inyeccion['codigo'] = f"{codigo_base_exacto}-01"
-                                            supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
-                                            st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
-                                            
-                                        st.rerun()
-                                    except Exception as err_db:
-                                        st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
-                                else:
-                                    st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
+                        # ==================================================================
+                        # ⚙️ MÓDULO FINAL DE RIESGO Y DISPARO
+                        # ==================================================================
+                        lista_casas = ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"]
+                        plat_previa = pr.get('plataforma_inicial', 'BetPlay')
+                        idx_plat = lista_casas.index(plat_previa) if plat_previa in lista_casas else 0
                         
+                        col_plat1, col_plat2 = st.columns(2)
+                        with col_plat1:
+                            plat_rad_sel = st.selectbox("Casa de Apuestas (Entrada):", lista_casas, index=idx_plat, key=f"plat_{pr['codigo']}")
+                        with col_plat2:
+                            if plat_rad_sel == "Otra":
+                                plat_rad_final = st.text_input("Especifica la plataforma:", key=f"otra_{pr['codigo']}")
+                            else:
+                                plat_rad_final = plat_rad_sel
+
+                        retorno_bruto_esperado = stake_ent_rad * cuota_ent_rad
+                        utilidad_max_posible = retorno_bruto_esperado - stake_ent_rad
+                        max_roi_pct = (utilidad_max_posible / stake_ent_rad) * 100 if stake_ent_rad > 0 else 0
+                        
+                        if max_roi_pct > 0:
+                            col_lim1, col_lim2 = st.columns(2)
+                            with col_lim1:
+                                tp_rad = st.slider("Utilidad Deseada (TP):", min_value=1.0, max_value=max(1.0, float(max_roi_pct - 0.5)), value=min(5.0, max(1.0, float(max_roi_pct / 2))), step=0.5, format="%.1f%%", key=f"tp_{pr['codigo']}")
+                            with col_lim2:
+                                sl_rad = st.slider("Pérdida Máxima (SL):", min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
+                            
+                            utilidad_objetivo_dinero = stake_ent_rad * (tp_rad / 100.0)
+                            inyeccion_necesaria_tp = utilidad_max_posible - utilidad_objetivo_dinero
+                            cuota_cazar_rad = retorno_bruto_esperado / inyeccion_necesaria_tp if inyeccion_necesaria_tp > 0 else 0
+                            
+                            perdida_maxima = stake_ent_rad * (sl_rad / 100.0)
+                            inyeccion_necesaria_sl = utilidad_max_posible + perdida_maxima
+                            cuota_sl_rad = retorno_bruto_esperado / inyeccion_necesaria_sl
+                            
+                            st.markdown(f"""
+                            <div style="display:flex; justify-content:space-around; background-color: #F8FAFC; padding: 12px; border-radius: 5px; margin-top: 10px;">
+                                <span style="color:#15803D;">🟢 <b>Take Profit:</b> Cuota {cuota_cazar_rad:.2f}</span>
+                                <span style="color:#B91C1C;">🔴 <b>Stop Loss:</b> Cuota {cuota_sl_rad:.2f}</span>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.warning("La cuota de entrada no permite generar utilidades.")
+                            cuota_cazar_rad = 0; cuota_sl_rad = 0
+                        
+                        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                        banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
+                        banca_activa_rad = "REAL" if "Real" in banca_ejecutar else "SIMULACION"
+                        
+                        retener_radar = st.checkbox("🔄 Retener partido en el Radar tras disparar", value=True, key=f"chk_retener_{pr['codigo']}")
+                        
+                        if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
+                            if cuota_cazar_rad > 0 and plat_rad_final:
+                                import datetime
+                                import joblib
+                                import pandas as pd
+                                
+                                try:
+                                    m1x2_rad = joblib.load('modelo_1x2.pkl')
+                                    mgoles_rad = joblib.load('modelo_goles.pkl')
+                                    mbtts_rad = joblib.load('modelo_btts.pkl')
+                                    
+                                    apm_rad = (al_rad + av_rad) / max(1, m_rad)
+                                    ird_rad = min(100.0, apm_rad * 45.0)
+                                    
+                                    X_rad = pd.DataFrame([{
+                                        'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))}])
+                                    
+                                    pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
+                                    pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
+                                    pred_btts_testigo = mbtts_rad.predict(X_rad)[0]
+                                    
+                                    g_totales_actuales = gl_rad + gv_rad
+                                    g_nuevos_esp = max(0, round(pred_goles_testigo) - g_totales_actuales)
+                                    
+                                    c_loc, c_vis = gl_rad, gv_rad
+                                    if pred_1x2_testigo == 1: 
+                                        if c_loc > c_vis: c_vis = c_loc 
+                                        elif c_vis > c_loc: c_loc = c_vis 
+                                        elif g_nuevos_esp >= 2: c_loc += 1; c_vis += 1
+                                    elif pred_1x2_testigo == 2:
+                                        if c_loc <= c_vis: c_loc = c_vis + max(1, g_nuevos_esp)
+                                        else: c_loc += g_nuevos_esp
+                                    else:
+                                        if c_vis <= c_loc: c_vis = c_loc + max(1, g_nuevos_esp)
+                                        else: c_vis += g_nuevos_esp
+
+                                    if pred_btts_testigo == 1:
+                                        if c_loc == 0: c_loc = 1
+                                        if c_vis == 0: c_vis = 1
+
+                                    marcador_ia_testigo = f"{c_loc}-{c_vis}"
+
+                                    partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
+                                    partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
+                                    hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                    
+                                    datos_inyeccion = {
+                                        "estado": "EN VIVO",
+                                        "tipo_banca": banca_activa_rad,
+                                        "estrategia": "Estrategia 3: Binario Personalizado", 
+                                        "partido": partido_formateado,
+                                        "prediccion_ia": marcador_ia_testigo, 
+                                        "seleccion_inicial": seleccion_final_rad,
+                                        "seleccion_cobertura": amenaza_final_rad,
+                                        "plataforma_inicial": plat_rad_final,
+                                        "cuota_inicial": float(cuota_ent_rad),
+                                        "capital_total": float(stake_ent_rad),
+                                        "stake_1": float(stake_ent_rad),
+                                        "cuota_objetivo": float(cuota_cazar_rad),
+                                        "cuota_stop_loss": float(cuota_sl_rad),
+                                        "hora_inicio_partido": hora_actual
+                                    }
+
+                                    if retener_radar:
+                                        res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base_exacto}-%").execute()
+                                        numero_hijo = len(res_hijos.data) + 1
+                                        codigo_hijo = f"{codigo_base_exacto}-{numero_hijo:02d}"
+                                        
+                                        registro_clonado = dict(pr)
+                                        registro_clonado.update(datos_inyeccion)
+                                        registro_clonado['codigo'] = codigo_hijo
+                                        if 'id' in registro_clonado: del registro_clonado['id']
+                                        
+                                        supabase.table("historial_trading").insert(registro_clonado).execute()
+                                        supabase.table("historial_trading").update({"stake_1": 0.0}).eq("codigo", pr['codigo']).execute()
+                                        
+                                        st.session_state[aprueba_key] = False
+                                        st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
+                                    else:
+                                        datos_inyeccion['codigo'] = f"{codigo_base_exacto}-01"
+                                        supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
+                                        st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
+                                        
+                                    st.rerun()
+                                except Exception as err_db:
+                                    st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
+                            else:
+                                st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
+                    
                         # ------------------------------------------------------------------
                         # 🗑️ BOTÓN DE ABORTO MAESTRO (SIEMPRE DISPONIBLE)
                         # ------------------------------------------------------------------
