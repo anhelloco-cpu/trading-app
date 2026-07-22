@@ -2944,8 +2944,21 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
             with col_m1:
                 margen = st.slider("🎯 Margen de Búsqueda de Gemelos (±):", min_value=0.05, max_value=0.50, value=0.10, step=0.05)
             with col_m2:
-                # Modificado: Mínimo 100 pesos, Máximo sugerido el tope del 5%
-                stake_pre = st.number_input("Stake Planeado ($ COP):", min_value=100.0, value=float(min(5000.0, tope_maximo_evento)), step=100.0, format="%.2f")
+                # 🧮 CÁLCULO DINÁMICO DEL TOPE DE RIESGO
+                # Multiplica tu saldo real por el porcentaje de la barra lateral (Ej: 1,000,000 * 0.05 = 50,000)
+                limite_riesgo_dinero = saldo_real * (max_riesgo_real / 100.0)
+                
+                # Escudo anti-crash: Streamlit exige que el máximo sea al menos igual al mínimo (100.0)
+                tope_estricto = float(max(100.0, limite_riesgo_dinero)) 
+                
+                stake_pre = st.number_input(
+                    f"Stake Planeado (Max {max_riesgo_real}% = ${tope_estricto:,.0f}):", 
+                    min_value=100.0, 
+                    max_value=tope_estricto, # 🔒 ESTE ES EL CANDADO: No te dejará escribir un peso más
+                    value=float(min(10000.0, tope_estricto)), 
+                    step=1000.0, 
+                    format="%.2f"
+                )
 
             st.markdown("<br>", unsafe_allow_html=True)
 
