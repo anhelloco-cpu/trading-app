@@ -124,7 +124,42 @@ def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav
     # Si no encaja en ninguno de los patrones dorados:
     else:
         return "⏳ MODO OBSERVACIÓN: El partido no encaja en los patrones perfectos para el Ambos Anotan SÍ."
-    
+# ---------------------------------------------------------
+    # 🛡️ ESCÁNER DE PATRONES PARA EL BTTS NO (DEFINITIVO)
+    # ---------------------------------------------------------
+    def detectar_patron_btts_no(min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
+                                jerarquia_pre, apm_global_fav, apm_global_deb, 
+                                mom_fav, mom_deb, tp_fav, tp_deb):
+        
+        # 🧱 PATRÓN NO #1: EL MURO INFRANQUEABLE (El Débil no existe)
+        if (min_corrido >= 30 and 
+            jerarquia_pre in ["Favorito", "Súper Favorito"] and 
+            goles_deb == 0 and 
+            apm_global_deb < 0.35 and 
+            mom_deb < 0.3 and 
+            tp_deb < 0.20):
+            
+            return "🔴 EL MURO: El Débil está asfixiado. Sin momentum (Mom < 0.3) ni profundidad (TP < 20%). LUZ VERDE NO."
+
+        # 💤 PATRÓN NO #2: PACTO DE NO AGRESIÓN (Fuerzas Parejas Bloqueadas)
+        elif (min_corrido >= 30 and 
+              jerarquia_pre == "Fuerzas Parejas" and 
+              apm_global_fav < 0.55 and apm_global_deb < 0.55 and 
+              mom_fav < 0.5 and mom_deb < 0.5 and 
+              tp_fav < 0.30 and tp_deb < 0.30):
+              
+            return "🔴 PACTO DE NO AGRESIÓN: Ambos equipos anulados en el medio campo (APM < 0.55). Poca verticalidad. LUZ VERDE NO."
+
+        # 🏥 PATRÓN NO #3: EL DOMINIO ESTÉRIL (Mucho ruido, cero peligro)
+        elif (min_corrido >= 35 and 
+              estado_goles == False and 
+              tp_fav < 0.25 and tp_deb < 0.25):
+              
+            return "🔴 DOMINIO ESTÉRIL: 0-0 con posesiones largas pero bajísima profundidad en ambos (TP < 25%). LUZ VERDE NO."
+
+        else:
+            return "⏳ MODO OBSERVACIÓN: No hay asfixia clara ni bloqueo total. Es riesgoso entrar al NO definitivo aquí."
+
 # --- FUNCIONES AUXILIARES BLINDADAS ---
 def generar_codigo():
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
@@ -3598,7 +3633,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 diferencial_mom = abs(apm_local_dinamico - apm_vis_dinamico)
 
                                 # ------------------------------------------------------------------
-                                # 🔍 3. ESCÁNER DE PATRONES MATEMÁTICOS (CORREGIDO)
+                                # 🔍 3. ESCÁNER DE PATRONES MATEMÁTICOS (SÍ y NO DEFINITIVO)
                                 # ------------------------------------------------------------------
                                 def detectar_patron_btts_si(mc, eg, lm, gf, gd, jp, agf, agd, agg, agp, m_comb, d_mom, 
                                                             mpg_f, mpg_d, mpg_g, mpg_p, tp_f, tp_d, tp_g, tp_p):
@@ -3612,23 +3647,50 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca furioso y profundo (TP > 45%). LUZ VERDE SÍ."
                                     return None
 
-                                patron_encontrado = detectar_patron_btts_si(
-                                    min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
-                                    jerarquia_pre, apm_global_fav, apm_global_deb, apm_g_ganador, apm_g_perdedor,
-                                    mom_combinado, diferencial_mom, 
-                                    mom_fav, mom_deb, mom_ganador, mom_perdedor, 
-                                    tp_fav, tp_deb, tp_ganador, tp_perdedor
-                                )
+                                def detectar_patron_btts_no(mc, eg, jp, gf, gd, agf, agd, mf, md, tf, td):
+                                    # 🧱 PATRÓN NO #1: EL MURO INFRANQUEABLE (El Débil no existe)
+                                    if (mc >= 30 and jp in ["Favorito", "Súper Favorito"] and gd == 0 and agd < 0.35 and md < 0.3 and td < 0.20):
+                                        return "🔴 EL MURO: El Débil está asfixiado. Sin momentum (Mom < 0.3) ni profundidad (TP < 20%). LUZ VERDE NO."
+                                    # 💤 PATRÓN NO #2: PACTO DE NO AGRESIÓN (Fuerzas Parejas Bloqueadas)
+                                    elif (mc >= 30 and jp == "Fuerzas Parejas" and agf < 0.55 and agd < 0.55 and mf < 0.5 and md < 0.5 and tf < 0.30 and td < 0.30):
+                                        return "🔴 PACTO DE NO AGRESIÓN: Ambos equipos anulados en el medio campo (APM < 0.55). Poca verticalidad. LUZ VERDE NO."
+                                    # 🏥 PATRÓN NO #3: EL DOMINIO ESTÉRIL (Mucho ruido, cero peligro)
+                                    elif (mc >= 35 and eg == False and tf < 0.25 and td < 0.25):
+                                        return "🔴 DOMINIO ESTÉRIL: 0-0 con posesiones largas pero bajísima profundidad en ambos (TP < 25%). LUZ VERDE NO."
+                                    return None
+
+                                patron_encontrado = None
+                                color_patron = "#10B981"
+                                bg_patron = "#ECFDF5"
+                                titulo_patron = "🏆 PATRÓN MATEMÁTICO DETECTADO (BTTS SÍ)"
+
+                                # Ejecutamos el escáner correcto según la elección del usuario en el Radar
+                                if seleccion_final_rad == "Sí":
+                                    patron_encontrado = detectar_patron_btts_si(
+                                        min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
+                                        jerarquia_pre, apm_global_fav, apm_global_deb, apm_g_ganador, apm_g_perdedor,
+                                        mom_combinado, diferencial_mom, 
+                                        mom_fav, mom_deb, mom_ganador, mom_perdedor, 
+                                        tp_fav, tp_deb, tp_ganador, tp_perdedor
+                                    )
+                                elif seleccion_final_rad == "No":
+                                    patron_encontrado = detectar_patron_btts_no(
+                                        min_corrido, estado_goles, jerarquia_pre, goles_fav, goles_deb, 
+                                        apm_global_fav, apm_global_deb, mom_fav, mom_deb, tp_fav, tp_deb
+                                    )
+                                    if patron_encontrado:
+                                        color_patron = "#EF4444" 
+                                        bg_patron = "#FEF2F2"
+                                        titulo_patron = "🛡️ PATRÓN DEFENSIVO DETECTADO (BTTS NO)"
 
                                 # RENDERIZAR RESULTADO DEL ESCÁNER (ALERTA GIGANTE)
                                 if patron_encontrado:
                                     st.markdown(f"""
-                                    <div style="background-color: #ECFDF5; border-left: 6px solid #10B981; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                                        <h3 style="margin-top:0; color:#065F46;">🏆 PATRÓN MATEMÁTICO DETECTADO (BTTS SÍ)</h3>
-                                        <p style="margin:0; font-size:1.05rem; color:#047857;">{patron_encontrado}</p>
+                                    <div style="background-color: {bg_patron}; border-left: 6px solid {color_patron}; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                        <h3 style="margin-top:0; color:{color_patron};">{titulo_patron}</h3>
+                                        <p style="margin:0; font-size:1.05rem; color:#1F2937;">{patron_encontrado}</p>
                                     </div>
                                     """, unsafe_allow_html=True)
-
                                 # ------------------------------------------------------------------
                                 # 🤖 4. PREDICCIÓN DE MODELOS ML (EL FLUJO ORIGINAL)
                                 # ------------------------------------------------------------------
@@ -3660,9 +3722,14 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     prob_si = min(0.95, prob_si * 1.50)
                                     prob_no = 1.0 - prob_si
 
+                                # REFUERZO DE PROBABILIDAD SEGÚN EL PATRÓN ENCONTRADO
                                 if patron_encontrado:
-                                    prob_si = min(0.99, prob_si * 1.5) 
-                                    prob_no = 1.0 - prob_si
+                                    if seleccion_final_rad == "Sí":
+                                        prob_si = min(0.99, prob_si * 1.5) 
+                                        prob_no = 1.0 - prob_si
+                                    elif seleccion_final_rad == "No":
+                                        prob_no = min(0.99, prob_no * 1.5)
+                                        prob_si = 1.0 - prob_no
 
                                 winner_tactico = "Empate" if pred_1x2_rad == 1 else ("Local" if pred_1x2_rad == 2 else "Visita")
                                 btts = "SÍ" if pred_btts_rad == 1 else "NO"
