@@ -3505,6 +3505,40 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             else:
                                 st.error("Supabase no está conectado.")
 
+                        # ==================================================================
+                        # 🔍 AUDITORÍA PREVIA DE RIESGO (CALCULAR PERFILES USADOS)
+                        # ==================================================================
+                        partes_codigo = pr['codigo'].split("-")
+                        codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
+                        
+                        inversiones_previas_audit = []
+                        if supabase is not None:
+                            try:
+                                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                                if res_exp.data:
+                                    inversiones_previas_audit = [float(x.get('stake_1', 0.0)) for x in res_exp.data if float(x.get('stake_1', 0.0)) > 0]
+                            except Exception:
+                                pass
+
+                        presup_teorico = float(pr.get('capital_total', 5000.0))
+                        bolsas_teoricas = {
+                            "kamikaze": presup_teorico * 0.20,
+                            "moderado": presup_teorico * 0.30,
+                            "conservador": presup_teorico * 0.50
+                        }
+                        
+                        usado_kam, usado_mod, usado_con = False, False, False
+                        for inv in inversiones_previas_audit:
+                            dist = {}
+                            if not usado_kam: dist["kamikaze"] = abs(inv - bolsas_teoricas["kamikaze"])
+                            if not usado_mod: dist["moderado"] = abs(inv - bolsas_teoricas["moderado"])
+                            if not usado_con: dist["conservador"] = abs(inv - bolsas_teoricas["conservador"])
+                            if dist:
+                                mejor = min(dist, key=dist.get)
+                                if mejor == "kamikaze": usado_kam = True
+                                elif mejor == "moderado": usado_mod = True
+                                elif mejor == "conservador": usado_con = True
+
                         # ------------------------------------------------------------------
                         # 🎛️ SELECTOR DE PERFIL DE RIESGO DINÁMICO
                         # ------------------------------------------------------------------
