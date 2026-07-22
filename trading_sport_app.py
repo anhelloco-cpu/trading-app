@@ -4063,104 +4063,105 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             
                             retener_radar = st.checkbox("🔄 Retener partido en el Radar tras disparar", value=True, key=f"chk_retener_{pr['codigo']}")
                             
-                            col_disp1 = st.columns(1)
-                            with col_disp1:
-                                if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
-                                    if cuota_cazar_rad > 0 and plat_rad_final:
-                                        import datetime
-                                        import joblib
-                                        import pandas as pd
+                            if st.button("🔥 DISPARAR (Confirmar Entrada)", type="primary", key=f"btn_disp_{pr['codigo']}", use_container_width=True):
+                                if cuota_cazar_rad > 0 and plat_rad_final:
+                                    import datetime
+                                    import joblib
+                                    import pandas as pd
+                                    
+                                    try:
+                                        m1x2_rad = joblib.load('modelo_1x2.pkl')
+                                        mgoles_rad = joblib.load('modelo_goles.pkl')
+                                        mbtts_rad = joblib.load('modelo_btts.pkl')
                                         
-                                        try:
-                                            m1x2_rad = joblib.load('modelo_1x2.pkl')
-                                            mgoles_rad = joblib.load('modelo_goles.pkl')
-                                            mbtts_rad = joblib.load('modelo_btts.pkl')
-                                            
-                                            apm_rad = (al_rad + av_rad) / max(1, m_rad)
-                                            ird_rad = min(100.0, apm_rad * 45.0)
-                                            
-                                            X_rad = pd.DataFrame([{
-                                                'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))}])
-                                            
-                                            pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
-                                            pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
-                                            pred_btts_testigo = mbtts_rad.predict(X_rad)[0]
-                                            
-                                            g_totales_actuales = gl_rad + gv_rad
-                                            g_nuevos_esp = max(0, round(pred_goles_testigo) - g_totales_actuales)
-                                            
-                                            c_loc, c_vis = gl_rad, gv_rad
-                                            if pred_1x2_testigo == 1: 
-                                                if c_loc > c_vis: c_vis = c_loc 
-                                                elif c_vis > c_loc: c_loc = c_vis 
-                                                elif g_nuevos_esp >= 2: c_loc += 1; c_vis += 1
-                                            elif pred_1x2_testigo == 2:
-                                                if c_loc <= c_vis: c_loc = c_vis + max(1, g_nuevos_esp)
-                                                else: c_loc += g_nuevos_esp
-                                            else:
-                                                if c_vis <= c_loc: c_vis = c_loc + max(1, g_nuevos_esp)
-                                                else: c_vis += g_nuevos_esp
+                                        apm_rad = (al_rad + av_rad) / max(1, m_rad)
+                                        ird_rad = min(100.0, apm_rad * 45.0)
+                                        
+                                        X_rad = pd.DataFrame([{
+                                            'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))}])
+                                        
+                                        pred_1x2_testigo = m1x2_rad.predict(X_rad)[0]
+                                        pred_goles_testigo = mgoles_rad.predict(X_rad)[0]
+                                        pred_btts_testigo = mbtts_rad.predict(X_rad)[0]
+                                        
+                                        g_totales_actuales = gl_rad + gv_rad
+                                        g_nuevos_esp = max(0, round(pred_goles_testigo) - g_totales_actuales)
+                                        
+                                        c_loc, c_vis = gl_rad, gv_rad
+                                        if pred_1x2_testigo == 1: 
+                                            if c_loc > c_vis: c_vis = c_loc 
+                                            elif c_vis > c_loc: c_loc = c_vis 
+                                            elif g_nuevos_esp >= 2: c_loc += 1; c_vis += 1
+                                        elif pred_1x2_testigo == 2:
+                                            if c_loc <= c_vis: c_loc = c_vis + max(1, g_nuevos_esp)
+                                            else: c_loc += g_nuevos_esp
+                                        else:
+                                            if c_vis <= c_loc: c_vis = c_loc + max(1, g_nuevos_esp)
+                                            else: c_vis += g_nuevos_esp
 
-                                            if pred_btts_testigo == 1:
-                                                if c_loc == 0: c_loc = 1
-                                                if c_vis == 0: c_vis = 1
+                                        if pred_btts_testigo == 1:
+                                            if c_loc == 0: c_loc = 1
+                                            if c_vis == 0: c_vis = 1
 
-                                            marcador_ia_testigo = f"{c_loc}-{c_vis}"
+                                        marcador_ia_testigo = f"{c_loc}-{c_vis}"
 
-                                            partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
-                                            partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
-                                            hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                        partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
+                                        partido_formateado = f"🏟️ {partido_limpio_raw} | [{mdo_str}] {seleccion_final_rad} vs {amenaza_final_rad}"
+                                        hora_actual = datetime.datetime.now().strftime("%H:%M")
+                                        
+                                        datos_inyeccion = {
+                                            "estado": "EN VIVO",
+                                            "tipo_banca": banca_activa_rad,
+                                            "estrategia": "Estrategia 3: Binario Personalizado", 
+                                            "partido": partido_formateado,
+                                            "prediccion_ia": marcador_ia_testigo, 
+                                            "seleccion_inicial": seleccion_final_rad,
+                                            "seleccion_cobertura": amenaza_final_rad,
+                                            "plataforma_inicial": plat_rad_final,
+                                            "cuota_inicial": float(cuota_ent_rad),
+                                            "capital_total": float(stake_ent_rad),
+                                            "stake_1": float(stake_ent_rad),
+                                            "cuota_objetivo": float(cuota_cazar_rad),
+                                            "cuota_stop_loss": float(cuota_sl_rad),
+                                            "hora_inicio_partido": hora_actual
+                                        }
+
+                                        if retener_radar:
+                                            res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base_exacto}-%").execute()
+                                            numero_hijo = len(res_hijos.data) + 1
+                                            codigo_hijo = f"{codigo_base_exacto}-{numero_hijo:02d}"
                                             
-                                            datos_inyeccion = {
-                                                "estado": "EN VIVO",
-                                                "tipo_banca": banca_activa_rad,
-                                                "estrategia": "Estrategia 3: Binario Personalizado", 
-                                                "partido": partido_formateado,
-                                                "prediccion_ia": marcador_ia_testigo, 
-                                                "seleccion_inicial": seleccion_final_rad,
-                                                "seleccion_cobertura": amenaza_final_rad,
-                                                "plataforma_inicial": plat_rad_final,
-                                                "cuota_inicial": float(cuota_ent_rad),
-                                                "capital_total": float(stake_ent_rad),
-                                                "stake_1": float(stake_ent_rad),
-                                                "cuota_objetivo": float(cuota_cazar_rad),
-                                                "cuota_stop_loss": float(cuota_sl_rad),
-                                                "hora_inicio_partido": hora_actual
-                                            }
-
-                                            if retener_radar:
-                                                res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base_exacto}-%").execute()
-                                                numero_hijo = len(res_hijos.data) + 1
-                                                codigo_hijo = f"{codigo_base_exacto}-{numero_hijo:02d}"
-                                                
-                                                registro_clonado = dict(pr)
-                                                registro_clonado.update(datos_inyeccion)
-                                                registro_clonado['codigo'] = codigo_hijo
-                                                if 'id' in registro_clonado: del registro_clonado['id']
-                                                
-                                                supabase.table("historial_trading").insert(registro_clonado).execute()
-                                                
-                                                # ✅ SE ELIMINÓ "capital_total: 0.0" AQUÍ PARA EVITAR QUE SE BORRE EL PRESUPUESTO
-                                                supabase.table("historial_trading").update({"stake_1": 0.0}).eq("codigo", pr['codigo']).execute()
-                                                
-                                                st.session_state[aprueba_key] = False # Resetea la bóveda
-                                                st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
-                                            else:
-                                                datos_inyeccion['codigo'] = f"{codigo_base_exacto}-01"
-                                                supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
-                                                st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
-                                                
-                                            st.rerun()
-                                        except Exception as err_db:
-                                            st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
-                                    else:
-                                        st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
-                            col_disp2 = st.columns(1)
-                            with col_disp2:
-                                if st.button("🗑️ ABORTAR (Descartar)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
-                                    supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
-                                    st.warning("Partido descartado.")
-                                    st.rerun()
+                                            registro_clonado = dict(pr)
+                                            registro_clonado.update(datos_inyeccion)
+                                            registro_clonado['codigo'] = codigo_hijo
+                                            if 'id' in registro_clonado: del registro_clonado['id']
+                                            
+                                            supabase.table("historial_trading").insert(registro_clonado).execute()
+                                            
+                                            supabase.table("historial_trading").update({"stake_1": 0.0}).eq("codigo", pr['codigo']).execute()
+                                            
+                                            st.session_state[aprueba_key] = False
+                                            st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
+                                        else:
+                                            datos_inyeccion['codigo'] = f"{codigo_base_exacto}-01"
+                                            supabase.table("historial_trading").update(datos_inyeccion).eq("codigo", pr['codigo']).execute()
+                                            st.success("✅ ¡Disparo exitoso! Operación trasladada a Seguimiento.")
+                                            
+                                        st.rerun()
+                                    except Exception as err_db:
+                                        st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
+                                else:
+                                    st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
+                        
+                        # ------------------------------------------------------------------
+                        # 🗑️ BOTÓN DE ABORTO MAESTRO (SIEMPRE DISPONIBLE FUERA DE LA BÓVEDA)
+                        # ------------------------------------------------------------------
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        if st.button("🗑️ ABORTAR (Descartar Partido del Radar)", key=f"btn_del_out_{pr['codigo']}", use_container_width=True):
+                            if supabase is not None:
+                                supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
+                            st.warning("Partido descartado y eliminado del Radar.")
+                            st.rerun()
     # ---------------------------------------------------------
     # PESTAÑA 3: LABORATORIO TÁCTICO (Gatillo Rápido en Vivo)
     # ---------------------------------------------------------
