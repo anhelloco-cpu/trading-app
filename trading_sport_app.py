@@ -3603,7 +3603,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     mom_fav, mom_deb = apm_vis_dinamico, apm_local_dinamico
                                     tp_fav, tp_deb = tp_visita, tp_local
                                 else:
-                                    goles_fav = goles_deb = apm_global_fav = apm_global_deb = mom_fav = mom_deb = tp_fav = tp_deb = 0
+                                    # 🚨 AQUÍ ESTABA EL BUG: Asignamos datos reales para Fuerzas Parejas en lugar de 0
+                                    goles_fav, goles_deb = gl_rad, gv_rad
+                                    apm_global_fav, apm_global_deb = apm_global_loc, apm_global_vis
+                                    mom_fav, mom_deb = apm_local_dinamico, apm_vis_dinamico
+                                    tp_fav, tp_deb = tp_local, tp_visita
 
                                 if gl_rad > gv_rad:
                                     lider_marcador = "No Favorito" if fav_es_vis else "Favorito"
@@ -3848,6 +3852,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     <h1 style="color:{color_winner}; font-size: 2.5rem; margin: 10px 0;">{marcador_exacto}</h1>
                                     <p style="margin:0; font-size: 1rem; color:#475569;">Ganador Físico: <b>{winner_tactico}</b></p>
                                     <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{dom_vivo}</b> está dominando la cancha (IRD: {ird_rad_global:.1f}%)</p>
+                                    <hr style="border-color:#CBD5E1; opacity:0.5; margin: 10px 0;">
+                                    <p style="margin:0; font-size: 0.9rem; color:#334155;">🗡️ <b>Tasa de Profundidad (TP):</b> {eq_loc_ui} <b>{tp_local*100:.1f}%</b> | {eq_vis_ui} <b>{tp_visita*100:.1f}%</b></p>
                                 </div>
                                 """, unsafe_allow_html=True)
 
