@@ -3218,7 +3218,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             
                             col_api1, col_api2 = st.columns([2, 1])
                             with col_api1:
-                                api_fixture_id = st.text_input("🔗 ID del Partido (API):", key=f"api_id_{pr['codigo']}", placeholder="Ej: 1492290", help="Encuentra este ID en la web de API-Football o usa tu script de prueba.")
+                                api_fixture_id = st.text_input("🔗 ID del Partido (API):", key=f"api_id_{pr['codigo']}", placeholder="Ej: 1492290", help="Encuentra este ID en la web de API-Football.")
                             with col_api2:
                                 st.markdown("<br>", unsafe_allow_html=True)
                                 if st.button("⚡ Extraer Datos", key=f"btn_api_{pr['codigo']}", use_container_width=True):
@@ -3227,50 +3227,64 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     else:
                                         import requests
                                         
-                                        # 🔑 REEMPLAZA ESTO CON TU LLAVE REAL
+                                        # 🔑 TU LLAVE DE API-FOOTBALL
                                         API_KEY = "26110cee2e79eff8286acec6fd054558" 
                                         
                                         headers = {'x-apisports-key': API_KEY, 'x-rapidapi-host': 'v3.football.api-sports.io'}
                                         
                                         try:
                                             with st.spinner("🛰️ Extrayendo datos en vivo..."):
-                                                # Llamada 1: Minutos y Goles
+                                                # Llamada 1: Minutos y Goles (¡Esto ya te funcionó perfecto!)
                                                 url_fixture = f"https://v3.football.api-sports.io/fixtures?id={api_fixture_id.strip()}"
                                                 res_fix = requests.get(url_fixture, headers=headers, timeout=5).json()
                                                 
                                                 if res_fix.get('response') and len(res_fix['response']) > 0:
                                                     p_data = res_fix['response'][0]
                                                     
-                                                    # Inyectamos a la memoria del sistema
+                                                    # Inyectamos Minuto y Goles a la memoria
                                                     st.session_state[f"mr_{pr['codigo']}"] = int(p_data['fixture']['status']['elapsed'] or 0)
                                                     st.session_state[f"glr_{pr['codigo']}"] = int(p_data['goals']['home'] or 0)
                                                     st.session_state[f"gvr_{pr['codigo']}"] = int(p_data['goals']['away'] or 0)
                                                     
-                                                    # Llamada 2: Ataques (Peligrosos y Totales)
+                                                    # Llamada 2: Estadísticas avanzadas
                                                     url_stats = f"https://v3.football.api-sports.io/fixtures/statistics?fixture={api_fixture_id.strip()}"
                                                     res_stats = requests.get(url_stats, headers=headers, timeout=5).json()
                                                     
+                                                    encontro_ataques = False
                                                     if len(res_stats.get('response', [])) >= 2:
                                                         stats_loc = res_stats['response'][0]['statistics']
                                                         stats_vis = res_stats['response'][1]['statistics']
                                                         
                                                         for stat in stats_loc:
-                                                            if stat['type'] == 'Total attacks': st.session_state[f"atl_{pr['codigo']}"] = int(stat['value'] or 0)
-                                                            elif stat['type'] == 'Dangerous attacks': st.session_state[f"alr_{pr['codigo']}"] = int(stat['value'] or 0)
+                                                            nombre_stat = str(stat.get('type', '')).lower()
+                                                            valor_stat = int(stat.get('value') or 0)
+                                                            
+                                                            if 'total attack' in nombre_stat or nombre_stat == 'attacks':
+                                                                st.session_state[f"atl_{pr['codigo']}"] = valor_stat
+                                                                encontro_ataques = True
+                                                            elif 'dangerous attack' in nombre_stat:
+                                                                st.session_state[f"alr_{pr['codigo']}"] = valor_stat
+                                                                encontro_ataques = True
                                                                 
                                                         for stat in stats_vis:
-                                                            if stat['type'] == 'Total attacks': st.session_state[f"atv_{pr['codigo']}"] = int(stat['value'] or 0)
-                                                            elif stat['type'] == 'Dangerous attacks': st.session_state[f"avr_{pr['codigo']}"] = int(stat['value'] or 0)
-                                                        
-                                                        st.success("✅ ¡Extracción perfecta! Revisa los números.")
-                                                    else:
-                                                        st.warning("⚠️ Partido sin cobertura de ataques. Se cargaron los goles y el minuto.")
+                                                            nombre_stat = str(stat.get('type', '')).lower()
+                                                            valor_stat = int(stat.get('value') or 0)
+                                                            
+                                                            if 'total attack' in nombre_stat or nombre_stat == 'attacks':
+                                                                st.session_state[f"atv_{pr['codigo']}"] = valor_stat
+                                                            elif 'dangerous attack' in nombre_stat:
+                                                                st.session_state[f"avr_{pr['codigo']}"] = valor_stat
                                                     
-                                                    st.rerun() # Refresca la pantalla para mostrar los números inyectados
+                                                    if encontro_ataques:
+                                                        st.success("✅ ¡Datos y ataques extraídos con éxito!")
+                                                    else:
+                                                        st.warning("⚠️ Minuto y goles actualizados. Esta liga no transmite ataques por API; ponlos a mano.")
+                                                    
+                                                    st.rerun()
                                                 else:
                                                     st.error("❌ No existe un partido con ese ID.")
                                         except Exception as e:
-                                            st.error(f"❌ Error de red: {e}. Digita manualmente.")
+                                            st.error(f"❌ Error de red: {e}")
                             
                             st.markdown("---")
                             # --- FIN MÓDULO HÍBRIDO API ---
