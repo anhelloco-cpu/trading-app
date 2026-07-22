@@ -131,31 +131,32 @@ def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav
                                 jerarquia_pre, apm_global_fav, apm_global_deb, 
                                 mom_fav, mom_deb, tp_fav, tp_deb):
         
-        # 🧱 PATRÓN NO #1: EL MURO INFRANQUEABLE (El Débil no existe)
-        if (min_corrido >= 30 and 
+        # 🧱 PATRÓN NO #1: EL MURO DE HORMIGÓN (El Débil no respira)
+        if (min_corrido >= 35 and 
             jerarquia_pre in ["Favorito", "Súper Favorito"] and 
             goles_deb == 0 and 
-            apm_global_deb < 0.35 and 
-            mom_deb < 0.3 and 
-            tp_deb < 0.20):
+            apm_global_deb < 0.25 and 
+            mom_deb < 0.20 and 
+            tp_deb < 0.15):
             
-            return "🔴 EL MURO: El Débil está asfixiado. Sin momentum (Mom < 0.3) ni profundidad (TP < 20%). LUZ VERDE NO."
+            return "🔴 EL MURO: El Débil está asfixiado. Cero momentum (Mom < 0.20) y nula profundidad (TP < 15%). LUZ VERDE NO."
 
-        # 💤 PATRÓN NO #2: PACTO DE NO AGRESIÓN (Fuerzas Parejas Bloqueadas)
-        elif (min_corrido >= 30 and 
-              jerarquia_pre == "Fuerzas Parejas" and 
-              apm_global_fav < 0.55 and apm_global_deb < 0.55 and 
-              mom_fav < 0.5 and mom_deb < 0.5 and 
-              tp_fav < 0.30 and tp_deb < 0.30):
-              
-            return "🔴 PACTO DE NO AGRESIÓN: Ambos equipos anulados en el medio campo (APM < 0.55). Poca verticalidad. LUZ VERDE NO."
-
-        # 🏥 PATRÓN NO #3: EL DOMINIO ESTÉRIL (Mucho ruido, cero peligro)
+        # 💤 PATRÓN NO #2: PACTO DE NO AGRESIÓN EXTREMO (Fuerzas Parejas Bloqueadas)
         elif (min_corrido >= 35 and 
+              jerarquia_pre == "Fuerzas Parejas" and 
               estado_goles == False and 
-              tp_fav < 0.25 and tp_deb < 0.25):
+              apm_global_fav < 0.45 and apm_global_deb < 0.45 and 
+              mom_fav < 0.4 and mom_deb < 0.4 and 
+              tp_fav < 0.20 and tp_deb < 0.20):
               
-            return "🔴 DOMINIO ESTÉRIL: 0-0 con posesiones largas pero bajísima profundidad en ambos (TP < 25%). LUZ VERDE NO."
+            return "🔴 PACTO DE NO AGRESIÓN: 0-0 congelado. Ambos equipos anulados (APM < 0.45, TP < 20%). LUZ VERDE NO."
+
+        # 🏥 PATRÓN NO #3: EL DOMINIO ESTÉRIL (Posesión sin disparos)
+        elif (min_corrido >= 40 and 
+              estado_goles == False and 
+              tp_fav < 0.15 and tp_deb < 0.15):
+              
+            return "🔴 DOMINIO ESTÉRIL: Minuto 40+. 0-0 con posesiones inútiles. Nadie pisa el área (TP < 15%). LUZ VERDE NO."
 
         else:
             return "⏳ MODO OBSERVACIÓN: No hay asfixia clara ni bloqueo total. Es riesgoso entrar al NO definitivo aquí."
@@ -3631,12 +3632,12 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     return None
 
                                 def detectar_patron_btts_no(mc, eg, jp, gf, gd, agf, agd, mf, md, tf, td):
-                                    if (mc >= 30 and jp in ["Favorito", "Súper Favorito"] and gd == 0 and agd < 0.35 and md < 0.3 and td < 0.20):
-                                        return "🔴 EL MURO: El Débil está asfixiado. Sin momentum (Mom < 0.3) ni profundidad (TP < 20%). LUZ VERDE NO."
-                                    elif (mc >= 30 and jp == "Fuerzas Parejas" and agf < 0.55 and agd < 0.55 and mf < 0.5 and md < 0.5 and tf < 0.30 and td < 0.30):
-                                        return "🔴 PACTO DE NO AGRESIÓN: Ambos equipos anulados en el medio campo (APM < 0.55). Poca verticalidad. LUZ VERDE NO."
-                                    elif (mc >= 35 and eg == False and tf < 0.25 and td < 0.25):
-                                        return "🔴 DOMINIO ESTÉRIL: 0-0 con posesiones largas pero bajísima profundidad en ambos (TP < 25%). LUZ VERDE NO."
+                                    if (mc >= 35 and jp in ["Favorito", "Súper Favorito"] and gd == 0 and agd < 0.25 and md < 0.20 and td < 0.15):
+                                        return "🔴 EL MURO: El Débil está asfixiado. Cero momentum (Mom < 0.20) y nula profundidad (TP < 15%). LUZ VERDE NO."
+                                    elif (mc >= 35 and jp == "Fuerzas Parejas" and eg == False and agf < 0.45 and agd < 0.45 and mf < 0.4 and md < 0.4 and tf < 0.20 and td < 0.20):
+                                        return "🔴 PACTO DE NO AGRESIÓN: 0-0 congelado. Ambos equipos anulados (APM < 0.45, TP < 20%). LUZ VERDE NO."
+                                    elif (mc >= 40 and eg == False and tf < 0.15 and td < 0.15):
+                                        return "🔴 DOMINIO ESTÉRIL: Minuto 40+. 0-0 con posesiones inútiles. Nadie pisa el área (TP < 15%). LUZ VERDE NO."
                                     return None
 
                                 patron_encontrado = None
