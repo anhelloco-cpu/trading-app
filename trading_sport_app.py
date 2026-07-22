@@ -4155,7 +4155,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             st.error(f"❌ Error crítico de Supabase o IA: {str(err_db)}")
                                     else:
                                         st.error("Error matemático en las cuotas o plataforma vacía. Ajusta tu entrada.")
-                        with col_disp2:
+                        with col_disp1:
                             if st.button("🗑️ ABORTAR (Descartar)", key=f"btn_del_{pr['codigo']}", use_container_width=True):
                                 supabase.table("historial_trading").delete().eq("codigo", pr['codigo']).execute()
                                 st.warning("Partido descartado.")
