@@ -3912,14 +3912,17 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                             texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_act_no:.2f}**. Pérdida matemática."
                                             bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
                                             
+                                    # Calculamos la velocidad global combinada para mostrar el contraste
+                                    apm_global_comb = apm_global_loc + apm_global_vis
+                                    
                                     st.markdown(f"""
                                     <div style="background-color: {bg_color}; border-left: 5px solid {border_color}; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
                                         <h4 style="margin-top:0; color:{border_color};">{alerta_accion}</h4>
                                         <p style="margin:0; font-size:0.95rem; color:{text_color};">{texto_accion}</p>
                                         <hr style="border-color:{border_color}; opacity:0.3; margin: 10px 0;">
-                                        <div style="font-size:0.85rem; color:#475569; display:flex; justify-content:space-between;">
+                                        <div style="font-size:0.85rem; color:#475569; display:flex; justify-content:space-between; flex-wrap: wrap; gap: 10px;">
                                             <span><b>Prob. IA {seleccion_final_rad.upper()}:</b> {prob_mercado*100:.1f}%</span>
-                                            <span><b>Velocidad:</b> {apm_rad:.2f} APM ({texto_momentum})</span>
+                                            <span><b>Global:</b> {apm_global_comb:.2f} APM | <b>Furia Reciente:</b> {apm_rad:.2f} APM ({texto_momentum})</span>
                                         </div>
                                     </div>
                                     """, unsafe_allow_html=True)
