@@ -3962,23 +3962,8 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             es_moderado = "MODERADO" in perfil_evaluado_guardado
                             es_conservador = "CONSERVADOR" in perfil_evaluado_guardado
                             
-                            partes_codigo = pr['codigo'].split("-")
-                            codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
-                            
-                            capital_ya_investido = 0.0
-                            inversiones_previas = []
-
-                            if supabase is not None:
-                                try:
-                                    res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
-                                    if res_exp.data:
-                                        inversiones_previas = [float(x.get('stake_1', 0.0)) for x in res_exp.data if float(x.get('stake_1', 0.0)) > 0]
-                                        capital_ya_investido = sum(inversiones_previas)
-                                except Exception:
-                                    capital_ya_investido = 0.0
-
-                            presupuesto_partido = float(pr.get('capital_total', 5000.0))
-                            cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
+                            # Nota: Los cálculos de capital, inversiones_previas y usado_kam/mod/con 
+                            # ya fueron ejecutados arriba en la Auditoría Previa, así que los usamos directamente.
 
                             st.markdown(f"""
                             <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 12px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
@@ -4005,24 +3990,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 key=f"modo_cap_{pr['codigo']}"
                             )
                             
-                            bolsas_teoricas = {
-                                "kamikaze": presupuesto_partido * 0.20,
-                                "moderado": presupuesto_partido * 0.30,
-                                "conservador": presupuesto_partido * 0.50
-                            }
-                            
-                            usado_kam, usado_mod, usado_con = False, False, False
-                            for inv in inversiones_previas:
-                                dist = {}
-                                if not usado_kam: dist["kamikaze"] = abs(inv - bolsas_teoricas["kamikaze"])
-                                if not usado_mod: dist["moderado"] = abs(inv - bolsas_teoricas["moderado"])
-                                if not usado_con: dist["conservador"] = abs(inv - bolsas_teoricas["conservador"])
-                                if dist:
-                                    mejor = min(dist, key=dist.get)
-                                    if mejor == "kamikaze": usado_kam = True
-                                    elif mejor == "moderado": usado_mod = True
-                                    elif mejor == "conservador": usado_con = True
-
                             val_kamikaze = 0.0 if usado_kam else bolsas_teoricas["kamikaze"]
                             val_moderado = 0.0 if usado_mod else bolsas_teoricas["moderado"]
                             val_conservador = 0.0 if usado_con else bolsas_teoricas["conservador"]
@@ -4419,15 +4386,67 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                     st.error(f"❌ Error guardando foto: {e}")
 
         # ==================================================================
-        # 🎛️ SELECTOR DE PERFIL DE RIESGO
+        # 🔍 AUDITORÍA PREVIA DE INVERSIONES (BLOQUEO DE PERFILES AGOTADOS)
         # ==================================================================
-        st.markdown("---")
+        partes_codigo = pr['codigo'].split("-")
+        codigo_base_exacto = f"{partes_codigo[0]}-{partes_codigo[1]}" if len(partes_codigo) >= 2 else pr['codigo']
+        
+        capital_ya_investido = 0.0
+        inversiones_previas = []
+
+        if supabase is not None:
+            try:
+                res_exp = supabase.table("historial_trading").select("stake_1").like("codigo", f"{codigo_base_exacto}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                if res_exp.data:
+                    inversiones_previas = [float(x.get('stake_1', 0.0)) for x in res_exp.data if float(x.get('stake_1', 0.0)) > 0]
+                    capital_ya_investido = sum(inversiones_previas)
+            except Exception:
+                capital_ya_investido = 0.0
+
+        presupuesto_partido = float(pr.get('capital_total', 5000.0))
+        cupo_disponible_partido = max(0.0, presupuesto_partido - capital_ya_investido)
+
+        bolsas_teoricas = {
+            "kamikaze": presupuesto_partido * 0.20,
+            "moderado": presupuesto_partido * 0.30,
+            "conservador": presupuesto_partido * 0.50
+        }
+        
+        usado_kam, usado_mod, usado_con = False, False, False
+        for inv in inversiones_previas:
+            dist = {}
+            if not usado_kam: dist["kamikaze"] = abs(inv - bolsas_teoricas["kamikaze"])
+            if not usado_mod: dist["moderado"] = abs(inv - bolsas_teoricas["moderado"])
+            if not usado_con: dist["conservador"] = abs(inv - bolsas_teoricas["conservador"])
+            if dist:
+                mejor = min(dist, key=dist.get)
+                if mejor == "kamikaze": usado_kam = True
+                elif mejor == "moderado": usado_mod = True
+                elif mejor == "conservador": usado_con = True
+
+        # ------------------------------------------------------------------
+        # 🎛️ SELECTOR DE PERFIL DE RIESGO DINÁMICO
+        # ------------------------------------------------------------------
+        st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
         st.markdown("#### 🎛️ Perfil de Riesgo Operativo")
+        
+        opciones_riesgo = ["🛡️ CONSERVADOR (Modo Francotirador)", "⚖️ MODERADO (Modo Táctico)"]
+        
+        # Si Kamikaze NO se ha usado, lo agregamos a la lista. Si ya se usó, bloqueamos el acceso.
+        if not usado_kam:
+            opciones_riesgo.append("🔥 AGRESIVO (Modo Kamikaze)")
+        else:
+            st.info("🔥 Bala Kamikaze agotada: Ya inyectaste capital con este riesgo. El Oráculo ha bloqueado el acceso para proteger la banca.")
+            
+        # Ajustamos el valor por defecto: si está disponible Kamikaze, apuntamos a Moderado (1). Si no, a Conservador (0)
+        idx_riesgo = 1 if not usado_kam else 0
+        
         perfil_riesgo = st.selectbox(
-            "Selecciona la rigidez de los candados matemáticos:",
-            ["🛡️ CONSERVADOR (Modo Francotirador)", "⚖️ MODERADO (Modo Táctico)", "🔥 AGRESIVO (Modo Kamikaze)"],
-            index=1,
-            key=f"perfil_{pr['codigo']}"
+            "Rigidez de los candados matemáticos:",
+            opciones_riesgo,
+            index=idx_riesgo,
+            key=f"perfil_{pr['codigo']}",
+            label_visibility="collapsed"
         )
         
         if "CONSERVADOR" in perfil_riesgo:
