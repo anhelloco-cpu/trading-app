@@ -3238,109 +3238,109 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             st.markdown("</div>", unsafe_allow_html=True)
 
                         
-                        # ==================================================================
-                        # 💰 LÓGICA DE CONFIGURACIÓN Y CUOTAS 
-                        # ==================================================================
-                        st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
-                        st.markdown("#### ⚙️ Configurar Mercado y Cuotas En Vivo")
-                        
-                        sel_ini_rad = str(pr.get('seleccion_inicial', ''))
-                        mercado_actual = str(pr.get('mercado', ''))
-                        
-                        if "Ambos Anotan" in mercado_actual or "Ambos" in sel_ini_rad or "Sí" in sel_ini_rad or "No" in sel_ini_rad:
-                            mdo_str = "Ambos Anotan"
-                            opciones_mercado = ["Sí", "No"]
-                            sel_ini_limpia = "Sí" if ("Sí" in sel_ini_rad or "Si" in sel_ini_rad) else "No"
-                        elif "Más" in sel_ini_rad or "Menos" in sel_ini_rad or "Goles" in mercado_actual:
-                            mdo_str = "Línea de Goles"
-                            import re
-                            numeros = re.findall(r'\d+\.\d+|\d+', sel_ini_rad)
-                            linea = numeros[0] if numeros else "2.5"
-                            opciones_mercado = [f"Más de {linea}", f"Menos de {linea}"]
-                            sel_ini_limpia = f"Más de {linea}" if "Más" in sel_ini_rad else f"Menos de {linea}"
-                        elif "Local" in sel_ini_rad or "Visita" in sel_ini_rad or "Empate" in sel_ini_rad or "1X2" in mercado_actual:
-                            mdo_str = "Mercado 1X2"
-                            if "Local" in sel_ini_rad:
-                                sel_ini_limpia = "Local"; opciones_mercado = ["Local", "Empate / Visita"]
-                            elif "Visita" in sel_ini_rad:
-                                sel_ini_limpia = "Visita"; opciones_mercado = ["Visita", "Local / Empate"]
+                            # ==================================================================
+                            # 💰 LÓGICA DE CONFIGURACIÓN Y CUOTAS 
+                            # ==================================================================
+                            st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
+                            st.markdown("#### ⚙️ Configurar Mercado y Cuotas En Vivo")
+                            
+                            sel_ini_rad = str(pr.get('seleccion_inicial', ''))
+                            mercado_actual = str(pr.get('mercado', ''))
+                            
+                            if "Ambos Anotan" in mercado_actual or "Ambos" in sel_ini_rad or "Sí" in sel_ini_rad or "No" in sel_ini_rad:
+                                mdo_str = "Ambos Anotan"
+                                opciones_mercado = ["Sí", "No"]
+                                sel_ini_limpia = "Sí" if ("Sí" in sel_ini_rad or "Si" in sel_ini_rad) else "No"
+                            elif "Más" in sel_ini_rad or "Menos" in sel_ini_rad or "Goles" in mercado_actual:
+                                mdo_str = "Línea de Goles"
+                                import re
+                                numeros = re.findall(r'\d+\.\d+|\d+', sel_ini_rad)
+                                linea = numeros[0] if numeros else "2.5"
+                                opciones_mercado = [f"Más de {linea}", f"Menos de {linea}"]
+                                sel_ini_limpia = f"Más de {linea}" if "Más" in sel_ini_rad else f"Menos de {linea}"
+                            elif "Local" in sel_ini_rad or "Visita" in sel_ini_rad or "Empate" in sel_ini_rad or "1X2" in mercado_actual:
+                                mdo_str = "Mercado 1X2"
+                                if "Local" in sel_ini_rad:
+                                    sel_ini_limpia = "Local"; opciones_mercado = ["Local", "Empate / Visita"]
+                                elif "Visita" in sel_ini_rad:
+                                    sel_ini_limpia = "Visita"; opciones_mercado = ["Visita", "Local / Empate"]
+                                else:
+                                    sel_ini_limpia = "Empate"; opciones_mercado = ["Empate", "Cualquiera Gana"]
                             else:
-                                sel_ini_limpia = "Empate"; opciones_mercado = ["Empate", "Cualquiera Gana"]
-                        else:
-                            mdo_str = mercado_actual if mercado_actual else "Mercado Personalizado"
-                            sel_ini_limpia = sel_ini_rad
-                            opciones_mercado = [sel_ini_limpia, "Opción Contraria"]
+                                mdo_str = mercado_actual if mercado_actual else "Mercado Personalizado"
+                                sel_ini_limpia = sel_ini_rad
+                                opciones_mercado = [sel_ini_limpia, "Opción Contraria"]
 
-                        st.markdown(f"<p style='font-size:0.9rem; color:#64748B; margin-bottom:15px;'>💡 <b>Modo Disciplina:</b> Operando estrictamente el mercado <b>[{mdo_str}]</b>.</p>", unsafe_allow_html=True)
-                        
-                        idx_defecto = 0 if sel_ini_limpia == opciones_mercado[0] else 1 if len(opciones_mercado) > 1 else 0
-                        col_nom1, col_nom2 = st.columns([1.5, 1])
-                        with col_nom1:
-                            seleccion_final_rad = st.selectbox("Tu Selección:", opciones_mercado, index=idx_defecto, key=f"sel_rad_{pr['codigo']}")
-                        with col_nom2:
-                            if seleccion_final_rad == opciones_mercado[0]:
-                                amenaza_final_rad = opciones_mercado[1] if len(opciones_mercado) > 1 else "Opción Contraria"
-                            else:
-                                amenaza_final_rad = opciones_mercado[0]
-                                
-                            st.markdown("<p style='font-size: 14px; margin-bottom: 5px; color:#475569;'>La Amenaza a Cubrir:</p>", unsafe_allow_html=True)
-                            st.markdown(f"""
-                            <div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B; padding: 7px 12px; border-radius: 6px; cursor: not-allowed;">
-                                {amenaza_final_rad}
-                            </div>
-                            """, unsafe_allow_html=True)
+                            st.markdown(f"<p style='font-size:0.9rem; color:#64748B; margin-bottom:15px;'>💡 <b>Modo Disciplina:</b> Operando estrictamente el mercado <b>[{mdo_str}]</b>.</p>", unsafe_allow_html=True)
+                            
+                            idx_defecto = 0 if sel_ini_limpia == opciones_mercado[0] else 1 if len(opciones_mercado) > 1 else 0
+                            col_nom1, col_nom2 = st.columns([1.5, 1])
+                            with col_nom1:
+                                seleccion_final_rad = st.selectbox("Tu Selección:", opciones_mercado, index=idx_defecto, key=f"sel_rad_{pr['codigo']}")
+                            with col_nom2:
+                                if seleccion_final_rad == opciones_mercado[0]:
+                                    amenaza_final_rad = opciones_mercado[1] if len(opciones_mercado) > 1 else "Opción Contraria"
+                                else:
+                                    amenaza_final_rad = opciones_mercado[0]
+                                    
+                                st.markdown("<p style='font-size: 14px; margin-bottom: 5px; color:#475569;'>La Amenaza a Cubrir:</p>", unsafe_allow_html=True)
+                                st.markdown(f"""
+                                <div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B; padding: 7px 12px; border-radius: 6px; cursor: not-allowed;">
+                                    {amenaza_final_rad}
+                                </div>
+                                """, unsafe_allow_html=True)
 
-                        # ------------------------------------------------------------------
-                        # 🧲 MEMORIA PARA QUE LAS CUOTAS NO SE BORREN AL EVALUAR
-                        # ------------------------------------------------------------------
-                        c_ent_key = f"c_ent_{pr['codigo']}"
-                        if c_ent_key not in st.session_state:
-                            st.session_state[c_ent_key] = float(pr.get('cuota_inicial', 2.0))
+                            # ------------------------------------------------------------------
+                            # 🧲 MEMORIA PARA QUE LAS CUOTAS NO SE BORREN AL EVALUAR
+                            # ------------------------------------------------------------------
+                            c_ent_key = f"c_ent_{pr['codigo']}"
+                            if c_ent_key not in st.session_state:
+                                st.session_state[c_ent_key] = float(pr.get('cuota_inicial', 2.0))
 
-                        c_am_key = f"c_am_{pr['codigo']}"
-                        if c_am_key not in st.session_state:
-                            val_am = float(pr.get('cuota_amenaza_audit') or 1.90)
-                            st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
+                            c_am_key = f"c_am_{pr['codigo']}"
+                            if c_am_key not in st.session_state:
+                                val_am = float(pr.get('cuota_amenaza_audit') or 1.90)
+                                st.session_state[c_am_key] = val_am if val_am >= 1.01 else 1.90
 
-                        # ✅ RESTAURADO: La caja maestra de stake en vivo (Fuera de la bóveda)
-                        stk_key = f"stk_ent_{pr['codigo']}"
-                        if stk_key not in st.session_state:
-                            st.session_state[stk_key] = int(max(5000, int(pr.get('stake_1', 500))))
+                            # ✅ RESTAURADO: La caja maestra de stake en vivo (Fuera de la bóveda)
+                            stk_key = f"stk_ent_{pr['codigo']}"
+                            if stk_key not in st.session_state:
+                                st.session_state[stk_key] = int(max(5000, int(pr.get('stake_1', 500))))
 
-                        col_ent1, col_ent2, col_ent3 = st.columns(3)
-                        with col_ent1:
-                            cuota_ent_rad = st.number_input("Cuota Selección:", min_value=1.01, step=0.05, key=c_ent_key)
-                        with col_ent2:
-                            cuota_amenaza_rad = st.number_input("Cuota Amenaza:", min_value=1.01, step=0.05, key=c_am_key)
-                        with col_ent3:
-                            stake_ent_rad = st.number_input("Capital Invertido:", min_value=500, step=500, key=stk_key)
+                            col_ent1, col_ent2, col_ent3 = st.columns(3)
+                            with col_ent1:
+                                cuota_ent_rad = st.number_input("Cuota Selección:", min_value=1.01, step=0.05, key=c_ent_key)
+                            with col_ent2:
+                                cuota_amenaza_rad = st.number_input("Cuota Amenaza:", min_value=1.01, step=0.05, key=c_am_key)
+                            with col_ent3:
+                                stake_ent_rad = st.number_input("Capital Invertido:", min_value=500, step=500, key=stk_key)
 
-                        # ------------------------------------------------------------------
-                        # 📸 BOTÓN DE BITÁCORA
-                        # ------------------------------------------------------------------
-                        if st.button("📸 Guardar Bitácora (Momentum)", key=f"btn_foto_live_{pr['codigo']}", use_container_width=True):
-                            if supabase is not None:
-                                try:
-                                    if seleccion_final_rad == "Sí":
-                                        val_cuota_si, val_cuota_no = float(cuota_ent_rad), float(cuota_amenaza_rad)
-                                    elif seleccion_final_rad == "No":
-                                        val_cuota_si, val_cuota_no = float(cuota_amenaza_rad), float(cuota_ent_rad)
-                                    else:
-                                        val_cuota_si, val_cuota_no = 0.0, 0.0
+                            # ------------------------------------------------------------------
+                            # 📸 BOTÓN DE BITÁCORA
+                            # ------------------------------------------------------------------
+                            if st.button("📸 Guardar Bitácora (Momentum)", key=f"btn_foto_live_{pr['codigo']}", use_container_width=True):
+                                if supabase is not None:
+                                    try:
+                                        if seleccion_final_rad == "Sí":
+                                            val_cuota_si, val_cuota_no = float(cuota_ent_rad), float(cuota_amenaza_rad)
+                                        elif seleccion_final_rad == "No":
+                                            val_cuota_si, val_cuota_no = float(cuota_amenaza_rad), float(cuota_ent_rad)
+                                        else:
+                                            val_cuota_si, val_cuota_no = 0.0, 0.0
 
-                                    nueva_foto = {
-                                        "codigo_posicion": pr['codigo'], "minuto_evaluado": m_rad,
-                                        "goles_local": gl_rad, "goles_vis": gv_rad,
-                                        "atqt_local": atq_tot_loc, "atqt_vis": atq_tot_vis,
-                                        "atkp_local": al_rad, "atkp_vis": av_rad,
-                                        "cuota_si": val_cuota_si, "cuota_no": val_cuota_no
-                                    }
-                                    supabase.table("registro_fotos").insert(nueva_foto).execute()
-                                    st.success(f"✅ ¡Foto del min {m_rad} guardada! (SÍ: {val_cuota_si:.2f} | NO: {val_cuota_no:.2f})")
-                                except Exception as e:
-                                    st.error(f"❌ Error guardando foto: {e}")
-                            else:
-                                st.error("Supabase no está conectado.")
+                                        nueva_foto = {
+                                            "codigo_posicion": pr['codigo'], "minuto_evaluado": m_rad,
+                                            "goles_local": gl_rad, "goles_vis": gv_rad,
+                                            "atqt_local": atq_tot_loc, "atqt_vis": atq_tot_vis,
+                                            "atkp_local": al_rad, "atkp_vis": av_rad,
+                                            "cuota_si": val_cuota_si, "cuota_no": val_cuota_no
+                                        }
+                                        supabase.table("registro_fotos").insert(nueva_foto).execute()
+                                        st.success(f"✅ ¡Foto del min {m_rad} guardada! (SÍ: {val_cuota_si:.2f} | NO: {val_cuota_no:.2f})")
+                                    except Exception as e:
+                                        st.error(f"❌ Error guardando foto: {e}")
+                                else:
+                                    st.error("Supabase no está conectado.")
 
                         # ------------------------------------------------------------------
                         # 🎛️ SELECTOR DE PERFIL DE RIESGO INTELIGENTE
