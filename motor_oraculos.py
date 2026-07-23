@@ -170,8 +170,9 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
         )
     elif seleccion_final_rad == "No":
         patron_encontrado = detectar_patron_btts_no(
-            min_corrido, estado_goles, jerarquia_pre, goles_fav, goles_deb, 
-            apm_global_fav, apm_global_deb, mom_fav, mom_deb, tp_fav, tp_deb
+            min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
+            jerarquia_pre, apm_global_fav, apm_global_deb, 
+            mom_fav, mom_deb, tp_fav, tp_deb
         )
         if patron_encontrado:
             color_patron = "#EF4444" 
