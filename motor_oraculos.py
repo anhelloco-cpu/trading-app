@@ -345,8 +345,8 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
     border_color = "#64748B"
     text_color = "#334155"
 
-    cuota_justa_si = 1 / prob_si if prob_si > 0.01 else 99.0
-    cuota_justa_no = 1 / prob_no if prob_no > 0.01 else 99.0
+    cuota_justa_si = round(1 / prob_si if prob_si > 0.01 else 99.0, 2)
+    cuota_justa_no = round(1 / prob_no if prob_no > 0.01 else 99.0, 2)
     
     # 🌟 NUEVO: UNIFICAMOS LA AUTORIDAD TÁCTICA
     # Hay Vía Libre si se encuentra un Patrón O si se disparó una Señal de alerta
