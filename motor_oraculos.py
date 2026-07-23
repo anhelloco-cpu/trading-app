@@ -166,7 +166,8 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
         patron_encontrado = detectar_patron_btts_si(
             min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
             jerarquia_pre, apm_global_fav, apm_global_deb, apm_g_ganador, apm_g_perdedor,
-            mom_combinado, diferencial_mom, mom_fav, mom_deb, mom_ganador, mom_perdedor, 
+            apm_local_dinamico, apm_vis_dinamico, mom_combinado, diferencial_mom, 
+            mom_fav, mom_deb, mom_ganador, mom_perdedor, 
             tp_fav, tp_deb, tp_ganador, tp_perdedor
         )
     elif seleccion_final_rad == "No":
