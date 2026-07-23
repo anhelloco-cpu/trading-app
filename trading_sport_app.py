@@ -3257,7 +3257,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         # ------------------------------------------------------------------
                         # 🎛️ PANEL DE EVALUACIÓN MULTI-ESTRATEGIA
                         # ------------------------------------------------------------------
-                        tab_datos, tab_anti_empate = st.tabs(["⚙️ Carga de Datos (APM)", "💣 Calculadora Anti-Empate"])
+                        tab_datos, tab_oraculo_goles = st.tabs(["⚙️ Carga de Datos y BTTS", "🥅 Oráculo de Goles"])
                         
                         with tab_datos:
                             # --- ⚡ MÓDULO HÍBRIDO API (AUTO-RELLENADO) ---
@@ -3352,54 +3352,175 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             av_rad = c_atq4.number_input(f"🔥 Peligro {eq_vis_ui}", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 0))
                             st.markdown("</div>", unsafe_allow_html=True)
 
-                        with tab_anti_empate:
-                            st.markdown("""
-                            <div style='background-color: #F8FAFC; border-left: 4px solid #8B5CF6; padding: 10px 15px; border-radius: 4px; margin-bottom: 15px;'>
-                                <h5 style='margin:0; color: #4C1D95;'>⚖️ Estrategia Asimétrica (Riesgo al Empate)</h5>
-                                <p style='margin:2px 0 0 0; font-size:0.85rem; color: #64748B;'>Ideal para usar en Vivo (Min > 45) cuando el Súper Favorito asedia (APM > 1.0) y el marcador va 0-0.</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+                        with tab_oraculo_goles:
+                            st.markdown("#### ⚙️ Configurar Línea de Goles En Vivo")
                             
-                            c_ae1, c_ae2, c_ae3 = st.columns(3)
-                            cuota_sug_fav = min(float(pr.get('cuota_base_audit', 1.08)), float(pr.get('cuota_amenaza_audit', 1.08)))
-                            cuota_sug_deb = max(float(pr.get('cuota_base_audit', 18.20)), float(pr.get('cuota_amenaza_audit', 18.20)))
+                            col_lg1, col_lg2 = st.columns([1.5, 1])
+                            with col_lg1:
+                                linea_seleccionada = st.selectbox(
+                                    "Tu Selección (Over/Under):", 
+                                    ["Más de 1.5", "Menos de 1.5", "Más de 2.5", "Menos de 2.5", "Más de 3.5", "Menos de 3.5", "Más de 4.5", "Menos de 4.5"],
+                                    index=2, key=f"lin_gol_{pr['codigo']}"
+                                )
+                            with col_lg2:
+                                st.markdown("<p style='font-size: 14px; margin-bottom: 5px; color:#475569;'>La Amenaza a Cubrir:</p>", unsafe_allow_html=True)
+                                amenaza_goles = linea_seleccionada.replace("Más", "Temp").replace("Menos", "Más").replace("Temp", "Menos")
+                                st.markdown(f"""
+                                <div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B; padding: 7px 12px; border-radius: 6px; cursor: not-allowed;">
+                                    {amenaza_goles}
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                            c_ent_key_g = f"c_ent_g_{pr['codigo']}"
+                            if c_ent_key_g not in st.session_state: st.session_state[c_ent_key_g] = 1.90
+                            c_am_key_g = f"c_am_g_{pr['codigo']}"
+                            if c_am_key_g not in st.session_state: st.session_state[c_am_key_g] = 1.90
                             
-                            cuota_fav_ae = c_ae1.number_input("👑 Cuota Favorito:", min_value=1.01, step=0.01, value=max(1.01, cuota_sug_fav), key=f"c_fav_ae_{pr['codigo']}")
-                            cuota_deb_ae = c_ae2.number_input("🩸 Cuota Débil:", min_value=1.01, step=0.1, value=max(2.0, cuota_sug_deb), key=f"c_deb_ae_{pr['codigo']}")
-                            inv_total_ae = c_ae3.number_input("💰 Inversión Total:", min_value=1000, step=10000, value=100000, key=f"inv_ae_{pr['codigo']}")
+                            col_ge1, col_ge2 = st.columns(2)
+                            with col_ge1:
+                                cuota_ent_g = st.number_input("Cuota Selección:", min_value=1.01, step=0.05, key=c_ent_key_g)
+                            with col_ge2:
+                                cuota_am_g = st.number_input("Cuota Amenaza:", min_value=1.01, step=0.05, key=c_am_key_g)
+
+                            st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
+                            st.markdown("#### 🎛️ Perfil de Riesgo (Goles)")
+                            perfil_riesgo_g = st.selectbox(
+                                "Rigidez de los candados matemáticos:",
+                                ["🛡️ CONSERVADOR (Modo Francotirador)", "⚖️ MODERADO (Modo Táctico)", "🔥 AGRESIVO (Modo Kamikaze)"],
+                                index=1, key=f"perfil_g_{pr['codigo']}", label_visibility="collapsed"
+                            )
                             
-                            if cuota_deb_ae > 0 and cuota_fav_ae > 0:
-                                stake_cobertura = inv_total_ae / cuota_deb_ae
-                                stake_fuerte = inv_total_ae - stake_cobertura
-                                retorno_fav = stake_fuerte * cuota_fav_ae
-                                utilidad_fav = retorno_fav - inv_total_ae
-                                roi_pct = (utilidad_fav / inv_total_ae) * 100 if inv_total_ae > 0 else 0
-                                
-                                if stake_fuerte > 0:
+                            if "CONSERVADOR" in perfil_riesgo_g: ventaja_min_g = 0.50; minuto_limite_g = 70
+                            elif "MODERADO" in perfil_riesgo_g: ventaja_min_g = 0.20; minuto_limite_g = 78
+                            else: ventaja_min_g = 0.0; minuto_limite_g = 85
+
+                            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                            aprueba_key_g = f"oraculo_aprueba_g_{pr['codigo']}"
+
+                            if st.button("🧠 Validar Goles con Oráculo", key=f"btn_ev_g_{pr['codigo']}", use_container_width=True, type="primary"):
+                                try:
+                                    import joblib
+                                    import pandas as pd
+                                    import math
+                                    import re
+                                    
+                                    mgoles_rad = joblib.load('modelo_goles.pkl')
+                                    
+                                    apm_global_loc = al_rad / max(1, m_rad)
+                                    apm_global_vis = av_rad / max(1, m_rad)
+                                    apm_local_dinamico = apm_global_loc
+                                    apm_vis_dinamico = apm_global_vis
+                                    texto_momentum_g = "Promedio Global"
+                                    
+                                    if supabase is not None:
+                                        try:
+                                            res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lte("minuto_evaluado", m_rad - 5).order("minuto_evaluado", desc=True).limit(1).execute()
+                                            if not res_last.data: res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lt("minuto_evaluado", m_rad).order("minuto_evaluado", desc=True).limit(1).execute()
+                                            if res_last.data:
+                                                foto_ant = res_last.data[0]
+                                                delta_min = m_rad - int(foto_ant['minuto_evaluado'])
+                                                if delta_min >= 2:
+                                                    apm_local_dinamico = max(0.0, (al_rad - int(foto_ant['atkp_local'])) / delta_min)
+                                                    apm_vis_dinamico = max(0.0, (av_rad - int(foto_ant['atkp_vis'])) / delta_min)
+                                                    texto_momentum_g = f"Últimos {delta_min} min"
+                                        except: pass
+
+                                    apm_rad_g = apm_local_dinamico + apm_vis_dinamico
+                                    ird_rad_global = min(100.0, (apm_global_loc + apm_global_vis) * 45.0)
+                                    
+                                    X_rad_g = pd.DataFrame([{
+                                        'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad_global, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))
+                                    }])
+                                    
+                                    pred_goles_rad = mgoles_rad.predict(X_rad_g)[0]
+                                    
+                                    nums_linea = re.findall(r'\d+\.\d+|\d+', linea_seleccionada)
+                                    linea_operacion = float(nums_linea[0]) if nums_linea else 2.5
+                                    goles_techo_under = int(math.floor(linea_operacion))
+                                    
+                                    lam = max(0.1, float(pred_goles_rad))
+                                    p_under = 0.0
+                                    for k in range(goles_techo_under + 1): p_under += (math.exp(-lam) * (lam**k)) / math.factorial(k)
+                                        
+                                    prob_goles_menos = p_under
+                                    prob_goles_mas = 1.0 - p_under
+                                    
+                                    tp_local = al_rad / atq_tot_loc if atq_tot_loc > 0 else 0.0
+                                    tp_visita = av_rad / atq_tot_vis if atq_tot_vis > 0 else 0.0
+                                    
+                                    if apm_rad_g >= 1.5 and tp_local > 0.30 and tp_visita > 0.30: prob_goles_mas = min(0.95, prob_goles_mas * 1.30); prob_goles_menos = 1.0 - prob_goles_mas
+                                    elif apm_rad_g <= 0.6 and tp_local < 0.20 and tp_visita < 0.20: prob_goles_menos = min(0.95, prob_goles_menos * 1.30); prob_goles_mas = 1.0 - prob_goles_menos
+
+                                    cuota_justa_mas = 1 / prob_goles_mas if prob_goles_mas > 0.01 else 99.0
+                                    cuota_justa_menos = 1 / prob_goles_menos if prob_goles_menos > 0.01 else 99.0
+                                    
+                                    if "Más" in linea_seleccionada:
+                                        ventaja = cuota_ent_g - cuota_justa_mas
+                                        prob_mercado_g = prob_goles_mas
+                                        cuota_justa_g = cuota_justa_mas
+                                        if m_rad >= minuto_limite_g: alerta_accion = "⏳ **BLOQUEO POR RELOJ**"; texto_accion = f"Tu Perfil prohíbe apostar a goles tardíos (min > {minuto_limite_g})."; bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
+                                        elif ventaja >= ventaja_min_g: alerta_accion = "🔥 **¡DISPARA AL OVER AHORA!**"; texto_accion = f"Justa: **{cuota_justa_g:.2f}** / Ofrecen: **{cuota_ent_g:.2f}**."; bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"; st.session_state[aprueba_key_g] = True
+                                        elif ventaja >= 0: alerta_accion = "🛡️ **BLOQUEO POR PERFIL DE RIESGO**"; texto_accion = f"Hay valor (Justa: **{cuota_justa_g:.2f}**), pero tu Perfil exige más."; bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
+                                        else: alerta_accion = "🚫 **DESCARTADO (TRAMPA EN EL OVER)**"; texto_accion = f"Matemáticamente en contra. Aborta."; bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
+                                    else:
+                                        ventaja = cuota_ent_g - cuota_justa_menos
+                                        prob_mercado_g = prob_goles_menos
+                                        cuota_justa_g = cuota_justa_menos
+                                        if ventaja >= ventaja_min_g: alerta_accion = "🛡️ **¡DISPARA AL UNDER AHORA!**"; texto_accion = f"Justa: **{cuota_justa_g:.2f}** / Ofrecen: **{cuota_ent_g:.2f}**."; bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"; st.session_state[aprueba_key_g] = True
+                                        elif ventaja >= 0: alerta_accion = "🛡️ **BLOQUEO POR PERFIL DE RIESGO**"; texto_accion = f"Hay valor, pero tu Perfil exige más."; bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
+                                        else: alerta_accion = "🚫 **LLEGASTE TARDE AL UNDER**"; texto_accion = f"Pérdida matemática."; bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
+
                                     st.markdown(f"""
-                                    <div style='display: flex; justify-content: space-between; margin-top: 15px; gap: 10px;'>
-                                        <div style='background-color: #ECFDF5; padding: 15px; border-radius: 8px; width: 33%; text-align: center; border: 1px solid #A7F3D0;'>
-                                            <h6 style='margin:0; color: #065F46;'>🟢 GANA FAVORITO</h6>
-                                            <p style='margin:5px 0 0 0; font-size:0.8rem; color: #047857;'>Inyectar: <b>${stake_fuerte:,.0f}</b></p>
-                                            <h3 style='margin:5px 0 0 0; color: #10B981;'>+${utilidad_fav:,.0f}</h3>
-                                            <span style='font-size:0.75rem; color:#059669; font-weight:bold;'>ROI: {roi_pct:.1f}%</span>
-                                        </div>
-                                        <div style='background-color: #EFF6FF; padding: 15px; border-radius: 8px; width: 33%; text-align: center; border: 1px solid #BFDBFE;'>
-                                            <h6 style='margin:0; color: #1E3A8A;'>🔵 GANA DÉBIL</h6>
-                                            <p style='margin:5px 0 0 0; font-size:0.8rem; color: #1D4ED8;'>Inyectar: <b>${stake_cobertura:,.0f}</b></p>
-                                            <h3 style='margin:5px 0 0 0; color: #3B82F6;'>$0</h3>
-                                            <span style='font-size:0.75rem; color:#2563EB;'>Break-Even</span>
-                                        </div>
-                                        <div style='background-color: #FEF2F2; padding: 15px; border-radius: 8px; width: 33%; text-align: center; border: 1px solid #FECACA;'>
-                                            <h6 style='margin:0; color: #991B1B;'>🔴 EMPATE</h6>
-                                            <p style='margin:5px 0 0 0; font-size:0.8rem; color: #B91C1C;'>Agujero Negro</p>
-                                            <h3 style='margin:5px 0 0 0; color: #EF4444;'>-${inv_total_ae:,.0f}</h3>
-                                            <span style='font-size:0.75rem; color:#DC2626;'>Pérdida Total</span>
+                                    <div style="background-color: {bg_color}; border-left: 5px solid {border_color}; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                                        <h4 style="margin-top:0; color:{border_color};">{alerta_accion}</h4>
+                                        <p style="margin:0; font-size:0.95rem; color:{text_color};">{texto_accion}</p>
+                                        <hr style="border-color:{border_color}; opacity:0.3; margin: 10px 0;">
+                                        <div style="font-size:0.85rem; color:#475569;">
+                                            <b>Probabilidad {linea_seleccionada}:</b> {prob_mercado_g*100:.1f}%<br>
+                                            <b>Furia Reciente:</b> {apm_rad_g:.2f} APM ({texto_momentum_g})
                                         </div>
                                     </div>
                                     """, unsafe_allow_html=True)
-                            else:
-                                st.warning("⚠️ Ajusta la cuota del Débil, no permite cobertura matemática.")
+                                except Exception as e: st.error(f"Error procesando Goles: {e}")
+
+                            # 💰 BÓVEDA Y EJECUCIÓN DE GOLES (Totalmente aislada)
+                            if st.session_state.get(aprueba_key_g, False):
+                                st.markdown("#### 💰 Ejecutar Posición (Goles)")
+                                p_total_g = float(pr.get('capital_total', 5000.0))
+                                stk_key_cap_g = f"stk_ent_cap_g_{pr['codigo']}"
+                                stake_ent_g = st.number_input(f"Capital a Invertir:", min_value=100.0, max_value=float(p_total_g), step=500.0, value=min(float(p_total_g), 1000.0), key=stk_key_cap_g)
+                                
+                                plat_g_sel = st.selectbox("Casa de Apuestas:", ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"], key=f"plat_g_{pr['codigo']}")
+                                
+                                if st.button("🔥 DISPARAR GOLES (Confirmar)", type="primary", key=f"btn_disp_g_{pr['codigo']}", use_container_width=True):
+                                    import datetime
+                                    try:
+                                        partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
+                                        partido_formateado = f"🏟️ {partido_limpio_raw} | [Línea de Goles] {linea_seleccionada} vs {amenaza_goles}"
+                                        
+                                        datos_inyeccion = {
+                                            "estado": "EN VIVO", "tipo_banca": "REAL", "estrategia": "Estrategia Goles", 
+                                            "partido": partido_formateado, "prediccion_ia": "Línea Goles", 
+                                            "seleccion_inicial": linea_seleccionada, "seleccion_cobertura": amenaza_goles,
+                                            "plataforma_inicial": plat_g_sel, "cuota_inicial": float(cuota_ent_g),
+                                            "capital_total": float(stake_ent_g), "stake_1": float(stake_ent_g),
+                                            "hora_inicio_partido": datetime.datetime.now().strftime("%H:%M")
+                                        }
+
+                                        p_codigo = pr['codigo'].split("-")
+                                        codigo_base = f"{p_codigo[0]}-{p_codigo[1]}" if len(p_codigo) >= 2 else pr['codigo']
+
+                                        res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base}-%").execute()
+                                        codigo_hijo = f"{codigo_base}-{len(res_hijos.data) + 1:02d}"
+                                        registro_clonado = dict(pr)
+                                        registro_clonado.update(datos_inyeccion)
+                                        registro_clonado['codigo'] = codigo_hijo
+                                        if 'id' in registro_clonado: del registro_clonado['id']
+                                        
+                                        supabase.table("historial_trading").insert(registro_clonado).execute()
+                                        st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
+                                        st.rerun()
+                                    except Exception as err_db: st.error(f"❌ Error: {str(err_db)}")
 
                         # ==================================================================
                         # 💰 LÓGICA DE CONFIGURACIÓN Y CUOTAS 
