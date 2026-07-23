@@ -3445,7 +3445,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         <hr style="border-color:#CBD5E1; opacity:0.5; margin: 10px 0;">
                                         <div style="display:flex; flex-direction:column; gap:6px; font-size:0.9rem; color:#334155;">
                                             <span>🗡️ <b>TP Global:</b> {eq_loc_ui} <b>{res_motor.get("tp_loc_global", res_motor.get("tp_local", 0))*100:.1f}%</b> | {eq_vis_ui} <b>{res_motor.get("tp_vis_global", res_motor.get("tp_visita", 0))*100:.1f}%</b></span>
-                                            <span style="color:#059669;">⚡ <b>TP Reciente:</b> {eq_loc_ui} <b>{res_motor.get("tp_loc_din", res_motor.get("tp_local", 0))*100:.1f}%</b> | {eq_vis_ui} <b>{res_motor.get("tp_vis_din", res_motor.get("tp_visita", 0))*100:.1f}%</b></span>
+                                            <span style="color:#059669;">⚡ <b>TP Reciente ({res_motor.get("texto_momentum", "Error")}):</b> {eq_loc_ui} <b>{res_motor.get("tp_loc_din", res_motor.get("tp_local", 0))*100:.1f}%</b> | {eq_vis_ui} <b>{res_motor.get("tp_vis_din", res_motor.get("tp_visita", 0))*100:.1f}%</b></span>
                                         </div>
                                     </div>
                                     ''', unsafe_allow_html=True)
