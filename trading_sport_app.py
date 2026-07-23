@@ -3722,27 +3722,43 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             else:
                                 plat_rad_final = plat_rad_sel
 
+             
+
+                        # -------------------------------------------------------------
+                        # DETECCIÓN DE MERCADO CUMPLIDO (Ej. Ya se dio el BTTS)
+                        # -------------------------------------------------------------
+                        ya_cumplido = False
+                        mercado_operacion = str(pr.get('mercado', ''))
+                        seleccion_operacion = str(pr.get('seleccion_inicial', ''))
+                        
+                        if ("Ambos Anotan" in mercado_operacion or "Sí" in seleccion_operacion) and (gl_rad >= 1 and gv_rad >= 1):
+                            ya_cumplido = True
+                        
                         retorno_bruto_esperado = stake_ent_rad * cuota_ent_rad
                         utilidad_max_posible = retorno_bruto_esperado - stake_ent_rad
                         max_roi_pct = (utilidad_max_posible / stake_ent_rad) * 100 if stake_ent_rad > 0 else 0
                         
-                        if max_roi_pct > 0:
+                        if ya_cumplido:
+                            st.success("✅ ¡EL AMBOS ANOTAN YA SE CUMPLIÓ EN LA CANCHA! Operación finalizada con éxito.")
+                            cuota_cazar_rad = 0; cuota_sl_rad = 0
+                            
+                        elif max_roi_pct > 1.0: # EXIGIMOS MÁS DEL 1.0% PARA EVITAR EL CRASH DEL SLIDER
                             col_lim1, col_lim2 = st.columns(2)
                             with col_lim1:
-                                calc_max_tp = max(1.0, float(max_roi_pct - 0.5))
-                            safe_max_tp = max(1.0, round(calc_max_tp * 2.0) / 2.0)
-                            calc_val_tp = min(5.0, max(1.0, float(max_roi_pct / 2.0)))
-                            safe_val_tp = min(safe_max_tp, max(1.0, round(calc_val_tp * 2.0) / 2.0))
-                            
-                            tp_rad = st.slider(
-                                "Utilidad Deseada (TP):", 
-                                min_value=1.0, 
-                                max_value=float(safe_max_tp), 
-                                value=float(safe_val_tp), 
-                                step=0.5, 
-                                format="%.1f%%", 
-                                key=f"tp_{pr['codigo']}"
-                            )
+                                calc_max_tp = max(1.5, float(max_roi_pct - 0.5)) # Base sube a 1.5
+                                safe_max_tp = max(1.5, round(calc_max_tp * 2.0) / 2.0)
+                                calc_val_tp = min(5.0, max(1.0, float(max_roi_pct / 2.0)))
+                                safe_val_tp = min(safe_max_tp, max(1.0, round(calc_val_tp * 2.0) / 2.0))
+                                
+                                tp_rad = st.slider(
+                                    "Utilidad Deseada (TP):", 
+                                    min_value=1.0, 
+                                    max_value=float(safe_max_tp), 
+                                    value=float(safe_val_tp), 
+                                    step=0.5, 
+                                    format="%.1f%%", 
+                                    key=f"tp_{pr['codigo']}"
+                                )
                             with col_lim2:
                                 sl_rad = st.slider("Pérdida Máxima (SL):", min_value=1.0, max_value=100.0, value=20.0, step=1.0, format="%.1f%%", key=f"sl_{pr['codigo']}")
                             
@@ -3761,8 +3777,11 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             </div>
                             """, unsafe_allow_html=True)
                         else:
-                            st.warning("La cuota de entrada no permite generar utilidades.")
+                            st.warning("⚠️ La cuota es muy baja o el mercado se cerró (no hay rango de utilidad).")
                             cuota_cazar_rad = 0; cuota_sl_rad = 0
+
+                        
+                        
                         
                         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
                         banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
