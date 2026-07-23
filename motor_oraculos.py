@@ -18,6 +18,7 @@ except Exception as e:
 # 2. DEFINICIÓN DE ESCENARIOS Y PATRONES TÁCTICOS (INTOCABLE)
 # ==================================================================
 def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
+                            goles_ganador, goles_perdedor, # <--- ESTO ES LO NUEVO
                             jerarquia_pre, apm_global_fav, apm_global_deb, apm_global_ganador, apm_global_perdedor,
                             mom_reciente_loc, mom_reciente_vis, mom_combinado, diferencial_mom, 
                             mom_post_gol_fav, mom_post_gol_deb, mom_post_gol_ganador, mom_post_gol_perdedor,
@@ -194,6 +195,7 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
     if seleccion_final_rad == "Sí":
         patron_encontrado = detectar_patron_btts_si(
             min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
+            goles_ganador, goles_perdedor, # <--- ESTO ES LO NUEVO
             jerarquia_pre, apm_global_fav, apm_global_deb, apm_g_ganador, apm_g_perdedor,
             apm_local_dinamico, apm_vis_dinamico, mom_combinado, diferencial_mom, 
             mom_fav, mom_deb, mom_ganador, mom_perdedor, 
