@@ -350,18 +350,27 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
         ventaja = cuota_act - cuota_justa_si
         prob_mercado = prob_si
         cuota_justa = cuota_justa_si
+        
+        # 🟢 FLEXIBILIDAD TÁCTICA: Si hay patrón, solo exige margen de 0.0 (Cuota Justa). 
+        # Si no hay patrón, exige la ventaja estricta de tu Perfil.
+        margen_exigido = 0.0 if patron_encontrado else ventaja_min_exigida
+        
         if m_rad >= minuto_limite_si:
             alerta_accion = f"⏳ **BLOQUEO POR RELOJ (LOTERÍA)**"
             texto_accion = f"Tu Perfil prohíbe apostar a goles después del minuto {minuto_limite_si}."
             bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
-        elif ventaja >= ventaja_min_exigida:
-            alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
-            texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_act:.2f}**. Entra ya."
+        elif ventaja >= margen_exigido:
+            if patron_encontrado:
+                alerta_accion = f"🚀 **VÍA LIBRE TÁCTICA (MARGEN FLEXIBLE)**"
+                texto_accion = f"Patrón letal detectado. Se flexibiliza tu perfil. Justa: **{cuota_justa:.2f}** / Ofrecen: **{cuota_act:.2f}**. ¡Dispara!"
+            else:
+                alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
+                texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_act:.2f}**. Entra ya."
             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
             luz_verde = True
         elif ventaja >= 0:
             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
-            texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil exige ganancia superior."
+            texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil exige ganancia superior y no hay patrón."
         else:
             if (cuota_justa - cuota_act) <= 0.40 and m_rad < 75:
                 alerta_accion = f"⏳ **PACIENCIA (ESPERA A QUE SUBA EL SÍ)**"
@@ -369,20 +378,28 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
                 bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
             else:
                 alerta_accion = f"🚫 **DESCARTADO (TRAMPA EN EL SÍ)**"
-                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act:.2f}**. Aborta."
+                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act:.2f}**. Es una trampa matemática. Aborta."
                 bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
     else: 
         ventaja = cuota_act - cuota_justa_no
         prob_mercado = prob_no
         cuota_justa = cuota_justa_no
-        if ventaja >= ventaja_min_exigida:
-            alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
-            texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act:.2f}**. ¡Mete la plata YA!"
+        
+        # 🔴 FLEXIBILIDAD TÁCTICA DEFENSIVA
+        margen_exigido = 0.0 if patron_encontrado else ventaja_min_exigida
+        
+        if ventaja >= margen_exigido:
+            if patron_encontrado:
+                alerta_accion = f"🚀 **VÍA LIBRE TÁCTICA DEFENSIVA**"
+                texto_accion = f"Patrón de asfixia detectado. Justa: **{cuota_justa:.2f}** / Ofrecen: **{cuota_act:.2f}**. ¡Mete la plata YA!"
+            else:
+                alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
+                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act:.2f}**. ¡Mete la plata YA!"
             bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
             luz_verde = True
         elif ventaja >= 0:
             alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
-            texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil exige mayor margen."
+            texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil exige mayor margen y no hay patrón."
         else:
             alerta_accion = f"🚫 **LLEGASTE TARDE AL NO**"
             texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_act:.2f}**. Pérdida matemática."
