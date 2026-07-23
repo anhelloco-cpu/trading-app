@@ -3550,7 +3550,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                     <h4 style="margin-top:0; color:#0F172A;">🎯 PROYECCIÓN TÁCTICA</h4>
                                     <h1 style="color:{res_motor["color_winner"]}; font-size: 2.5rem; margin: 10px 0;">{res_motor["marcador_exacto"]}</h1>
                                     <p style="margin:0; font-size: 1rem; color:#475569;">Ganador Físico: <b>{res_motor["winner_tactico"]}</b></p>
-                                    <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{res_motor["dom_vivo"]}</b> está dominando la cancha (IRD: {res_motor["ird_rad_global:.1f"] if "ird_rad_global" in res_motor else 0}%)</p>
+                                    <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{res_motor["dom_vivo"]}</b> está dominando la cancha (IRD: {res_motor.get('ird_rad_global', 0):.1f}%)</p>
                                     <hr style="border-color:#CBD5E1; opacity:0.5; margin: 10px 0;">
                                     <p style="margin:0; font-size: 0.9rem; color:#334155;">🗡️ <b>Tasa de Profundidad (TP):</b> {eq_loc_ui} <b>{res_motor["tp_local"]*100:.1f}%</b> | {eq_vis_ui} <b>{res_motor["tp_visita"]*100:.1f}%</b></p>
                                 </div>
