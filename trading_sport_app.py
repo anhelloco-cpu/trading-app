@@ -3342,134 +3342,134 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                 else:
                                     st.error("Supabase no está conectado.")
 
-                        # ------------------------------------------------------------------
-                        # 🎛️ SELECTOR DE PERFIL DE RIESGO INTELIGENTE
-                        # ------------------------------------------------------------------
-                        # 1. Leemos la base de datos rápido para saber qué hemos usado
-                        inversiones_previas_audit = []
-                        if supabase is not None:
-                            try:
-                                p_codigo = pr['codigo'].split("-")
-                                cod_base = f"{p_codigo[0]}-{p_codigo[1]}" if len(p_codigo) >= 2 else pr['codigo']
-                                res_audit = supabase.table("historial_trading").select("stake_1").like("codigo", f"{cod_base}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
-                                if res_audit.data: inversiones_previas_audit = [float(x.get('stake_1', 0.0)) for x in res_audit.data if float(x.get('stake_1', 0.0)) > 0]
-                            except: pass
+                            # ------------------------------------------------------------------
+                            # 🎛️ SELECTOR DE PERFIL DE RIESGO INTELIGENTE
+                            # ------------------------------------------------------------------
+                            # 1. Leemos la base de datos rápido para saber qué hemos usado
+                            inversiones_previas_audit = []
+                            if supabase is not None:
+                                try:
+                                    p_codigo = pr['codigo'].split("-")
+                                    cod_base = f"{p_codigo[0]}-{p_codigo[1]}" if len(p_codigo) >= 2 else pr['codigo']
+                                    res_audit = supabase.table("historial_trading").select("stake_1").like("codigo", f"{cod_base}%").in_("estado", ["EN VIVO", "ABIERTA"]).execute()
+                                    if res_audit.data: inversiones_previas_audit = [float(x.get('stake_1', 0.0)) for x in res_audit.data if float(x.get('stake_1', 0.0)) > 0]
+                                except: pass
 
-                        p_total = float(pr.get('capital_total', 5000.0))
-                        b_teo = {"kamikaze": p_total * 0.20, "moderado": p_total * 0.30, "conservador": p_total * 0.50}
-                        
-                        uso_kam, uso_mod, uso_con = False, False, False
-                        for inv in inversiones_previas_audit:
-                            dists = {}
-                            if not uso_kam: dists["kamikaze"] = abs(inv - b_teo["kamikaze"])
-                            if not uso_mod: dists["moderado"] = abs(inv - b_teo["moderado"])
-                            if not uso_con: dists["conservador"] = abs(inv - b_teo["conservador"])
-                            if dists:
-                                mej = min(dists, key=dists.get)
-                                if mej == "kamikaze": uso_kam = True
-                                elif mej == "moderado": uso_mod = True
-                                elif mej == "conservador": uso_con = True
-
-                        st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
-                        st.markdown("#### 🎛️ Perfil de Riesgo Operativo")
-                        
-                        # 2. Construimos el menú solo con los que están libres
-                        opciones_riesgo = []
-                        if not uso_con: opciones_riesgo.append("🛡️ CONSERVADOR (Modo Francotirador)")
-                        if not uso_mod: opciones_riesgo.append("⚖️ MODERADO (Modo Táctico)")
-                        if not uso_kam: opciones_riesgo.append("🔥 AGRESIVO (Modo Kamikaze)")
-                        
-                        if len(opciones_riesgo) == 0:
-                            opciones_riesgo = ["🚫 TODOS LOS PERFILES AGOTADOS"]
-                            st.warning("⚠️ Ya operaste este partido con todos los perfiles de riesgo posibles.")
+                            p_total = float(pr.get('capital_total', 5000.0))
+                            b_teo = {"kamikaze": p_total * 0.20, "moderado": p_total * 0.30, "conservador": p_total * 0.50}
                             
-                        perfil_riesgo = st.selectbox("Rigidez:", opciones_riesgo, index=0, key=f"perfil_{pr['codigo']}", label_visibility="collapsed")
-                        
-                        if "CONSERVADOR" in perfil_riesgo:
-                            umbral_asfixia = 0.8; mult_castigo = 0.10; umbral_gigante = 0.9; ventaja_min_exigida = 0.50; minuto_limite_si = 70
-                        elif "MODERADO" in perfil_riesgo:
-                            umbral_asfixia = 0.6; mult_castigo = 0.20; umbral_gigante = 0.7; ventaja_min_exigida = 0.20; minuto_limite_si = 78
-                        else: 
-                            umbral_asfixia = 0.4; mult_castigo = 0.50; umbral_gigante = 0.5; ventaja_min_exigida = 0.0; minuto_limite_si = 85
+                            uso_kam, uso_mod, uso_con = False, False, False
+                            for inv in inversiones_previas_audit:
+                                dists = {}
+                                if not uso_kam: dists["kamikaze"] = abs(inv - b_teo["kamikaze"])
+                                if not uso_mod: dists["moderado"] = abs(inv - b_teo["moderado"])
+                                if not uso_con: dists["conservador"] = abs(inv - b_teo["conservador"])
+                                if dists:
+                                    mej = min(dists, key=dists.get)
+                                    if mej == "kamikaze": uso_kam = True
+                                    elif mej == "moderado": uso_mod = True
+                                    elif mej == "conservador": uso_con = True
 
-                        # ------------------------------------------------------------------
-                        # 🧠 BOTÓN DEL ORÁCULO TÁCTICO (EL NÚCLEO)
-                        # ------------------------------------------------------------------
-                        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                        if st.button("🧠 Validar con Oráculo Táctico", key=f"btn_ev_{pr['codigo']}", use_container_width=True, type="primary"):
-                            try:
-                                # Buscamos la foto anterior en Supabase para el cálculo de momentum
-                                foto_ant_db = None
-                                if supabase is not None:
-                                    try:
-                                        res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lte("minuto_evaluado", m_rad - 5).order("minuto_evaluado", desc=True).limit(1).execute()
-                                        if not res_last.data: res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lt("minuto_evaluado", m_rad).order("minuto_evaluado", desc=True).limit(1).execute()
-                                        if res_last.data: foto_ant_db = res_last.data[0]
-                                    except: pass
+                            st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
+                            st.markdown("#### 🎛️ Perfil de Riesgo Operativo")
+                            
+                            # 2. Construimos el menú solo con los que están libres
+                            opciones_riesgo = []
+                            if not uso_con: opciones_riesgo.append("🛡️ CONSERVADOR (Modo Francotirador)")
+                            if not uso_mod: opciones_riesgo.append("⚖️ MODERADO (Modo Táctico)")
+                            if not uso_kam: opciones_riesgo.append("🔥 AGRESIVO (Modo Kamikaze)")
+                            
+                            if len(opciones_riesgo) == 0:
+                                opciones_riesgo = ["🚫 TODOS LOS PERFILES AGOTADOS"]
+                                st.warning("⚠️ Ya operaste este partido con todos los perfiles de riesgo posibles.")
+                                
+                            perfil_riesgo = st.selectbox("Rigidez:", opciones_riesgo, index=0, key=f"perfil_{pr['codigo']}", label_visibility="collapsed")
+                            
+                            if "CONSERVADOR" in perfil_riesgo:
+                                umbral_asfixia = 0.8; mult_castigo = 0.10; umbral_gigante = 0.9; ventaja_min_exigida = 0.50; minuto_limite_si = 70
+                            elif "MODERADO" in perfil_riesgo:
+                                umbral_asfixia = 0.6; mult_castigo = 0.20; umbral_gigante = 0.7; ventaja_min_exigida = 0.20; minuto_limite_si = 78
+                            else: 
+                                umbral_asfixia = 0.4; mult_castigo = 0.50; umbral_gigante = 0.5; ventaja_min_exigida = 0.0; minuto_limite_si = 85
 
-                                # 🚀 LLAMADA AL MOTOR EXTERNO (Cerebro Único)
-                                res_motor = procesar_oraculo_btts(
-                                    m_rad=m_rad, gl_rad=gl_rad, gv_rad=gv_rad, al_rad=al_rad, av_rad=av_rad,
-                                    atq_tot_loc=atq_tot_loc, atq_tot_vis=atq_tot_vis,
-                                    c_loc_hist=float(pr.get('cuota_base_audit', 2.0)),
-                                    c_vis_hist=float(pr.get('cuota_amenaza_audit', 2.0)),
-                                    cuota_act=st.session_state.get(c_ent_key, cuota_ent_rad),
-                                    seleccion_final_rad=seleccion_final_rad,
-                                    perfil_riesgo=perfil_riesgo,
-                                    eq_loc_ui=eq_loc_ui, eq_vis_ui=eq_vis_ui,
-                                    foto_ant=foto_ant_db
-                                )
+                            # ------------------------------------------------------------------
+                            # 🧠 BOTÓN DEL ORÁCULO TÁCTICO (EL NÚCLEO)
+                            # ------------------------------------------------------------------
+                            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                            if st.button("🧠 Validar con Oráculo Táctico", key=f"btn_ev_{pr['codigo']}", use_container_width=True, type="primary"):
+                                try:
+                                    # Buscamos la foto anterior en Supabase para el cálculo de momentum
+                                    foto_ant_db = None
+                                    if supabase is not None:
+                                        try:
+                                            res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lte("minuto_evaluado", m_rad - 5).order("minuto_evaluado", desc=True).limit(1).execute()
+                                            if not res_last.data: res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lt("minuto_evaluado", m_rad).order("minuto_evaluado", desc=True).limit(1).execute()
+                                            if res_last.data: foto_ant_db = res_last.data[0]
+                                        except: pass
 
-                                # 🎨 RENDERIZADO VISUAL EN LA INTERFAZ
-                                if res_motor["patron_encontrado"]:
+                                    # 🚀 LLAMADA AL MOTOR EXTERNO (Cerebro Único)
+                                    res_motor = procesar_oraculo_btts(
+                                        m_rad=m_rad, gl_rad=gl_rad, gv_rad=gv_rad, al_rad=al_rad, av_rad=av_rad,
+                                        atq_tot_loc=atq_tot_loc, atq_tot_vis=atq_tot_vis,
+                                        c_loc_hist=float(pr.get('cuota_base_audit', 2.0)),
+                                        c_vis_hist=float(pr.get('cuota_amenaza_audit', 2.0)),
+                                        cuota_act=st.session_state.get(c_ent_key, cuota_ent_rad),
+                                        seleccion_final_rad=seleccion_final_rad,
+                                        perfil_riesgo=perfil_riesgo,
+                                        eq_loc_ui=eq_loc_ui, eq_vis_ui=eq_vis_ui,
+                                        foto_ant=foto_ant_db
+                                    )
+
+                                    # 🎨 RENDERIZADO VISUAL EN LA INTERFAZ
+                                    if res_motor["patron_encontrado"]:
+                                        st.markdown(f'''
+                                        <div style="background-color: {res_motor["bg_patron"]}; border-left: 6px solid {res_motor["color_patron"]}; padding: 15px; border-radius: 8px; margin-top: 15px; margin-bottom: 10px;">
+                                            <h4 style="margin-top:0; color:{res_motor["color_patron"]};">{res_motor["titulo_patron"]}</h4>
+                                            <p style="margin:0; font-size:0.95rem; color:#1F2937;">{res_motor["patron_encontrado"]}</p>
+                                        </div>
+                                        ''', unsafe_allow_html=True)
+
+                                    if res_motor["alerta_señal"]: 
+                                        st.markdown(res_motor["alerta_señal"], unsafe_allow_html=True)
+
                                     st.markdown(f'''
-                                    <div style="background-color: {res_motor["bg_patron"]}; border-left: 6px solid {res_motor["color_patron"]}; padding: 15px; border-radius: 8px; margin-top: 15px; margin-bottom: 10px;">
-                                        <h4 style="margin-top:0; color:{res_motor["color_patron"]};">{res_motor["titulo_patron"]}</h4>
-                                        <p style="margin:0; font-size:0.95rem; color:#1F2937;">{res_motor["patron_encontrado"]}</p>
+                                    <div style="background-color: #1E293B; border-bottom: 4px solid #3B82F6; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-top:15px;">
+                                        <h5 style="margin:0; color:#94A3B8; font-size: 0.85rem;">ADN DEL PARTIDO</h5>
+                                        <h4 style="color:#FFFFFF; margin: 5px 0;">[{res_motor["jerarquia"]}]</h4>
+                                    </div>
+                                    <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; margin-bottom: 15px;">
+                                        <h4 style="margin-top:0; color:#0F172A;">🎯 PROYECCIÓN TÁCTICA</h4>
+                                        <h1 style="color:{res_motor["color_winner"]}; font-size: 2.5rem; margin: 10px 0;">{res_motor["marcador_exacto"]}</h1>
+                                        <p style="margin:0; font-size: 1rem; color:#475569;">Ganador Físico: <b>{res_motor["winner_tactico"]}</b></p>
+                                        <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{res_motor["dom_vivo"]}</b> está dominando la cancha (IRD: {res_motor.get('ird_rad_global', 0):.1f}%)</p>
+                                        <hr style="border-color:#CBD5E1; opacity:0.5; margin: 10px 0;">
+                                        <p style="margin:0; font-size: 0.9rem; color:#334155;">🗡️ <b>Tasa de Profundidad (TP):</b> {eq_loc_ui} <b>{res_motor["tp_local"]*100:.1f}%</b> | {eq_vis_ui} <b>{res_motor["tp_visita"]*100:.1f}%</b></p>
                                     </div>
                                     ''', unsafe_allow_html=True)
 
-                                if res_motor["alerta_señal"]: 
-                                    st.markdown(res_motor["alerta_señal"], unsafe_allow_html=True)
-
-                                st.markdown(f'''
-                                <div style="background-color: #1E293B; border-bottom: 4px solid #3B82F6; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-top:15px;">
-                                    <h5 style="margin:0; color:#94A3B8; font-size: 0.85rem;">ADN DEL PARTIDO</h5>
-                                    <h4 style="color:#FFFFFF; margin: 5px 0;">[{res_motor["jerarquia"]}]</h4>
-                                </div>
-                                <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; margin-bottom: 15px;">
-                                    <h4 style="margin-top:0; color:#0F172A;">🎯 PROYECCIÓN TÁCTICA</h4>
-                                    <h1 style="color:{res_motor["color_winner"]}; font-size: 2.5rem; margin: 10px 0;">{res_motor["marcador_exacto"]}</h1>
-                                    <p style="margin:0; font-size: 1rem; color:#475569;">Ganador Físico: <b>{res_motor["winner_tactico"]}</b></p>
-                                    <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{res_motor["dom_vivo"]}</b> está dominando la cancha (IRD: {res_motor.get('ird_rad_global', 0):.1f}%)</p>
-                                    <hr style="border-color:#CBD5E1; opacity:0.5; margin: 10px 0;">
-                                    <p style="margin:0; font-size: 0.9rem; color:#334155;">🗡️ <b>Tasa de Profundidad (TP):</b> {eq_loc_ui} <b>{res_motor["tp_local"]*100:.1f}%</b> | {eq_vis_ui} <b>{res_motor["tp_visita"]*100:.1f}%</b></p>
-                                </div>
-                                ''', unsafe_allow_html=True)
-
-                                st.markdown(f'''
-                                <div style="background-color: {res_motor["bg_color"]}; border-left: 5px solid {res_motor["border_color"]}; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-                                    <h4 style="margin-top:0; color:{res_motor["border_color"]};">{res_motor["alerta_accion"]}</h4>
-                                    <p style="margin:0; font-size:0.95rem; color:{res_motor["text_color"]};">{res_motor["texto_accion"]}</p>
-                                    <hr style="border-color:{res_motor["border_color"]}; opacity:0.3; margin: 10px 0;">
-                                    <div style="font-size:0.85rem; color:#475569; display:flex; justify-content:space-between; flex-wrap: wrap; gap: 10px;">
-                                        <span><b>Prob. IA:</b> {res_motor["prob_mercado"]*100:.1f}%</span>
-                                        <span><b>Global:</b> {res_motor["apm_global_comb"]:.2f} APM | <b>Furia Reciente:</b> {res_motor["apm_rad"]:.2f} APM ({res_motor["texto_momentum"]})</span>
+                                    st.markdown(f'''
+                                    <div style="background-color: {res_motor["bg_color"]}; border-left: 5px solid {res_motor["border_color"]}; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                                        <h4 style="margin-top:0; color:{res_motor["border_color"]};">{res_motor["alerta_accion"]}</h4>
+                                        <p style="margin:0; font-size:0.95rem; color:{res_motor["text_color"]};">{res_motor["texto_accion"]}</p>
+                                        <hr style="border-color:{res_motor["border_color"]}; opacity:0.3; margin: 10px 0;">
+                                        <div style="font-size:0.85rem; color:#475569; display:flex; justify-content:space-between; flex-wrap: wrap; gap: 10px;">
+                                            <span><b>Prob. IA:</b> {res_motor["prob_mercado"]*100:.1f}%</span>
+                                            <span><b>Global:</b> {res_motor["apm_global_comb"]:.2f} APM | <b>Furia Reciente:</b> {res_motor["apm_rad"]:.2f} APM ({res_motor["texto_momentum"]})</span>
+                                        </div>
                                     </div>
-                                </div>
-                                ''', unsafe_allow_html=True)
+                                    ''', unsafe_allow_html=True)
 
-                                # Activamos el candado de la bóveda si obtuvo luz verde
-                                aprueba_key = f"oraculo_aprueba_{pr['codigo']}"
-                                perfil_aprobado_key = f"perfil_evaluado_{pr['codigo']}"
-                                if res_motor["luz_verde"]:
-                                    st.session_state[aprueba_key] = True
-                                    st.session_state[perfil_aprobado_key] = perfil_riesgo
-                                else:
-                                    st.session_state[aprueba_key] = False
+                                    # Activamos el candado de la bóveda si obtuvo luz verde
+                                    aprueba_key = f"oraculo_aprueba_{pr['codigo']}"
+                                    perfil_aprobado_key = f"perfil_evaluado_{pr['codigo']}"
+                                    if res_motor["luz_verde"]:
+                                        st.session_state[aprueba_key] = True
+                                        st.session_state[perfil_aprobado_key] = perfil_riesgo
+                                    else:
+                                        st.session_state[aprueba_key] = False
 
-                            except Exception as e:
-                                st.error(f"Error procesando IA táctica en el motor: {e}")
+                                except Exception as e:
+                                    st.error(f"Error procesando IA táctica en el motor: {e}")
 
                         with tab_oraculo_goles:
                             st.markdown("#### ⚙️ Configurar Línea de Goles En Vivo (Poisson + IA)")
