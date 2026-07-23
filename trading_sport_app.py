@@ -9,7 +9,7 @@ import joblib
 import os
 import pandas as pd
 import streamlit as st
-
+from motor_oraculos import procesar_oraculo_btts, procesar_oraculo_goles
 
 
 # --- CARGADOR DE LOS CEREBROS DE IA EN CACHÉ ---
@@ -45,121 +45,6 @@ def init_connection():
         return None
 
 supabase: Client = init_connection()
-# ---DEFINICION DE ESCENARIOS ---
-def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
-                            jerarquia_pre, apm_global_fav, apm_global_deb, apm_global_ganador, apm_global_perdedor,
-                            mom_reciente_loc, mom_reciente_vis, mom_combinado, diferencial_mom, 
-                            mom_post_gol_fav, mom_post_gol_deb, mom_post_gol_ganador, mom_post_gol_perdedor,
-                            tp_fav, tp_deb, tp_ganador, tp_perdedor):
-    
-    # ---------------------------------------------------------
-    # 🐯 PATRÓN SÍ #1: EL TIGRE HERIDO
-    # ---------------------------------------------------------
-    if (min_corrido <= 45 and 
-        estado_goles == True and 
-        jerarquia_pre in ["Favorito", "Súper Favorito"] and 
-        lider_marcador == "No Favorito" and 
-        goles_deb == 1 and 
-        mom_post_gol_fav > 1.0 and 
-        mom_post_gol_deb < 0.4 and 
-        diferencial_mom > 0.7 and
-        # -- Bloque de Eficiencia (Filtro de Ruido) --
-        tp_fav > 0.40):
-        
-        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 pero asedia brutalmente (Mom > 1.0) y con profundidad (TP > 40%). LUZ VERDE SÍ."
-
-    # ---------------------------------------------------------
-    # 🔥 PATRÓN SÍ #2: LA REBELDÍA (Favorito Dormido)
-    # ---------------------------------------------------------
-    elif (min_corrido <= 45 and 
-          estado_goles == True and 
-          jerarquia_pre in ["Favorito", "Súper Favorito"] and 
-          lider_marcador == "Favorito" and 
-          goles_fav == 1 and 
-          goles_deb == 0 and 
-          apm_global_fav < 0.6 and 
-          apm_global_deb > 0.8 and 
-          mom_post_gol_fav < 0.4 and 
-          mom_post_gol_deb > 0.8 and
-          # -- Bloque de Eficiencia (Filtro de Ruido) --
-          tp_deb > 0.40):
-          
-        return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia (Mom > 0.8) y verticalidad (TP > 40%). LUZ VERDE SÍ."
-
-    # ---------------------------------------------------------
-    # 🥊 PATRÓN SÍ #3: LA DEVOLUCIÓN RÁPIDA (Fuerzas Parejas)
-    # ---------------------------------------------------------
-    elif (min_corrido <= 45 and 
-          estado_goles == True and 
-          jerarquia_pre == "Fuerzas Parejas" and 
-          (goles_ganador == 1 and goles_perdedor == 0) and 
-          apm_global_ganador > 0.7 and 
-          apm_global_perdedor > 0.8 and 
-          mom_combinado >= 1.5 and 
-          diferencial_mom < 0.2 and 
-          mom_post_gol_perdedor > 0.9 and
-          # -- Bloque de Eficiencia (Filtro de Ruido) --
-          tp_ganador > 0.35 and 
-          tp_perdedor > 0.35):
-          
-        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes intenso y ambos llegan con peligro (TP > 35%). LUZ VERDE SÍ."
-
-    # ---------------------------------------------------------
-    # 🎭 PATRÓN SÍ #4: EL DESCUENTO POR RELAJACIÓN
-    # ---------------------------------------------------------
-    elif (min_corrido <= 45 and 
-          estado_goles == True and 
-          jerarquia_pre in ["Favorito", "Súper Favorito"] and 
-          lider_marcador == "Favorito" and 
-          goles_fav >= 2 and 
-          goles_deb == 0 and 
-          apm_global_fav < 0.6 and 
-          apm_global_deb > 0.8 and 
-          mom_post_gol_deb > 1.0 and
-          # -- Bloque de Eficiencia (Filtro de Ruido) --
-          tp_deb > 0.45):
-          
-        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca furioso y profundo (TP > 45%). LUZ VERDE SÍ."
-
-    # Si no encaja en ninguno de los patrones dorados:
-    else:
-        return "⏳ MODO OBSERVACIÓN: El partido no encaja en los patrones perfectos para el Ambos Anotan SÍ."
-# ---------------------------------------------------------
-    # 🛡️ ESCÁNER DE PATRONES PARA EL BTTS NO (DEFINITIVO)
-    # ---------------------------------------------------------
-    def detectar_patron_btts_no(min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
-                                jerarquia_pre, apm_global_fav, apm_global_deb, 
-                                mom_fav, mom_deb, tp_fav, tp_deb):
-        
-        # 🧱 PATRÓN NO #1: EL MURO DE HORMIGÓN (El Débil no respira)
-        if (min_corrido >= 35 and 
-            jerarquia_pre in ["Favorito", "Súper Favorito"] and 
-            goles_deb == 0 and 
-            apm_global_deb < 0.25 and 
-            mom_deb < 0.20 and 
-            tp_deb < 0.15):
-            
-            return "🔴 EL MURO: El Débil está asfixiado. Cero momentum (Mom < 0.20) y nula profundidad (TP < 15%). LUZ VERDE NO."
-
-        # 💤 PATRÓN NO #2: PACTO DE NO AGRESIÓN EXTREMO (Fuerzas Parejas Bloqueadas)
-        elif (min_corrido >= 35 and 
-              jerarquia_pre == "Fuerzas Parejas" and 
-              estado_goles == False and 
-              apm_global_fav < 0.45 and apm_global_deb < 0.45 and 
-              mom_fav < 0.4 and mom_deb < 0.4 and 
-              tp_fav < 0.20 and tp_deb < 0.20):
-              
-            return "🔴 PACTO DE NO AGRESIÓN: 0-0 congelado. Ambos equipos anulados (APM < 0.45, TP < 20%). LUZ VERDE NO."
-
-        # 🏥 PATRÓN NO #3: EL DOMINIO ESTÉRIL (Posesión sin disparos)
-        elif (min_corrido >= 40 and 
-              estado_goles == False and 
-              tp_fav < 0.15 and tp_deb < 0.15):
-              
-            return "🔴 DOMINIO ESTÉRIL: Minuto 40+. 0-0 con posesiones inútiles. Nadie pisa el área (TP < 15%). LUZ VERDE NO."
-
-        else:
-            return "⏳ MODO OBSERVACIÓN: No hay asfixia clara ni bloqueo total. Es riesgoso entrar al NO definitivo aquí."
 
 # --- FUNCIONES AUXILIARES BLINDADAS ---
 def generar_codigo():
@@ -3353,7 +3238,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             st.markdown("</div>", unsafe_allow_html=True)
 
                         with tab_oraculo_goles:
-                            st.markdown("#### ⚙️ Configurar Línea de Goles En Vivo")
+                            st.markdown("#### ⚙️ Configurar Línea de Goles En Vivo (Poisson + IA)")
                             
                             col_lg1, col_lg2 = st.columns([1.5, 1])
                             with col_lg1:
@@ -3365,123 +3250,63 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             with col_lg2:
                                 st.markdown("<p style='font-size: 14px; margin-bottom: 5px; color:#475569;'>La Amenaza a Cubrir:</p>", unsafe_allow_html=True)
                                 amenaza_goles = linea_seleccionada.replace("Más", "Temp").replace("Menos", "Más").replace("Temp", "Menos")
-                                st.markdown(f"""
-                                <div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B; padding: 7px 12px; border-radius: 6px; cursor: not-allowed;">
-                                    {amenaza_goles}
-                                </div>
-                                """, unsafe_allow_html=True)
+                                st.markdown(f'''<div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B; padding: 7px 12px; border-radius: 6px;">{amenaza_goles}</div>''', unsafe_allow_html=True)
 
                             c_ent_key_g = f"c_ent_g_{pr['codigo']}"
                             if c_ent_key_g not in st.session_state: st.session_state[c_ent_key_g] = 1.90
-                            c_am_key_g = f"c_am_g_{pr['codigo']}"
-                            if c_am_key_g not in st.session_state: st.session_state[c_am_key_g] = 1.90
                             
                             col_ge1, col_ge2 = st.columns(2)
                             with col_ge1:
-                                cuota_ent_g = st.number_input("Cuota Selección:", min_value=1.01, step=0.05, key=c_ent_key_g)
-                            with col_ge2:
-                                cuota_am_g = st.number_input("Cuota Amenaza:", min_value=1.01, step=0.05, key=c_am_key_g)
+                                cuota_ent_g = st.number_input("Cuota Selección (Goles):", min_value=1.01, step=0.05, key=c_ent_key_g)
 
-                            st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
-                            st.markdown("#### 🎛️ Perfil de Riesgo (Goles)")
                             perfil_riesgo_g = st.selectbox(
-                                "Rigidez de los candados matemáticos:",
+                                "Rigidez de los candados matemáticos (Goles):",
                                 ["🛡️ CONSERVADOR (Modo Francotirador)", "⚖️ MODERADO (Modo Táctico)", "🔥 AGRESIVO (Modo Kamikaze)"],
-                                index=1, key=f"perfil_g_{pr['codigo']}", label_visibility="collapsed"
+                                index=1, key=f"perfil_g_{pr['codigo']}"
                             )
-                            
-                            if "CONSERVADOR" in perfil_riesgo_g: ventaja_min_g = 0.50; minuto_limite_g = 70
-                            elif "MODERADO" in perfil_riesgo_g: ventaja_min_g = 0.20; minuto_limite_g = 78
-                            else: ventaja_min_g = 0.0; minuto_limite_g = 85
 
-                            st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
                             aprueba_key_g = f"oraculo_aprueba_g_{pr['codigo']}"
 
-                            if st.button("🧠 Validar Goles con Oráculo", key=f"btn_ev_g_{pr['codigo']}", use_container_width=True, type="primary"):
+                            if st.button("🧠 Validar Goles con Poisson", key=f"btn_ev_g_{pr['codigo']}", use_container_width=True, type="primary"):
                                 try:
-                                    import joblib
-                                    import pandas as pd
-                                    import math
-                                    import re
-                                    
-                                    mgoles_rad = joblib.load('modelo_goles.pkl')
-                                    
-                                    apm_global_loc = al_rad / max(1, m_rad)
-                                    apm_global_vis = av_rad / max(1, m_rad)
-                                    apm_local_dinamico = apm_global_loc
-                                    apm_vis_dinamico = apm_global_vis
-                                    texto_momentum_g = "Promedio Global"
-                                    
+                                    foto_ant_db_g = None
                                     if supabase is not None:
                                         try:
-                                            res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lte("minuto_evaluado", m_rad - 5).order("minuto_evaluado", desc=True).limit(1).execute()
-                                            if not res_last.data: res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lt("minuto_evaluado", m_rad).order("minuto_evaluado", desc=True).limit(1).execute()
-                                            if res_last.data:
-                                                foto_ant = res_last.data[0]
-                                                delta_min = m_rad - int(foto_ant['minuto_evaluado'])
-                                                if delta_min >= 2:
-                                                    apm_local_dinamico = max(0.0, (al_rad - int(foto_ant['atkp_local'])) / delta_min)
-                                                    apm_vis_dinamico = max(0.0, (av_rad - int(foto_ant['atkp_vis'])) / delta_min)
-                                                    texto_momentum_g = f"Últimos {delta_min} min"
+                                            res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
+                                            if res_last.data: foto_ant_db_g = res_last.data[0]
                                         except: pass
 
-                                    apm_rad_g = apm_local_dinamico + apm_vis_dinamico
-                                    ird_rad_global = min(100.0, (apm_global_loc + apm_global_vis) * 45.0)
-                                    
-                                    X_rad_g = pd.DataFrame([{
-                                        'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad, 'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad_global, 'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))
-                                    }])
-                                    
-                                    pred_goles_rad = mgoles_rad.predict(X_rad_g)[0]
-                                    
-                                    nums_linea = re.findall(r'\d+\.\d+|\d+', linea_seleccionada)
-                                    linea_operacion = float(nums_linea[0]) if nums_linea else 2.5
-                                    goles_techo_under = int(math.floor(linea_operacion))
-                                    
-                                    lam = max(0.1, float(pred_goles_rad))
-                                    p_under = 0.0
-                                    for k in range(goles_techo_under + 1): p_under += (math.exp(-lam) * (lam**k)) / math.factorial(k)
-                                        
-                                    prob_goles_menos = p_under
-                                    prob_goles_mas = 1.0 - p_under
-                                    
-                                    tp_local = al_rad / atq_tot_loc if atq_tot_loc > 0 else 0.0
-                                    tp_visita = av_rad / atq_tot_vis if atq_tot_vis > 0 else 0.0
-                                    
-                                    if apm_rad_g >= 1.5 and tp_local > 0.30 and tp_visita > 0.30: prob_goles_mas = min(0.95, prob_goles_mas * 1.30); prob_goles_menos = 1.0 - prob_goles_mas
-                                    elif apm_rad_g <= 0.6 and tp_local < 0.20 and tp_visita < 0.20: prob_goles_menos = min(0.95, prob_goles_menos * 1.30); prob_goles_mas = 1.0 - prob_goles_menos
+                                    # 🚀 LLAMADA AL MOTOR DE GOLES
+                                    res_goles = procesar_oraculo_goles(
+                                        m_rad=m_rad, gl_rad=gl_rad, gv_rad=gv_rad, al_rad=al_rad, av_rad=av_rad,
+                                        atq_tot_loc=atq_tot_loc, atq_tot_vis=atq_tot_vis,
+                                        c_loc_hist=float(pr.get('cuota_base_audit', 2.0)),
+                                        c_vis_hist=float(pr.get('cuota_amenaza_audit', 2.0)),
+                                        cuota_act=cuota_ent_g,
+                                        linea_seleccionada=linea_seleccionada,
+                                        perfil_riesgo_g=perfil_riesgo_g,
+                                        foto_ant=foto_ant_db_g
+                                    )
 
-                                    cuota_justa_mas = 1 / prob_goles_mas if prob_goles_mas > 0.01 else 99.0
-                                    cuota_justa_menos = 1 / prob_goles_menos if prob_goles_menos > 0.01 else 99.0
-                                    
-                                    if "Más" in linea_seleccionada:
-                                        ventaja = cuota_ent_g - cuota_justa_mas
-                                        prob_mercado_g = prob_goles_mas
-                                        cuota_justa_g = cuota_justa_mas
-                                        if m_rad >= minuto_limite_g: alerta_accion = "⏳ **BLOQUEO POR RELOJ**"; texto_accion = f"Tu Perfil prohíbe apostar a goles tardíos (min > {minuto_limite_g})."; bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
-                                        elif ventaja >= ventaja_min_g: alerta_accion = "🔥 **¡DISPARA AL OVER AHORA!**"; texto_accion = f"Justa: **{cuota_justa_g:.2f}** / Ofrecen: **{cuota_ent_g:.2f}**."; bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"; st.session_state[aprueba_key_g] = True
-                                        elif ventaja >= 0: alerta_accion = "🛡️ **BLOQUEO POR PERFIL DE RIESGO**"; texto_accion = f"Hay valor (Justa: **{cuota_justa_g:.2f}**), pero tu Perfil exige más."; bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
-                                        else: alerta_accion = "🚫 **DESCARTADO (TRAMPA EN EL OVER)**"; texto_accion = f"Matemáticamente en contra. Aborta."; bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
-                                    else:
-                                        ventaja = cuota_ent_g - cuota_justa_menos
-                                        prob_mercado_g = prob_goles_menos
-                                        cuota_justa_g = cuota_justa_menos
-                                        if ventaja >= ventaja_min_g: alerta_accion = "🛡️ **¡DISPARA AL UNDER AHORA!**"; texto_accion = f"Justa: **{cuota_justa_g:.2f}** / Ofrecen: **{cuota_ent_g:.2f}**."; bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"; st.session_state[aprueba_key_g] = True
-                                        elif ventaja >= 0: alerta_accion = "🛡️ **BLOQUEO POR PERFIL DE RIESGO**"; texto_accion = f"Hay valor, pero tu Perfil exige más."; bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
-                                        else: alerta_accion = "🚫 **LLEGASTE TARDE AL UNDER**"; texto_accion = f"Pérdida matemática."; bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
-
-                                    st.markdown(f"""
-                                    <div style="background-color: {bg_color}; border-left: 5px solid {border_color}; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-                                        <h4 style="margin-top:0; color:{border_color};">{alerta_accion}</h4>
-                                        <p style="margin:0; font-size:0.95rem; color:{text_color};">{texto_accion}</p>
-                                        <hr style="border-color:{border_color}; opacity:0.3; margin: 10px 0;">
+                                    st.markdown(f'''
+                                    <div style="background-color: {res_goles["bg_color"]}; border-left: 5px solid {res_goles["border_color"]}; padding: 15px; border-radius: 6px; margin-top: 15px; margin-bottom: 20px;">
+                                        <h4 style="margin-top:0; color:{res_goles["border_color"]};">{res_goles["alerta_accion"]}</h4>
+                                        <p style="margin:0; font-size:0.95rem; color:{res_goles["text_color"]};">{res_goles["texto_accion"]}</p>
+                                        <hr style="border-color:{res_goles["border_color"]}; opacity:0.3; margin: 10px 0;">
                                         <div style="font-size:0.85rem; color:#475569;">
-                                            <b>Probabilidad {linea_seleccionada}:</b> {prob_mercado_g*100:.1f}%<br>
-                                            <b>Furia Reciente:</b> {apm_rad_g:.2f} APM ({texto_momentum_g})
+                                            <b>Probabilidad Matemática (Poisson):</b> {res_goles["prob_mercado"]*100:.1f}%<br>
+                                            <b>Ritmo Actual:</b> {res_goles["apm_rad_g"]:.2f} APM ({res_goles["texto_momentum_g"]})
                                         </div>
                                     </div>
-                                    """, unsafe_allow_html=True)
-                                except Exception as e: st.error(f"Error procesando Goles: {e}")
+                                    ''', unsafe_allow_html=True)
+
+                                    if res_goles["luz_verde"]:
+                                        st.session_state[aprueba_key_g] = True
+                                    else:
+                                        st.session_state[aprueba_key_g] = False
+
+                                except Exception as e:
+                                    st.error(f"Error procesando motor de goles: {e}")
 
                             # 💰 BÓVEDA Y EJECUCIÓN DE GOLES (Totalmente aislada)
                             if st.session_state.get(aprueba_key_g, False):
@@ -3682,420 +3507,78 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
                         if st.button("🧠 Validar con Oráculo Táctico", key=f"btn_ev_{pr['codigo']}", use_container_width=True, type="primary"):
                             try:
-                                import joblib
-                                import pandas as pd
-                                m1x2_rad = joblib.load('modelo_1x2.pkl')
-                                mgoles_rad = joblib.load('modelo_goles.pkl')
-                                mbtts_rad = joblib.load('modelo_btts.pkl')
-                                
-                                apm_global_loc = al_rad / max(1, m_rad)
-                                apm_global_vis = av_rad / max(1, m_rad)
-                                
-                                apm_local_dinamico = apm_global_loc
-                                apm_vis_dinamico = apm_global_vis
-                                texto_momentum = "Promedio Global"
-                                tiene_momentum = False
-                                
+                                # Buscamos la foto anterior en Supabase para el cálculo de momentum
+                                foto_ant_db = None
                                 if supabase is not None:
                                     try:
-                                        # 1. Buscamos primero una foto que tenga AL MENOS 5 minutos de antigüedad (Filtro anti-ruido)
                                         res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lte("minuto_evaluado", m_rad - 5).order("minuto_evaluado", desc=True).limit(1).execute()
-                                        
-                                        # 2. Si no hay fotos tan viejas (ej. apenas tomaste la primera hace 2 minutos), usamos la que haya como plan B
-                                        if not res_last.data:
-                                            res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lt("minuto_evaluado", m_rad).order("minuto_evaluado", desc=True).limit(1).execute()
-                                            
-                                        if res_last.data:
-                                            foto_ant = res_last.data[0]
-                                            min_ant = int(foto_ant['minuto_evaluado'])
-                                            delta_min = m_rad - min_ant
-                                            
-                                            if delta_min >= 2:
-                                                atk_l_ant = int(foto_ant['atkp_local'])
-                                                atk_v_ant = int(foto_ant['atkp_vis'])
-                                                apm_local_dinamico = max(0.0, (al_rad - atk_l_ant) / delta_min)
-                                                apm_vis_dinamico = max(0.0, (av_rad - atk_v_ant) / delta_min)
-                                                texto_momentum = f"Últimos {delta_min} min"
-                                                tiene_momentum = True
-                                    except:
-                                        pass
+                                        if not res_last.data: res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).lt("minuto_evaluado", m_rad).order("minuto_evaluado", desc=True).limit(1).execute()
+                                        if res_last.data: foto_ant_db = res_last.data[0]
+                                    except: pass
 
-                                # ------------------------------------------------------------------
-                                # ⚖️ 2. MAPEO DE VARIABLES TÁCTICAS
-                                # ------------------------------------------------------------------
-                                c_loc_hist = float(pr.get('cuota_base_audit', 2.0))
-                                c_vis_hist = float(pr.get('cuota_amenaza_audit', 2.0))
-                                
-                                # CORRECCIÓN: Definir Favorito estrictamente por cuota matemática menor
-                                es_loc_fav_matematico = c_loc_hist < c_vis_hist
-                                es_vis_fav_matematico = c_vis_hist < c_loc_hist
-                                dif_cuotas = abs(c_loc_hist - c_vis_hist)
-                                
-                                if c_loc_hist <= 1.35 or c_vis_hist <= 1.35: 
-                                    jerarquia_pre = "Súper Favorito"
-                                    fav_es_loc = es_loc_fav_matematico
-                                    fav_es_vis = es_vis_fav_matematico
-                                elif dif_cuotas > 0.3: 
-                                    jerarquia_pre = "Favorito"
-                                    fav_es_loc = es_loc_fav_matematico
-                                    fav_es_vis = es_vis_fav_matematico
-                                else: 
-                                    jerarquia_pre = "Fuerzas Parejas"
-                                    fav_es_loc = False
-                                    fav_es_vis = False
+                                # 🚀 LLAMADA AL MOTOR EXTERNO (Cerebro Único)
+                                res_motor = procesar_oraculo_btts(
+                                    m_rad=m_rad, gl_rad=gl_rad, gv_rad=gv_rad, al_rad=al_rad, av_rad=av_rad,
+                                    atq_tot_loc=atq_tot_loc, atq_tot_vis=atq_tot_vis,
+                                    c_loc_hist=float(pr.get('cuota_base_audit', 2.0)),
+                                    c_vis_hist=float(pr.get('cuota_amenaza_audit', 2.0)),
+                                    cuota_act=st.session_state.get(c_ent_key, cuota_ent_rad),
+                                    seleccion_final_rad=seleccion_final_rad,
+                                    perfil_riesgo=perfil_riesgo,
+                                    eq_loc_ui=eq_loc_ui, eq_vis_ui=eq_vis_ui,
+                                    foto_ant=foto_ant_db
+                                )
 
-                                min_corrido = m_rad
-                                estado_goles = (gl_rad + gv_rad) > 0
-                                
-                                tp_local = al_rad / atq_tot_loc if atq_tot_loc > 0 else 0.0
-                                tp_visita = av_rad / atq_tot_vis if atq_tot_vis > 0 else 0.0
-
-                                if fav_es_loc:
-                                    goles_fav, goles_deb = gl_rad, gv_rad
-                                    apm_global_fav, apm_global_deb = apm_global_loc, apm_global_vis
-                                    mom_fav, mom_deb = apm_local_dinamico, apm_vis_dinamico
-                                    tp_fav, tp_deb = tp_local, tp_visita
-                                elif fav_es_vis:
-                                    goles_fav, goles_deb = gv_rad, gl_rad
-                                    apm_global_fav, apm_global_deb = apm_global_vis, apm_global_loc
-                                    mom_fav, mom_deb = apm_vis_dinamico, apm_local_dinamico
-                                    tp_fav, tp_deb = tp_visita, tp_local
-                                else:
-                                    # 🚨 AQUÍ ESTABA EL BUG: Asignamos datos reales para Fuerzas Parejas en lugar de 0
-                                    goles_fav, goles_deb = gl_rad, gv_rad
-                                    apm_global_fav, apm_global_deb = apm_global_loc, apm_global_vis
-                                    mom_fav, mom_deb = apm_local_dinamico, apm_vis_dinamico
-                                    tp_fav, tp_deb = tp_local, tp_visita
-
-                                if gl_rad > gv_rad:
-                                    lider_marcador = "No Favorito" if fav_es_vis else "Favorito"
-                                    goles_ganador, goles_perdedor = gl_rad, gv_rad
-                                    apm_g_ganador, apm_g_perdedor = apm_global_loc, apm_global_vis
-                                    mom_ganador, mom_perdedor = apm_local_dinamico, apm_vis_dinamico
-                                    tp_ganador, tp_perdedor = tp_local, tp_visita
-                                elif gv_rad > gl_rad:
-                                    lider_marcador = "No Favorito" if fav_es_loc else "Favorito"
-                                    goles_ganador, goles_perdedor = gv_rad, gl_rad
-                                    apm_g_ganador, apm_g_perdedor = apm_global_vis, apm_global_loc
-                                    mom_ganador, mom_perdedor = apm_vis_dinamico, apm_local_dinamico
-                                    tp_ganador, tp_perdedor = tp_visita, tp_local
-                                else:
-                                    lider_marcador = "Empate"
-                                    goles_ganador = goles_perdedor = apm_g_ganador = apm_g_perdedor = mom_ganador = mom_perdedor = tp_ganador = tp_perdedor = 0
-
-                                mom_combinado = apm_local_dinamico + apm_vis_dinamico
-                                diferencial_mom = abs(apm_local_dinamico - apm_vis_dinamico)
-
-                                # ------------------------------------------------------------------
-                                # 🔍 3. ESCÁNER DE PATRONES MATEMÁTICOS (SÍ y NO DEFINITIVO)
-                                # ------------------------------------------------------------------
-                                def detectar_patron_btts_si(mc, eg, lm, gf, gd, jp, agf, agd, agg, agp, m_comb, d_mom, 
-                                                            mpg_f, mpg_d, mpg_g, mpg_p, tp_f, tp_d, tp_g, tp_p):
-                                    if (mc <= 45 and eg == True and jp in ["Favorito", "Súper Favorito"] and lm == "No Favorito" and gd == 1 and mpg_f > 1.0 and mpg_d < 0.4 and d_mom > 0.7 and tp_f > 0.40):
-                                        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 pero asedia brutalmente (Mom > 1.0) y con profundidad (TP > 40%). LUZ VERDE SÍ."
-                                    elif (mc <= 45 and eg == True and jp in ["Favorito", "Súper Favorito"] and lm == "Favorito" and gf == 1 and gd == 0 and agf < 0.6 and agd > 0.8 and mpg_f < 0.4 and mpg_d > 0.8 and tp_d > 0.40):
-                                        return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia (Mom > 0.8) y verticalidad (TP > 40%). LUZ VERDE SÍ."
-                                    elif (mc <= 45 and eg == True and jp == "Fuerzas Parejas" and (goles_ganador == 1 and goles_perdedor == 0) and agg > 0.7 and agp > 0.8 and m_comb >= 1.5 and d_mom < 0.2 and mpg_p > 0.9 and tp_g > 0.35 and tp_p > 0.35):
-                                        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes intenso y ambos llegan con peligro (TP > 35%). LUZ VERDE SÍ."
-                                    elif (mc <= 45 and eg == True and jp in ["Favorito", "Súper Favorito"] and lm == "Favorito" and gf >= 2 and gd == 0 and agf < 0.6 and agd > 0.8 and mpg_d > 1.0 and tp_d > 0.45):
-                                        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca furioso y profundo (TP > 45%). LUZ VERDE SÍ."
-                                    return None
-
-                                def detectar_patron_btts_no(mc, eg, jp, gf, gd, agf, agd, mf, md, tf, td):
-                                    if (mc >= 35 and jp in ["Favorito", "Súper Favorito"] and gd == 0 and agd < 0.25 and md < 0.20 and td < 0.15):
-                                        return "🔴 EL MURO: El Débil está asfixiado. Cero momentum (Mom < 0.20) y nula profundidad (TP < 15%). LUZ VERDE NO."
-                                    elif (mc >= 35 and jp == "Fuerzas Parejas" and eg == False and agf < 0.45 and agd < 0.45 and mf < 0.4 and md < 0.4 and tf < 0.20 and td < 0.20):
-                                        return "🔴 PACTO DE NO AGRESIÓN: 0-0 congelado. Ambos equipos anulados (APM < 0.45, TP < 20%). LUZ VERDE NO."
-                                    elif (mc >= 40 and eg == False and tf < 0.15 and td < 0.15):
-                                        return "🔴 DOMINIO ESTÉRIL: Minuto 40+. 0-0 con posesiones inútiles. Nadie pisa el área (TP < 15%). LUZ VERDE NO."
-                                    return None
-
-                                patron_encontrado = None
-                                color_patron = "#10B981"
-                                bg_patron = "#ECFDF5"
-                                titulo_patron = "🏆 PATRÓN MATEMÁTICO DETECTADO (BTTS SÍ)"
-
-                                if seleccion_final_rad == "Sí":
-                                    patron_encontrado = detectar_patron_btts_si(
-                                        min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
-                                        jerarquia_pre, apm_global_fav, apm_global_deb, apm_g_ganador, apm_g_perdedor,
-                                        mom_combinado, diferencial_mom, 
-                                        mom_fav, mom_deb, mom_ganador, mom_perdedor, 
-                                        tp_fav, tp_deb, tp_ganador, tp_perdedor
-                                    )
-                                elif seleccion_final_rad == "No":
-                                    patron_encontrado = detectar_patron_btts_no(
-                                        min_corrido, estado_goles, jerarquia_pre, goles_fav, goles_deb, 
-                                        apm_global_fav, apm_global_deb, mom_fav, mom_deb, tp_fav, tp_deb
-                                    )
-                                    if patron_encontrado:
-                                        color_patron = "#EF4444" 
-                                        bg_patron = "#FEF2F2"
-                                        titulo_patron = "🛡️ PATRÓN DEFENSIVO DETECTADO (BTTS NO)"
-
-                                if patron_encontrado:
-                                    st.markdown(f"""
-                                    <div style="background-color: {bg_patron}; border-left: 6px solid {color_patron}; padding: 15px; border-radius: 8px; margin-top: 15px; margin-bottom: 10px;">
-                                        <h4 style="margin-top:0; color:{color_patron};">{titulo_patron}</h4>
-                                        <p style="margin:0; font-size:0.95rem; color:#1F2937;">{patron_encontrado}</p>
+                                # 🎨 RENDERIZADO VISUAL EN LA INTERFAZ
+                                if res_motor["patron_encontrado"]:
+                                    st.markdown(f'''
+                                    <div style="background-color: {res_motor["bg_patron"]}; border-left: 6px solid {res_motor["color_patron"]}; padding: 15px; border-radius: 8px; margin-top: 15px; margin-bottom: 10px;">
+                                        <h4 style="margin-top:0; color:{res_motor["color_patron"]};">{res_motor["titulo_patron"]}</h4>
+                                        <p style="margin:0; font-size:0.95rem; color:#1F2937;">{res_motor["patron_encontrado"]}</p>
                                     </div>
-                                    """, unsafe_allow_html=True)
+                                    ''', unsafe_allow_html=True)
 
-                                # ------------------------------------------------------------------
-                                # 🤖 4. PREDICCIÓN DE MODELOS ML 
-                                # ------------------------------------------------------------------
-                                apm_rad = apm_local_dinamico + apm_vis_dinamico
-                                ird_rad_global = min(100.0, (apm_global_loc + apm_global_vis) * 45.0)
-                                
-                                X_rad = pd.DataFrame([{
-                                    'minuto_evaluado': m_rad, 'goles_local': gl_rad, 'goles_vis': gv_rad,
-                                    'atkp_local': al_rad, 'atkp_vis': av_rad, 'ird_calculado': ird_rad_global,
-                                    'cuota_base_audit': float(pr.get('cuota_base_audit', 2.0)), 
-                                    'cuota_amenaza_audit': float(pr.get('cuota_amenaza_audit', 2.0))
-                                }])
-                                
-                                pred_1x2_rad = m1x2_rad.predict(X_rad)[0]
-                                pred_goles_rad = mgoles_rad.predict(X_rad)[0]
-                                pred_btts_rad = mbtts_rad.predict(X_rad)[0]
-                                
-                                probabilidades = mbtts_rad.predict_proba(X_rad)[0]
-                                prob_no = probabilidades[0]
-                                prob_si = probabilidades[1]
+                                if res_motor["alerta_señal"]: 
+                                    st.markdown(res_motor["alerta_señal"], unsafe_allow_html=True)
 
-                                if (apm_local_dinamico < umbral_asfixia and gl_rad == 0) or (apm_vis_dinamico < umbral_asfixia and gv_rad == 0):
-                                    prob_si = prob_si * mult_castigo
-                                    prob_no = 1.0 - prob_si
-                                elif apm_local_dinamico >= 1.0 and apm_vis_dinamico >= 1.0:
-                                    prob_si = min(0.95, prob_si * 1.50)
-                                    prob_no = 1.0 - prob_si
-
-                                if patron_encontrado:
-                                    if seleccion_final_rad == "Sí":
-                                        prob_si = min(0.99, prob_si * 1.5) 
-                                        prob_no = 1.0 - prob_si
-                                    elif seleccion_final_rad == "No":
-                                        prob_no = min(0.99, prob_no * 1.5)
-                                        prob_si = 1.0 - prob_no
-
-                                winner_tactico = "Empate" if pred_1x2_rad == 1 else ("Local" if pred_1x2_rad == 2 else "Visita")
-                                btts = "SÍ" if pred_btts_rad == 1 else "NO"
-                                color_btts = "#10B981" if pred_btts_rad == 1 else "#EF4444"
-                                
-                                # ------------------------------------------------------------------
-                                # ⚖️ 5. RECONSTRUCCIÓN DE JERARQUÍA PARA LA UI
-                                # ------------------------------------------------------------------
-                                if jerarquia_pre == "Súper Favorito":
-                                    jerarquia = f"👑 Súper Favorito: {eq_loc_ui if fav_es_loc else eq_vis_ui}"
-                                elif jerarquia_pre == "Favorito":
-                                    jerarquia = f"⚔️ Favorito: {eq_loc_ui if fav_es_loc else eq_vis_ui}"
-                                else: 
-                                    jerarquia = "⚖️ Fuerzas Parejas"
-
-                                # CORRECCIÓN: El dominio visual debe mirar el GLOBAL, no solo el momentum de 3 mins
-                                if apm_global_loc > apm_global_vis and (apm_global_loc - apm_global_vis) > 0.15: 
-                                    dom_vivo = eq_loc_ui
-                                elif apm_global_vis > apm_global_loc and (apm_global_vis - apm_global_loc) > 0.15: 
-                                    dom_vivo = eq_vis_ui
-                                else: 
-                                    dom_vivo = "Asedio Dividido"
-
-                                # ------------------------------------------------------------------
-                                # 🎯 3. SEÑALES TÁCTICAS CLÁSICAS
-                                # ------------------------------------------------------------------
-                                goles_actuales_totales = gl_rad + gv_rad
-                                alerta_señal = ""
-                                
-                                if tiene_momentum:
-                                    # 1. EL GIGANTE HERIDO
-                                    if goles_deb == 1 and goles_fav == 0 and mom_fav >= umbral_gigante:
-                                        equipo_atacando = eq_loc_ui if fav_es_loc else eq_vis_ui
-                                        alerta_señal = f"""
-                                        <div style="background-color: #F0FDF4; border-left: 5px solid #16A34A; padding: 12px; border-radius: 4px; margin-top: 15px;">
-                                            <h5 style="margin-top:0; color:#15803D;">🔥 SEÑAL TÁCTICA: EL GIGANTE HERIDO</h5>
-                                            <p style="margin:0; font-size: 0.9rem; color:#14532D;">
-                                            El débil anotó, pero el Favorito ({equipo_atacando}) cruzó tu umbral táctico reciente con ({mom_fav:.2f} APM). Altísima probabilidad de empate inminente.
-                                            </p>
-                                        </div>
-                                        """
-                                    
-                                    # 2. ASFIXIA TOTAL (Corrección: Exige que el GLOBAL también esté asfixiado, no solo el momentum)
-                                    elif goles_fav == 1 and goles_deb == 0 and mom_fav >= umbral_gigante and mom_deb <= umbral_asfixia and apm_global_deb <= umbral_asfixia:
-                                        equipo_asfixiado = eq_vis_ui if fav_es_loc else eq_loc_ui
-                                        alerta_señal = f"""
-                                        <div style="background-color: #FEF2F2; border-left: 5px solid #DC2626; padding: 12px; border-radius: 4px; margin-top: 15px;">
-                                            <h5 style="margin-top:0; color:#991B1B;">🛡️ SEÑAL TÁCTICA: ASFIXIA TOTAL</h5>
-                                            <p style="margin:0; font-size: 0.9rem; color:#7F1D1D;">
-                                            El Favorito anotó y no quita el pie del acelerador. El equipo {equipo_asfixiado} está completamente anulado (Global: {apm_global_deb:.2f} APM | Reciente: {mom_deb:.2f} APM). Escenario letal para el SÍ.
-                                            </p>
-                                        </div>
-                                        """
-                                        
-                                    # 3. GOL INMINENTE
-                                    elif m_rad <= 45 and goles_actuales_totales == 0:
-                                        if mom_fav >= 1.0 or mom_deb >= 1.0:
-                                            if mom_fav > mom_deb:
-                                                atacante_fuerte = eq_loc_ui if fav_es_loc else eq_vis_ui
-                                                texto_riesgo = "Favorito presionando con furia"
-                                            else:
-                                                atacante_fuerte = eq_vis_ui if fav_es_loc else eq_loc_ui
-                                                texto_riesgo = "Peligro de sorpresa del Débil"
-                                                
-                                            alerta_señal = f"""
-                                            <div style="background-color: #FFFBEB; border-left: 5px solid #D97706; padding: 12px; border-radius: 4px; margin-top: 15px;">
-                                                <h5 style="margin-top:0; color:#B45309;">⚡ SEÑAL DE MOMENTUM: GOL INMINENTE (1T)</h5>
-                                                <p style="margin:0; font-size: 0.9rem; color:#92400E;">
-                                                El equipo {atacante_fuerte} bombardea el arco ({max(mom_fav, mom_deb):.2f} APM reciente). {texto_riesgo}.
-                                                </p>
-                                            </div>
-                                            """
-
-                                if alerta_señal: st.markdown(alerta_señal, unsafe_allow_html=True)
-
-                                # ------------------------------------------------------------------
-                                # 🎯 4. CÁLCULO DE MARCADOR VISUAL
-                                # ------------------------------------------------------------------
-                                goles_nuevos_esperados = max(0, round(pred_goles_rad) - goles_actuales_totales)
-                                calc_loc, calc_vis = gl_rad, gv_rad
-
-                                if pred_1x2_rad == 1: 
-                                    if calc_loc > calc_vis: calc_vis = calc_loc 
-                                    elif calc_vis > calc_loc: calc_loc = calc_vis 
-                                    elif goles_nuevos_esperados >= 2:
-                                        calc_loc += (goles_nuevos_esperados // 2)
-                                        calc_vis += (goles_nuevos_esperados // 2)
-                                elif pred_1x2_rad == 2:
-                                    if calc_loc <= calc_vis: calc_loc = calc_vis + max(1, goles_nuevos_esperados)
-                                    else: calc_loc += goles_nuevos_esperados
-                                else:
-                                    if calc_vis <= calc_loc: calc_vis = calc_loc + max(1, goles_nuevos_esperados)
-                                    else: calc_vis += goles_nuevos_esperados
-
-                                if apm_global_loc >= 0.6 and apm_global_vis >= 0.6:
-                                    calc_loc = max(1, calc_loc)
-                                    calc_vis = max(1, calc_vis)
-                                    btts = "SÍ (Alta Prob. Física)"
-                                    color_btts = "#10B981"
-                                elif apm_global_loc < 0.4 or apm_global_vis < 0.4:
-                                    btts = "NO (Falta Asedio)"
-                                    color_btts = "#EF4444"
-                                    if apm_global_loc < 0.4 and gl_rad == 0: calc_loc = 0
-                                    if apm_global_vis < 0.4 and gv_rad == 0: calc_vis = 0
-                                else:
-                                    if pred_btts_rad == 1:
-                                        calc_loc = max(1, calc_loc)
-                                        calc_vis = max(1, calc_vis)
-                                        btts = "SÍ (Proyectado IA)"
-                                        color_btts = "#10B981"
-                                    else:
-                                        btts = "NO (Proyectado IA)"
-                                        color_btts = "#EF4444"
-                                        
-                                marcador_exacto = f"{calc_loc} - {calc_vis}"
-                                if calc_loc > 0 and calc_vis > 0:
-                                    btts = "SÍ"
-                                    color_btts = "#10B981"
-                                else:
-                                    btts = "NO (Bloqueado por Táctica)" if pred_btts_rad == 1 else "NO"
-                                    color_btts = "#EF4444"
-
-                                color_winner = "#0EA5E9" if winner_tactico == "Local" else ("#F59E0B" if winner_tactico == "Empate" else "#8B5CF6")
-                                
-                                st.markdown(f"""
+                                st.markdown(f'''
                                 <div style="background-color: #1E293B; border-bottom: 4px solid #3B82F6; padding: 10px; border-radius: 8px 8px 0 0; text-align: center; margin-top:15px;">
                                     <h5 style="margin:0; color:#94A3B8; font-size: 0.85rem;">ADN DEL PARTIDO</h5>
-                                    <h4 style="color:#FFFFFF; margin: 5px 0;">[{jerarquia}]</h4>
+                                    <h4 style="color:#FFFFFF; margin: 5px 0;">[{res_motor["jerarquia"]}]</h4>
                                 </div>
                                 <div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; margin-bottom: 15px;">
                                     <h4 style="margin-top:0; color:#0F172A;">🎯 PROYECCIÓN TÁCTICA</h4>
-                                    <h1 style="color:{color_winner}; font-size: 2.5rem; margin: 10px 0;">{marcador_exacto}</h1>
-                                    <p style="margin:0; font-size: 1rem; color:#475569;">Ganador Físico: <b>{winner_tactico}</b></p>
-                                    <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{dom_vivo}</b> está dominando la cancha (IRD: {ird_rad_global:.1f}%)</p>
+                                    <h1 style="color:{res_motor["color_winner"]}; font-size: 2.5rem; margin: 10px 0;">{res_motor["marcador_exacto"]}</h1>
+                                    <p style="margin:0; font-size: 1rem; color:#475569;">Ganador Físico: <b>{res_motor["winner_tactico"]}</b></p>
+                                    <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{res_motor["dom_vivo"]}</b> está dominando la cancha (IRD: {res_motor["ird_rad_global:.1f"] if "ird_rad_global" in res_motor else 0}%)</p>
                                     <hr style="border-color:#CBD5E1; opacity:0.5; margin: 10px 0;">
-                                    <p style="margin:0; font-size: 0.9rem; color:#334155;">🗡️ <b>Tasa de Profundidad (TP):</b> {eq_loc_ui} <b>{tp_local*100:.1f}%</b> | {eq_vis_ui} <b>{tp_visita*100:.1f}%</b></p>
+                                    <p style="margin:0; font-size: 0.9rem; color:#334155;">🗡️ <b>Tasa de Profundidad (TP):</b> {eq_loc_ui} <b>{res_motor["tp_local"]*100:.1f}%</b> | {eq_vis_ui} <b>{res_motor["tp_visita"]*100:.1f}%</b></p>
                                 </div>
-                                """, unsafe_allow_html=True)
+                                ''', unsafe_allow_html=True)
 
-                                # ------------------------------------------------------------------
-                                # 💎 DICTAMEN DE TRADING Y VALUE BETTING
-                                # ------------------------------------------------------------------
+                                st.markdown(f'''
+                                <div style="background-color: {res_motor["bg_color"]}; border-left: 5px solid {res_motor["border_color"]}; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                                    <h4 style="margin-top:0; color:{res_motor["border_color"]};">{res_motor["alerta_accion"]}</h4>
+                                    <p style="margin:0; font-size:0.95rem; color:{res_motor["text_color"]};">{res_motor["texto_accion"]}</p>
+                                    <hr style="border-color:{res_motor["border_color"]}; opacity:0.3; margin: 10px 0;">
+                                    <div style="font-size:0.85rem; color:#475569; display:flex; justify-content:space-between; flex-wrap: wrap; gap: 10px;">
+                                        <span><b>Prob. IA:</b> {res_motor["prob_mercado"]*100:.1f}%</span>
+                                        <span><b>Global:</b> {res_motor["apm_global_comb"]:.2f} APM | <b>Furia Reciente:</b> {res_motor["apm_rad"]:.2f} APM ({res_motor["texto_momentum"]})</span>
+                                    </div>
+                                </div>
+                                ''', unsafe_allow_html=True)
+
+                                # Activamos el candado de la bóveda si obtuvo luz verde
                                 aprueba_key = f"oraculo_aprueba_{pr['codigo']}"
                                 perfil_aprobado_key = f"perfil_evaluado_{pr['codigo']}"
-
-                                if mdo_str == "Ambos Anotan":
-                                    cuota_justa_si = 1 / prob_si if prob_si > 0.01 else 99.0
-                                    cuota_justa_no = 1 / prob_no if prob_no > 0.01 else 99.0
-                                    
-                                    if seleccion_final_rad == "Sí":
-                                        cuota_act_si = st.session_state.get(c_ent_key, cuota_ent_rad)
-                                        ventaja = cuota_act_si - cuota_justa_si
-                                        prob_mercado = prob_si
-                                        cuota_justa = cuota_justa_si
-                                        
-                                        if m_rad >= minuto_limite_si:
-                                            alerta_accion = f"⏳ **BLOQUEO POR RELOJ (LOTERÍA)**"
-                                            texto_accion = f"Tu Perfil {perfil_riesgo.split(' ')[1]} prohíbe apostar a goles después del minuto {minuto_limite_si}."
-                                            bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
-                                        elif ventaja >= ventaja_min_exigida:
-                                            alerta_accion = f"🔥 **¡DISPARA AL SÍ AHORA!**"
-                                            texto_accion = f"La cuota justa es **{cuota_justa:.2f}** y te ofrecen **{cuota_act_si:.2f}**. Entra ya."
-                                            bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
-                                            st.session_state[aprueba_key] = True 
-                                            st.session_state[perfil_aprobado_key] = perfil_riesgo
-                                        elif ventaja >= 0:
-                                            alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
-                                            texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil {perfil_riesgo.split(' ')[1]} exige ganancia superior."
-                                            bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
-                                        else:
-                                            if (cuota_justa - cuota_act_si) <= 0.40 and m_rad < 75:
-                                                alerta_accion = f"⏳ **PACIENCIA (ESPERA A QUE SUBA EL SÍ)**"
-                                                texto_accion = f"Pagan muy poco (**{cuota_act_si:.2f}**). La cuota justa es **{cuota_justa:.2f}**. Espera."
-                                                bg_color = "#FFFBEB"; border_color = "#F59E0B"; text_color = "#92400E"
-                                            else:
-                                                alerta_accion = f"🚫 **DESCARTADO (TRAMPA EN EL SÍ)**"
-                                                texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_si:.2f}**. Aborta."
-                                                bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
-                                                
-                                    else: # Seleccionó "No"
-                                        cuota_act_no = st.session_state.get(c_ent_key, cuota_ent_rad)
-                                        ventaja = cuota_act_no - cuota_justa_no
-                                        prob_mercado = prob_no
-                                        cuota_justa = cuota_justa_no
-                                        
-                                        if ventaja >= ventaja_min_exigida:
-                                            alerta_accion = f"🛡️ **¡DISPARA AL NO AHORA!**"
-                                            texto_accion = f"Cuota justa: **{cuota_justa:.2f}** / Te ofrecen: **{cuota_act_no:.2f}**. ¡Mete la plata YA!"
-                                            bg_color = "#ECFDF5"; border_color = "#10B981"; text_color = "#064E3B"
-                                            st.session_state[aprueba_key] = True 
-                                            st.session_state[perfil_aprobado_key] = perfil_riesgo
-                                        elif ventaja >= 0:
-                                            alerta_accion = f"🛡️ **BLOQUEO POR PERFIL DE RIESGO**"
-                                            texto_accion = f"Hay valor (Justa: **{cuota_justa:.2f}**), pero tu Perfil exige mayor margen."
-                                            bg_color = "#F8FAFC"; border_color = "#64748B"; text_color = "#334155"
-                                        else:
-                                            alerta_accion = f"🚫 **LLEGASTE TARDE AL NO**"
-                                            texto_accion = f"Cuota justa era **{cuota_justa:.2f}** y ya la tumbaron a **{cuota_act_no:.2f}**. Pérdida matemática."
-                                            bg_color = "#FEF2F2"; border_color = "#EF4444"; text_color = "#991B1B"
-                                            
-                                    # Calculamos la velocidad global combinada para mostrar el contraste
-                                    apm_global_comb = apm_global_loc + apm_global_vis
-                                    
-                                    st.markdown(f"""
-                                    <div style="background-color: {bg_color}; border-left: 5px solid {border_color}; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
-                                        <h4 style="margin-top:0; color:{border_color};">{alerta_accion}</h4>
-                                        <p style="margin:0; font-size:0.95rem; color:{text_color};">{texto_accion}</p>
-                                        <hr style="border-color:{border_color}; opacity:0.3; margin: 10px 0;">
-                                        <div style="font-size:0.85rem; color:#475569; display:flex; justify-content:space-between; flex-wrap: wrap; gap: 10px;">
-                                            <span><b>Prob. IA {seleccion_final_rad.upper()}:</b> {prob_mercado*100:.1f}%</span>
-                                            <span><b>Global:</b> {apm_global_comb:.2f} APM | <b>Furia Reciente:</b> {apm_rad:.2f} APM ({texto_momentum})</span>
-                                        </div>
-                                    </div>
-                                    """, unsafe_allow_html=True)
-                                else:
+                                if res_motor["luz_verde"]:
                                     st.session_state[aprueba_key] = True
                                     st.session_state[perfil_aprobado_key] = perfil_riesgo
+                                else:
+                                    st.session_state[aprueba_key] = False
 
                             except Exception as e:
-                                st.error(f"Error procesando IA táctica: {e}")
+                                st.error(f"Error procesando IA táctica en el motor: {e}")
 
                         # ------------------------------------------------------------------
                         # 💵 DECISIÓN DE CAPITAL Y AUDITORÍA DE CUPO
