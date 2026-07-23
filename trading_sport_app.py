@@ -3443,7 +3443,10 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                                         <p style="margin:0; font-size: 1rem; color:#475569;">Ganador Físico: <b>{res_motor["winner_tactico"]}</b></p>
                                         <p style="margin:5px 0 0 0; font-size: 0.85rem; color:#64748B;">El <b>{res_motor["dom_vivo"]}</b> está dominando la cancha (IRD: {res_motor.get('ird_rad_global', 0):.1f}%)</p>
                                         <hr style="border-color:#CBD5E1; opacity:0.5; margin: 10px 0;">
-                                        <p style="margin:0; font-size: 0.9rem; color:#334155;">🗡️ <b>Tasa de Profundidad (TP):</b> {eq_loc_ui} <b>{res_motor["tp_local"]*100:.1f}%</b> | {eq_vis_ui} <b>{res_motor["tp_visita"]*100:.1f}%</b></p>
+                                        <div style="display:flex; flex-direction:column; gap:6px; font-size:0.9rem; color:#334155;">
+                                            <span>🗡️ <b>TP Global:</b> {eq_loc_ui} <b>{res_motor.get("tp_loc_global", res_motor.get("tp_local", 0))*100:.1f}%</b> | {eq_vis_ui} <b>{res_motor.get("tp_vis_global", res_motor.get("tp_visita", 0))*100:.1f}%</b></span>
+                                            <span style="color:#059669;">⚡ <b>TP Reciente:</b> {eq_loc_ui} <b>{res_motor.get("tp_loc_din", res_motor.get("tp_local", 0))*100:.1f}%</b> | {eq_vis_ui} <b>{res_motor.get("tp_vis_din", res_motor.get("tp_visita", 0))*100:.1f}%</b></span>
+                                        </div>
                                     </div>
                                     ''', unsafe_allow_html=True)
 
@@ -3780,9 +3783,6 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             st.warning("⚠️ La cuota es muy baja o el mercado se cerró (no hay rango de utilidad).")
                             cuota_cazar_rad = 0; cuota_sl_rad = 0
 
-                        
-                        
-                        
                         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
                         banca_ejecutar = st.radio("Entorno de ejecución definitivo:", ["🟢 Dinero Real", "🟡 Simulación (Paper Trading)"], horizontal=True, key=f"banca_{pr['codigo']}")
                         banca_activa_rad = "REAL" if "Real" in banca_ejecutar else "SIMULACION"

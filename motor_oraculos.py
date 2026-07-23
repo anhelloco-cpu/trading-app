@@ -82,11 +82,19 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
     else: 
         umbral_asfixia = 0.4; mult_castigo = 0.50; umbral_gigante = 0.5; ventaja_min_exigida = 0.0; minuto_limite_si = 85
 
-    # 2. CÁLCULO DINÁMICO DE MOMENTUM
+    # 2. CÁLCULO DINÁMICO DE MOMENTUM Y PROFUNDIDAD
     apm_global_loc = al_rad / max(1, m_rad)
     apm_global_vis = av_rad / max(1, m_rad)
+    
+    # TP Globales (Todo el partido)
+    tp_global_loc = al_rad / atq_tot_loc if atq_tot_loc > 0 else 0.0
+    tp_global_vis = av_rad / atq_tot_vis if atq_tot_vis > 0 else 0.0
+
     apm_local_dinamico = apm_global_loc
     apm_vis_dinamico = apm_global_vis
+    tp_local_dinamico = tp_global_loc
+    tp_vis_dinamico = tp_global_vis
+    
     texto_momentum = "Promedio Global"
     tiene_momentum = False
     
@@ -96,8 +104,26 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
         if delta_min >= 2:
             atk_l_ant = int(foto_ant['atkp_local'])
             atk_v_ant = int(foto_ant['atkp_vis'])
+            
+            # 1. Asedio Reciente (APM)
             apm_local_dinamico = max(0.0, (al_rad - atk_l_ant) / delta_min)
             apm_vis_dinamico = max(0.0, (av_rad - atk_v_ant) / delta_min)
+            
+            # 2. Profundidad Reciente (TP)
+            # Extraemos los ataques totales de la foto (Usa .get por si la columna cambia)
+            atqt_l_ant = int(foto_ant.get('atq_local', foto_ant.get('atqt_local', 0)))
+            atqt_v_ant = int(foto_ant.get('atq_vis', foto_ant.get('atqt_vis', 0)))
+            
+            delta_atkp_loc = al_rad - atk_l_ant
+            delta_atqt_loc = atq_tot_loc - atqt_l_ant
+            if delta_atqt_loc > 0:
+                tp_local_dinamico = delta_atkp_loc / delta_atqt_loc
+                
+            delta_atkp_vis = av_rad - atk_v_ant
+            delta_atqt_vis = atq_tot_vis - atqt_v_ant
+            if delta_atqt_vis > 0:
+                tp_vis_dinamico = delta_atkp_vis / delta_atqt_vis
+                
             texto_momentum = f"Últimos {delta_min} min"
             tiene_momentum = True
 
@@ -118,8 +144,11 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
 
     min_corrido = m_rad
     estado_goles = (gl_rad + gv_rad) > 0
-    tp_local = al_rad / atq_tot_loc if atq_tot_loc > 0 else 0.0
-    tp_visita = av_rad / atq_tot_vis if atq_tot_vis > 0 else 0.0
+    
+    # LA MAGIA: El sistema tomará la mejor profundidad (Global o Reciente)
+    # Así no castigamos a un equipo que despertó al final
+    tp_local = max(tp_global_loc, tp_local_dinamico)
+    tp_visita = max(tp_global_vis, tp_vis_dinamico)
 
     if fav_es_loc:
         goles_fav, goles_deb = gl_rad, gv_rad
@@ -383,6 +412,11 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
         "prob_mercado": prob_mercado,
         "apm_global_comb": apm_global_loc + apm_global_vis,
         "apm_rad": apm_rad,
+        # Agrega estas líneas al diccionario del return:
+        "tp_loc_global": tp_global_loc,
+        "tp_vis_global": tp_global_vis,
+        "tp_loc_din": tp_local_dinamico,
+        "tp_vis_din": tp_vis_dinamico,
         "texto_momentum": texto_momentum
     }
 
