@@ -7,9 +7,10 @@ import re
 # 1. CARGA DE MODELOS (Se ejecuta una sola vez al importar)
 # ==================================================================
 try:
-    m1x2_rad = joblib.load('modelo_pre_1x2.pkl')
-    mgoles_rad = joblib.load('modelo_pre_goles.pkl')
-    mbtts_rad = joblib.load('modelo_pre_btts.pkl')
+    # Modelos EN VIVO (Sin el '_pre_')
+    m1x2_rad = joblib.load('modelo_1x2.pkl')
+    mgoles_rad = joblib.load('modelo_goles.pkl')
+    mbtts_rad = joblib.load('modelo_btts.pkl')
 except Exception as e:
     print(f"Error cargando modelos ML en el motor: {e}")
 
@@ -519,7 +520,7 @@ def procesar_oraculo_goles(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, a
 
     # Intentamos cargar el modelo de goles
     try:
-        mgoles_rad = joblib.load('modelo_pre_goles.pkl')
+        mgoles_rad = joblib.load('modelo_goles.pkl')
     except:
         return {"alerta_accion": "Error", "texto_accion": "No se encontró el modelo de goles."}
 
