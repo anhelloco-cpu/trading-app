@@ -3237,116 +3237,7 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
                             av_rad = c_atq4.number_input(f"🔥 Peligro {eq_vis_ui}", min_value=0, key=f"avr_{pr['codigo']}", value=st.session_state.get(f"avr_{pr['codigo']}", 0))
                             st.markdown("</div>", unsafe_allow_html=True)
 
-                        with tab_oraculo_goles:
-                            st.markdown("#### ⚙️ Configurar Línea de Goles En Vivo (Poisson + IA)")
-                            
-                            col_lg1, col_lg2 = st.columns([1.5, 1])
-                            with col_lg1:
-                                linea_seleccionada = st.selectbox(
-                                    "Tu Selección (Over/Under):", 
-                                    ["Más de 1.5", "Menos de 1.5", "Más de 2.5", "Menos de 2.5", "Más de 3.5", "Menos de 3.5", "Más de 4.5", "Menos de 4.5"],
-                                    index=2, key=f"lin_gol_{pr['codigo']}"
-                                )
-                            with col_lg2:
-                                st.markdown("<p style='font-size: 14px; margin-bottom: 5px; color:#475569;'>La Amenaza a Cubrir:</p>", unsafe_allow_html=True)
-                                amenaza_goles = linea_seleccionada.replace("Más", "Temp").replace("Menos", "Más").replace("Temp", "Menos")
-                                st.markdown(f'''<div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B; padding: 7px 12px; border-radius: 6px;">{amenaza_goles}</div>''', unsafe_allow_html=True)
-
-                            c_ent_key_g = f"c_ent_g_{pr['codigo']}"
-                            if c_ent_key_g not in st.session_state: st.session_state[c_ent_key_g] = 1.90
-                            
-                            col_ge1, col_ge2 = st.columns(2)
-                            with col_ge1:
-                                cuota_ent_g = st.number_input("Cuota Selección (Goles):", min_value=1.01, step=0.05, key=c_ent_key_g)
-
-                            perfil_riesgo_g = st.selectbox(
-                                "Rigidez de los candados matemáticos (Goles):",
-                                ["🛡️ CONSERVADOR (Modo Francotirador)", "⚖️ MODERADO (Modo Táctico)", "🔥 AGRESIVO (Modo Kamikaze)"],
-                                index=1, key=f"perfil_g_{pr['codigo']}"
-                            )
-
-                            aprueba_key_g = f"oraculo_aprueba_g_{pr['codigo']}"
-
-                            if st.button("🧠 Validar Goles con Poisson", key=f"btn_ev_g_{pr['codigo']}", use_container_width=True, type="primary"):
-                                try:
-                                    foto_ant_db_g = None
-                                    if supabase is not None:
-                                        try:
-                                            res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
-                                            if res_last.data: foto_ant_db_g = res_last.data[0]
-                                        except: pass
-
-                                    # 🚀 LLAMADA AL MOTOR DE GOLES
-                                    res_goles = procesar_oraculo_goles(
-                                        m_rad=m_rad, gl_rad=gl_rad, gv_rad=gv_rad, al_rad=al_rad, av_rad=av_rad,
-                                        atq_tot_loc=atq_tot_loc, atq_tot_vis=atq_tot_vis,
-                                        c_loc_hist=float(pr.get('cuota_base_audit', 2.0)),
-                                        c_vis_hist=float(pr.get('cuota_amenaza_audit', 2.0)),
-                                        cuota_act=cuota_ent_g,
-                                        linea_seleccionada=linea_seleccionada,
-                                        perfil_riesgo_g=perfil_riesgo_g,
-                                        foto_ant=foto_ant_db_g
-                                    )
-
-                                    st.markdown(f'''
-                                    <div style="background-color: {res_goles["bg_color"]}; border-left: 5px solid {res_goles["border_color"]}; padding: 15px; border-radius: 6px; margin-top: 15px; margin-bottom: 20px;">
-                                        <h4 style="margin-top:0; color:{res_goles["border_color"]};">{res_goles["alerta_accion"]}</h4>
-                                        <p style="margin:0; font-size:0.95rem; color:{res_goles["text_color"]};">{res_goles["texto_accion"]}</p>
-                                        <hr style="border-color:{res_goles["border_color"]}; opacity:0.3; margin: 10px 0;">
-                                        <div style="font-size:0.85rem; color:#475569;">
-                                            <b>Probabilidad Matemática (Poisson):</b> {res_goles["prob_mercado"]*100:.1f}%<br>
-                                            <b>Ritmo Actual:</b> {res_goles["apm_rad_g"]:.2f} APM ({res_goles["texto_momentum_g"]})
-                                        </div>
-                                    </div>
-                                    ''', unsafe_allow_html=True)
-
-                                    if res_goles["luz_verde"]:
-                                        st.session_state[aprueba_key_g] = True
-                                    else:
-                                        st.session_state[aprueba_key_g] = False
-
-                                except Exception as e:
-                                    st.error(f"Error procesando motor de goles: {e}")
-
-                            # 💰 BÓVEDA Y EJECUCIÓN DE GOLES (Totalmente aislada)
-                            if st.session_state.get(aprueba_key_g, False):
-                                st.markdown("#### 💰 Ejecutar Posición (Goles)")
-                                p_total_g = float(pr.get('capital_total', 5000.0))
-                                stk_key_cap_g = f"stk_ent_cap_g_{pr['codigo']}"
-                                stake_ent_g = st.number_input(f"Capital a Invertir:", min_value=100.0, max_value=float(p_total_g), step=500.0, value=min(float(p_total_g), 1000.0), key=stk_key_cap_g)
-                                
-                                plat_g_sel = st.selectbox("Casa de Apuestas:", ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"], key=f"plat_g_{pr['codigo']}")
-                                
-                                if st.button("🔥 DISPARAR GOLES (Confirmar)", type="primary", key=f"btn_disp_g_{pr['codigo']}", use_container_width=True):
-                                    import datetime
-                                    try:
-                                        partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
-                                        partido_formateado = f"🏟️ {partido_limpio_raw} | [Línea de Goles] {linea_seleccionada} vs {amenaza_goles}"
-                                        
-                                        datos_inyeccion = {
-                                            "estado": "EN VIVO", "tipo_banca": "REAL", "estrategia": "Estrategia Goles", 
-                                            "partido": partido_formateado, "prediccion_ia": "Línea Goles", 
-                                            "seleccion_inicial": linea_seleccionada, "seleccion_cobertura": amenaza_goles,
-                                            "plataforma_inicial": plat_g_sel, "cuota_inicial": float(cuota_ent_g),
-                                            "capital_total": float(stake_ent_g), "stake_1": float(stake_ent_g),
-                                            "hora_inicio_partido": datetime.datetime.now().strftime("%H:%M")
-                                        }
-
-                                        p_codigo = pr['codigo'].split("-")
-                                        codigo_base = f"{p_codigo[0]}-{p_codigo[1]}" if len(p_codigo) >= 2 else pr['codigo']
-
-                                        res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base}-%").execute()
-                                        codigo_hijo = f"{codigo_base}-{len(res_hijos.data) + 1:02d}"
-                                        registro_clonado = dict(pr)
-                                        registro_clonado.update(datos_inyeccion)
-                                        registro_clonado['codigo'] = codigo_hijo
-                                        if 'id' in registro_clonado: del registro_clonado['id']
-                                        
-                                        supabase.table("historial_trading").insert(registro_clonado).execute()
-                                        st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
-                                        st.rerun()
-                                    except Exception as err_db: st.error(f"❌ Error: {str(err_db)}")
-
+                        
                         # ==================================================================
                         # 💰 LÓGICA DE CONFIGURACIÓN Y CUOTAS 
                         # ==================================================================
@@ -3579,6 +3470,117 @@ elif estrategia_activa == "🔮 Oráculo Predictivo (Machine Learning)":
 
                             except Exception as e:
                                 st.error(f"Error procesando IA táctica en el motor: {e}")
+
+                        with tab_oraculo_goles:
+                            st.markdown("#### ⚙️ Configurar Línea de Goles En Vivo (Poisson + IA)")
+                            
+                            col_lg1, col_lg2 = st.columns([1.5, 1])
+                            with col_lg1:
+                                linea_seleccionada = st.selectbox(
+                                    "Tu Selección (Over/Under):", 
+                                    ["Más de 1.5", "Menos de 1.5", "Más de 2.5", "Menos de 2.5", "Más de 3.5", "Menos de 3.5", "Más de 4.5", "Menos de 4.5"],
+                                    index=2, key=f"lin_gol_{pr['codigo']}"
+                                )
+                            with col_lg2:
+                                st.markdown("<p style='font-size: 14px; margin-bottom: 5px; color:#475569;'>La Amenaza a Cubrir:</p>", unsafe_allow_html=True)
+                                amenaza_goles = linea_seleccionada.replace("Más", "Temp").replace("Menos", "Más").replace("Temp", "Menos")
+                                st.markdown(f'''<div style="background-color: #F1F5F9; border: 1px solid #CBD5E1; color: #64748B; padding: 7px 12px; border-radius: 6px;">{amenaza_goles}</div>''', unsafe_allow_html=True)
+
+                            c_ent_key_g = f"c_ent_g_{pr['codigo']}"
+                            if c_ent_key_g not in st.session_state: st.session_state[c_ent_key_g] = 1.90
+                            
+                            col_ge1, col_ge2 = st.columns(2)
+                            with col_ge1:
+                                cuota_ent_g = st.number_input("Cuota Selección (Goles):", min_value=1.01, step=0.05, key=c_ent_key_g)
+
+                            perfil_riesgo_g = st.selectbox(
+                                "Rigidez de los candados matemáticos (Goles):",
+                                ["🛡️ CONSERVADOR (Modo Francotirador)", "⚖️ MODERADO (Modo Táctico)", "🔥 AGRESIVO (Modo Kamikaze)"],
+                                index=1, key=f"perfil_g_{pr['codigo']}"
+                            )
+
+                            aprueba_key_g = f"oraculo_aprueba_g_{pr['codigo']}"
+
+                            if st.button("🧠 Validar Goles con Poisson", key=f"btn_ev_g_{pr['codigo']}", use_container_width=True, type="primary"):
+                                try:
+                                    foto_ant_db_g = None
+                                    if supabase is not None:
+                                        try:
+                                            res_last = supabase.table("registro_fotos").select("*").eq("codigo_posicion", pr['codigo']).order("minuto_evaluado", desc=True).limit(1).execute()
+                                            if res_last.data: foto_ant_db_g = res_last.data[0]
+                                        except: pass
+
+                                    # 🚀 LLAMADA AL MOTOR DE GOLES
+                                    res_goles = procesar_oraculo_goles(
+                                        m_rad=m_rad, gl_rad=gl_rad, gv_rad=gv_rad, al_rad=al_rad, av_rad=av_rad,
+                                        atq_tot_loc=atq_tot_loc, atq_tot_vis=atq_tot_vis,
+                                        c_loc_hist=float(pr.get('cuota_base_audit', 2.0)),
+                                        c_vis_hist=float(pr.get('cuota_amenaza_audit', 2.0)),
+                                        cuota_act=cuota_ent_g,
+                                        linea_seleccionada=linea_seleccionada,
+                                        perfil_riesgo_g=perfil_riesgo_g,
+                                        foto_ant=foto_ant_db_g
+                                    )
+
+                                    st.markdown(f'''
+                                    <div style="background-color: {res_goles["bg_color"]}; border-left: 5px solid {res_goles["border_color"]}; padding: 15px; border-radius: 6px; margin-top: 15px; margin-bottom: 20px;">
+                                        <h4 style="margin-top:0; color:{res_goles["border_color"]};">{res_goles["alerta_accion"]}</h4>
+                                        <p style="margin:0; font-size:0.95rem; color:{res_goles["text_color"]};">{res_goles["texto_accion"]}</p>
+                                        <hr style="border-color:{res_goles["border_color"]}; opacity:0.3; margin: 10px 0;">
+                                        <div style="font-size:0.85rem; color:#475569;">
+                                            <b>Probabilidad Matemática (Poisson):</b> {res_goles["prob_mercado"]*100:.1f}%<br>
+                                            <b>Ritmo Actual:</b> {res_goles["apm_rad_g"]:.2f} APM ({res_goles["texto_momentum_g"]})
+                                        </div>
+                                    </div>
+                                    ''', unsafe_allow_html=True)
+
+                                    if res_goles["luz_verde"]:
+                                        st.session_state[aprueba_key_g] = True
+                                    else:
+                                        st.session_state[aprueba_key_g] = False
+
+                                except Exception as e:
+                                    st.error(f"Error procesando motor de goles: {e}")
+
+                            # 💰 BÓVEDA Y EJECUCIÓN DE GOLES (Totalmente aislada)
+                            if st.session_state.get(aprueba_key_g, False):
+                                st.markdown("#### 💰 Ejecutar Posición (Goles)")
+                                p_total_g = float(pr.get('capital_total', 5000.0))
+                                stk_key_cap_g = f"stk_ent_cap_g_{pr['codigo']}"
+                                stake_ent_g = st.number_input(f"Capital a Invertir:", min_value=100.0, max_value=float(p_total_g), step=500.0, value=min(float(p_total_g), 1000.0), key=stk_key_cap_g)
+                                
+                                plat_g_sel = st.selectbox("Casa de Apuestas:", ["BetPlay", "Wplay", "Rushbet", "Codere", "Yajuego", "Zamba", "Sportium", "Megapuesta", "Bwin Colombia", "Bet365", "1xBet", "Betfair", "Pinnacle", "Stake", "Otra"], key=f"plat_g_{pr['codigo']}")
+                                
+                                if st.button("🔥 DISPARAR GOLES (Confirmar)", type="primary", key=f"btn_disp_g_{pr['codigo']}", use_container_width=True):
+                                    import datetime
+                                    try:
+                                        partido_limpio_raw = pr['partido'].replace('🏟️ ', '').replace('🏟 ', '').strip()
+                                        partido_formateado = f"🏟️ {partido_limpio_raw} | [Línea de Goles] {linea_seleccionada} vs {amenaza_goles}"
+                                        
+                                        datos_inyeccion = {
+                                            "estado": "EN VIVO", "tipo_banca": "REAL", "estrategia": "Estrategia Goles", 
+                                            "partido": partido_formateado, "prediccion_ia": "Línea Goles", 
+                                            "seleccion_inicial": linea_seleccionada, "seleccion_cobertura": amenaza_goles,
+                                            "plataforma_inicial": plat_g_sel, "cuota_inicial": float(cuota_ent_g),
+                                            "capital_total": float(stake_ent_g), "stake_1": float(stake_ent_g),
+                                            "hora_inicio_partido": datetime.datetime.now().strftime("%H:%M")
+                                        }
+
+                                        p_codigo = pr['codigo'].split("-")
+                                        codigo_base = f"{p_codigo[0]}-{p_codigo[1]}" if len(p_codigo) >= 2 else pr['codigo']
+
+                                        res_hijos = supabase.table("historial_trading").select("codigo").like("codigo", f"{codigo_base}-%").execute()
+                                        codigo_hijo = f"{codigo_base}-{len(res_hijos.data) + 1:02d}"
+                                        registro_clonado = dict(pr)
+                                        registro_clonado.update(datos_inyeccion)
+                                        registro_clonado['codigo'] = codigo_hijo
+                                        if 'id' in registro_clonado: del registro_clonado['id']
+                                        
+                                        supabase.table("historial_trading").insert(registro_clonado).execute()
+                                        st.success(f"✅ ¡Disparo exitoso! Sub-referencia {codigo_hijo}.")
+                                        st.rerun()
+                                    except Exception as err_db: st.error(f"❌ Error: {str(err_db)}")
+
 
                         # ------------------------------------------------------------------
                         # 💵 DECISIÓN DE CAPITAL Y AUDITORÍA DE CUPO
