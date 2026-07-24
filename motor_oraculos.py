@@ -21,29 +21,32 @@ def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav
                             goles_ganador, goles_perdedor, 
                             jerarquia_pre, apm_global_fav, apm_global_deb, apm_global_ganador, apm_global_perdedor,
                             mom_reciente_loc, mom_reciente_vis, mom_combinado, diferencial_mom, 
-                            mom_fav, mom_deb, mom_ganador, mom_perdedor, # <--- AHORA SÍ, NOMBRES LIMPIOS
+                            mom_fav, mom_deb, mom_ganador, mom_perdedor, 
                             tp_fav, tp_deb, tp_ganador, tp_perdedor):
     
-    if (min_corrido <= 45 and estado_goles == True and jerarquia_pre in ["Favorito", "Súper Favorito"] and 
-        lider_marcador == "No Favorito" and goles_deb == 1 and mom_fav >= 0.8 and 
-        mom_deb <= 0.4 and diferencial_mom > 0.4 and tp_fav > 0.40):
-        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 pero asedia brutalmente (Mom > 0.8) y con profundidad (TP > 40%). LUZ VERDE SÍ."
+    # 🟢 1. EL TIGRE HERIDO (Puro y sin bloqueos absurdos)
+    if (jerarquia_pre in ["Favorito", "Súper Favorito"] and goles_fav == 0 and goles_deb == 1 and 
+        mom_fav >= 0.8 and tp_fav >= 0.40):
+        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 pero asedia brutalmente (Mom >= 0.8). LUZ VERDE SÍ."
 
+    # 🟢 2. LA REBELDÍA
     elif (min_corrido <= 45 and estado_goles == True and jerarquia_pre in ["Favorito", "Súper Favorito"] and 
           lider_marcador == "Favorito" and goles_fav == 1 and goles_deb == 0 and apm_global_fav < 0.6 and 
           apm_global_deb > 0.8 and mom_fav <= 0.4 and mom_deb >= 0.8 and tp_deb > 0.40):
-        return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia (Mom > 0.8) y verticalidad (TP > 40%). LUZ VERDE SÍ."
+        return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia. LUZ VERDE SÍ."
 
+    # 🟢 3. DEVOLUCIÓN RÁPIDA
     elif (min_corrido <= 45 and estado_goles == True and jerarquia_pre == "Fuerzas Parejas" and 
           (goles_ganador == 1 and goles_perdedor == 0) and apm_global_ganador > 0.7 and 
           apm_global_perdedor > 0.8 and mom_combinado >= 1.5 and diferencial_mom < 0.3 and 
           mom_perdedor >= 0.9 and tp_ganador > 0.35 and tp_perdedor > 0.35):
-        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes intenso y ambos llegan con peligro (TP > 35%). LUZ VERDE SÍ."
+        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes intenso. LUZ VERDE SÍ."
 
+    # 🟢 4. DESCUENTO POR RELAJACIÓN
     elif (min_corrido <= 45 and estado_goles == True and jerarquia_pre in ["Favorito", "Súper Favorito"] and 
           lider_marcador == "Favorito" and goles_fav >= 2 and goles_deb == 0 and apm_global_fav < 0.6 and 
           apm_global_deb > 0.8 and mom_deb >= 1.0 and tp_deb > 0.45):
-        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca furioso y profundo (TP > 45%). LUZ VERDE SÍ."
+        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. LUZ VERDE SÍ."
 
     else:
         return None
