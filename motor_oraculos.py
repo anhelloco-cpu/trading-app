@@ -18,36 +18,36 @@ except Exception as e:
 # 2. DEFINICIÓN DE ESCENARIOS Y PATRONES TÁCTICOS (INTOCABLE)
 # ==================================================================
 def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
-                            goles_ganador, goles_perdedor, # <--- ESTO ES LO NUEVO
+                            goles_ganador, goles_perdedor, 
                             jerarquia_pre, apm_global_fav, apm_global_deb, apm_global_ganador, apm_global_perdedor,
                             mom_reciente_loc, mom_reciente_vis, mom_combinado, diferencial_mom, 
-                            mom_post_gol_fav, mom_post_gol_deb, mom_post_gol_ganador, mom_post_gol_perdedor,
+                            mom_fav, mom_deb, mom_ganador, mom_perdedor, # <--- AHORA SÍ, NOMBRES LIMPIOS
                             tp_fav, tp_deb, tp_ganador, tp_perdedor):
     
     if (min_corrido <= 45 and estado_goles == True and jerarquia_pre in ["Favorito", "Súper Favorito"] and 
-        lider_marcador == "No Favorito" and goles_deb == 1 and mom_post_gol_fav > 1.0 and 
-        mom_post_gol_deb < 0.4 and diferencial_mom > 0.7 and tp_fav > 0.40):
-        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 pero asedia brutalmente (Mom > 1.0) y con profundidad (TP > 40%). LUZ VERDE SÍ."
+        lider_marcador == "No Favorito" and goles_deb == 1 and mom_fav >= 0.8 and 
+        mom_deb <= 0.4 and diferencial_mom > 0.4 and tp_fav > 0.40):
+        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 pero asedia brutalmente (Mom > 0.8) y con profundidad (TP > 40%). LUZ VERDE SÍ."
 
     elif (min_corrido <= 45 and estado_goles == True and jerarquia_pre in ["Favorito", "Súper Favorito"] and 
           lider_marcador == "Favorito" and goles_fav == 1 and goles_deb == 0 and apm_global_fav < 0.6 and 
-          apm_global_deb > 0.8 and mom_post_gol_fav < 0.4 and mom_post_gol_deb > 0.8 and tp_deb > 0.40):
+          apm_global_deb > 0.8 and mom_fav <= 0.4 and mom_deb >= 0.8 and tp_deb > 0.40):
         return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia (Mom > 0.8) y verticalidad (TP > 40%). LUZ VERDE SÍ."
 
     elif (min_corrido <= 45 and estado_goles == True and jerarquia_pre == "Fuerzas Parejas" and 
           (goles_ganador == 1 and goles_perdedor == 0) and apm_global_ganador > 0.7 and 
-          apm_global_perdedor > 0.8 and mom_combinado >= 1.5 and diferencial_mom < 0.2 and 
-          mom_post_gol_perdedor > 0.9 and tp_ganador > 0.35 and tp_perdedor > 0.35):
+          apm_global_perdedor > 0.8 and mom_combinado >= 1.5 and diferencial_mom < 0.3 and 
+          mom_perdedor >= 0.9 and tp_ganador > 0.35 and tp_perdedor > 0.35):
         return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes intenso y ambos llegan con peligro (TP > 35%). LUZ VERDE SÍ."
 
     elif (min_corrido <= 45 and estado_goles == True and jerarquia_pre in ["Favorito", "Súper Favorito"] and 
           lider_marcador == "Favorito" and goles_fav >= 2 and goles_deb == 0 and apm_global_fav < 0.6 and 
-          apm_global_deb > 0.8 and mom_post_gol_deb > 1.0 and tp_deb > 0.45):
+          apm_global_deb > 0.8 and mom_deb >= 1.0 and tp_deb > 0.45):
         return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. El Débil ataca furioso y profundo (TP > 45%). LUZ VERDE SÍ."
 
     else:
         return None
-
+    
 def detectar_patron_btts_no(min_corrido, estado_goles, lider_marcador, goles_fav, goles_deb, 
                             jerarquia_pre, apm_global_fav, apm_global_deb, 
                             mom_fav, mom_deb, tp_fav, tp_deb):
