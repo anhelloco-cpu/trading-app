@@ -24,29 +24,33 @@ def detectar_patron_btts_si(min_corrido, estado_goles, lider_marcador, goles_fav
                             mom_fav, mom_deb, mom_ganador, mom_perdedor, 
                             tp_fav, tp_deb, tp_ganador, tp_perdedor):
     
-    # 🟢 1. EL TIGRE HERIDO (Puro y sin bloqueos absurdos)
+    # 💣 1. GOL DE CHIRIPA: Favorito asediaba duro (>=0.8) y débil nada (<=0.3), y el débil anota.
     if (jerarquia_pre in ["Favorito", "Súper Favorito"] and goles_fav == 0 and goles_deb == 1 and 
-        mom_fav >= 0.8 and tp_fav >= 0.40):
-        return "🟢 EL TIGRE HERIDO: Favorito pierde 0-1 pero asedia brutalmente (Mom >= 0.8). LUZ VERDE SÍ."
+        mom_fav >= 0.8 and mom_deb <= 0.3):
+        return "💣 GOL DE CHIRIPA: Se jodio pindanga"
 
-    # 🟢 2. LA REBELDÍA
+    # 🟢 2. TIGRE HERIDO: Débil venía atacando bien o estaban parejos, y anota 0-1.
+    elif (jerarquia_pre in ["Favorito", "Súper Favorito"] and goles_fav == 0 and goles_deb == 1):
+        return "🟢 EL TIGRE HERIDO: Toma pa´que lleves"
+
+    # 🟢 3. LA REBELDÍA: Favorito metió gol y se durmió. Débil asedia furioso.
     elif (min_corrido <= 45 and estado_goles == True and jerarquia_pre in ["Favorito", "Súper Favorito"] and 
-          lider_marcador == "Favorito" and goles_fav == 1 and goles_deb == 0 and apm_global_fav < 0.6 and 
-          apm_global_deb > 0.8 and mom_fav <= 0.4 and mom_deb >= 0.8 and tp_deb > 0.40):
-        return "🟢 LA REBELDÍA: Favorito gana 1-0 y se durmió. El Débil asedia con furia. LUZ VERDE SÍ."
+          lider_marcador == "Favorito" and goles_fav == 1 and goles_deb == 0 and 
+          mom_fav <= 0.4 and mom_deb >= 0.8 and tp_deb > 0.40):
+        return "🟢 LA REBELDÍA: Se creció el enano"
 
-    # 🟢 3. DEVOLUCIÓN RÁPIDA
+    # 🟢 4. DEVOLUCIÓN RÁPIDA: Fuerzas parejas, 1-0, y se dan con todo de lado y lado.
     elif (min_corrido <= 45 and estado_goles == True and jerarquia_pre == "Fuerzas Parejas" and 
-          (goles_ganador == 1 and goles_perdedor == 0) and apm_global_ganador > 0.7 and 
-          apm_global_perdedor > 0.8 and mom_combinado >= 1.5 and diferencial_mom < 0.3 and 
+          (goles_ganador == 1 and goles_perdedor == 0) and 
+          mom_combinado >= 1.5 and diferencial_mom < 0.3 and 
           mom_perdedor >= 0.9 and tp_ganador > 0.35 and tp_perdedor > 0.35):
-        return "🟢 DEVOLUCIÓN RÁPIDA: Partido parejo 1-0. Intercambio de golpes intenso. LUZ VERDE SÍ."
+        return "🟢 DEVOLUCIÓN RÁPIDA: ¡Ya ta´!"
 
-    # 🟢 4. DESCUENTO POR RELAJACIÓN
+    # 🟢 5. DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y metió freno de mano. Débil aprieta.
     elif (min_corrido <= 45 and estado_goles == True and jerarquia_pre in ["Favorito", "Súper Favorito"] and 
-          lider_marcador == "Favorito" and goles_fav >= 2 and goles_deb == 0 and apm_global_fav < 0.6 and 
-          apm_global_deb > 0.8 and mom_deb >= 1.0 and tp_deb > 0.45):
-        return "🟢 DESCUENTO POR RELAJACIÓN: Favorito golea 2-0 y bajó los brazos. LUZ VERDE SÍ."
+          lider_marcador == "Favorito" and goles_fav >= 2 and goles_deb == 0 and 
+          mom_fav <= 0.5 and mom_deb >= 1.0 and tp_deb > 0.45):
+        return "🟢 DESCUENTO POR RELAJACIÓN: ¡Cogeeeee!"
 
     else:
         return None
@@ -351,9 +355,23 @@ def procesar_oraculo_btts(m_rad, gl_rad, gv_rad, al_rad, av_rad, atq_tot_loc, at
     cuota_justa_si = round(1 / prob_si if prob_si > 0.01 else 99.0, 2)
     cuota_justa_no = round(1 / prob_no if prob_no > 0.01 else 99.0, 2)
     
-    # 🌟 NUEVO: UNIFICAMOS LA AUTORIDAD TÁCTICA
-    # Hay Vía Libre si se encuentra un Patrón O si se disparó una Señal de alerta
-    via_libre = bool(patron_encontrado) or (alerta_señal != "")
+   # 🌟 EL FILTRO DE LOS PERFILES (Aquí decide la billetera)
+    via_libre = False
+    
+    if patron_encontrado or alerta_señal != "":
+        if "KAMIKAZE" in perfil_riesgo.upper():
+            # Kamikaze no come cuento, si hay señal entra de cabeza.
+            via_libre = True 
+            
+        elif "MODERADO" in perfil_riesgo.upper():
+            # Moderado exige alguito de veneno (TP > 30%)
+            if tp_fav >= 0.30 or tp_ganador >= 0.30:
+                via_libre = True
+                
+        elif "CONSERVADOR" in perfil_riesgo.upper():
+            # Conservador protege la plata, exige profundidad letal (TP > 40%)
+            if tp_fav >= 0.40 or tp_ganador >= 0.40:
+                via_libre = True
     
     if seleccion_final_rad == "Sí":
         ventaja = cuota_act - cuota_justa_si
